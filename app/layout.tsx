@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
+import localFont from "next/font/local"
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+const estedaad = localFont({
+  src: './fonts/Estedad[wght].woff2',
+  variable: "--font-estedaad",
+  display: "swap"
+});
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -27,10 +31,21 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
+      lang="fa"
+      dir="rtl"
+      className={cn("h-full", "antialiased", geistMono.variable, estedaad.variable, "font-sans", inter.variable)}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <TooltipProvider>
+        {children}
+        </TooltipProvider>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            className: 'font-sans',
+          }}
+        />
+      </body>
     </html>
   );
 }
