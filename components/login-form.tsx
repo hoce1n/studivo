@@ -10,9 +10,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import { authClient } from "@/lib/auth-client"
-import { Loader } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { Eye, EyeClosed, Loader } from "lucide-react"
 import { toast } from "sonner"
+import { Checkbox } from "./ui/checkbox"
+import Link from "next/link"
 
 export function LoginForm({
   className,
@@ -20,30 +21,40 @@ export function LoginForm({
 }: React.ComponentProps<"form">) {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [rememberMe, setRememberMe] = useState<boolean>(false);
+
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+
+  const canSubmit =
+    Boolean(email) &&
+    Boolean(password) &&
+    !loading;
 
   const handleSignin = async (e: React.FormEvent) => {
     e.preventDefault();
-    await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: "/",
-      rememberMe: false
-    },
-  {
-    onRequest: (ctx) => {
-      setLoading(true);
-    },
-    onSuccess: (ctx) => {
-      router.push("/");
-      toast.success("خوش اومدی...")
-    },
-    onError: (ctx) => {
-      toast.error(ctx.error.message);
+
+    try {
+      await authClient.signIn.email({
+        email,
+        password,
+        callbackURL: "/dashboard",
+        rememberMe: rememberMe,
+      },
+    {
+      onRequest: () => {
+        setLoading(true);
+      },
+      onSuccess: () => {
+        toast.success("خوش اومدی...")
+      },
+      onError: (ctx) => {
+        toast.error(ctx.error.message);
+      }
+    })
+    } finally {
       setLoading(false);
     }
-  })
   }
 
   return (
@@ -77,17 +88,41 @@ export function LoginForm({
               پسوردت رو فراموش کردی؟
             </a>
           </div>
-          <Input
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            type="password"
-            required
-            className="bg-background"
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type={showPassword ? "text" : "password"}
+              required
+              className="bg-background"
+            />
+            <Button
+              type="button"
+              variant={'ghost'}
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 left-0"
+            >
+              {showPassword ? <EyeClosed /> : <Eye />}
+            </Button>
+          </div>
         </Field>
         <Field>
-          <Button type="submit">
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="remember" 
+              className="size-4"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(!!checked)}
+            />
+            <FieldLabel htmlFor="remember">مرا به خاطر بسپار</FieldLabel>
+          </div>
+        </Field>
+        <Field>
+          <Button 
+            type="submit"
+            disabled={!canSubmit}
+          >
             {loading ? <Loader className="animate-spin" /> : "ورود"}
           </Button>
         </Field>
@@ -115,9 +150,9 @@ export function LoginForm({
         </Field>
         <FieldDescription className="col-span-1 text-center">
           تا حالا وارد نشدی؟{" "}
-          <a href="/signup" className="underline underline-offset-4">
+          <Link href="/signup" className="underline underline-offset-4">
             ثبت نام
-          </a>
+          </Link>
           .
         </FieldDescription>
       </FieldGroup>

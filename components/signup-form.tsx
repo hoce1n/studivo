@@ -1,5 +1,10 @@
 'use client';
 
+import { useState } from "react"
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Eye, EyeClosed, Loader } from "lucide-react";
+
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,10 +16,21 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth-client"
-import { useState } from "react"
-import { Loader } from "lucide-react";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+
+
+function validatePasswordStrength(password: string) {
+  if (password.length < 8) return "ضعیف";
+
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /\d/.test(password);
+
+  if (hasLetter && hasNumber) return "قویی";
+  return "معمولی";
+}
+
+function validatePasswordMatch(password: string, confirm: string) {
+  return password === confirm;
+}
 
 export function SignupForm({
   className,
@@ -25,34 +41,65 @@ export function SignupForm({
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
+
   const [loading, setLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const [confirmTouched, setConfirmTouched] = useState(false);
+
   const router = useRouter();
 
-  const handleSignup = async(e: React.FormEvent) => {
+  const passwordsMatch =
+    validatePasswordMatch(password, confirmPassword);
+
+  const passwordStrong =
+    validatePasswordStrength(password);
+
+  const canSubmit =
+    name &&
+    email &&
+    password &&
+    passwordsMatch &&
+    passwordStrong === "قویی" &&
+    !loading;
+
+  const handleSignup = async(e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    await authClient.signUp.email({
-      email,
-      password,
-      name,
-      fetchOptions: {
-        onRequest: () => {
-          setLoading(true);
-        },
-        onSuccess: (ctx) => {
-          setLoading(false);
-          toast.success("Account created successfully")
-          router.push("/");
-          
-        },
-        onError: (ctx) => {
-          setLoading(false);
-          toast.error(ctx.error.message);
+    if (!passwordsMatch) {
+      toast.error("رمز عبور و تکرار آن یکسان نیستند.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authClient.signUp.email({
+        email,
+        password,
+        name,
+        fetchOptions: {
+          onRequest: () => {
+            
+          },
+          onSuccess: () => {
+            router.push("/dashboard");
+            
+          },
+          onError: (ctx) => {
+            toast.error(ctx.error.message);
+          }
         }
-      }
-    })
+      })
+    } finally {
+      setLoading(false);
+    }
+
   }
   return (
-    <form onSubmit={handleSignup} className={cn("flex flex-col gap-6", className)} {...props}>
+    <form 
+      onSubmit={handleSignup} 
+      className={cn("flex flex-col gap-6", className)} {...props}
+    >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">ساخت حساب کاربری</h1>
@@ -60,6 +107,7 @@ export function SignupForm({
             اطلاعات لازم برای ساخت حساب کاربری خود را وارد کنید.
           </p>
         </div>
+
         <Field>
           <FieldLabel htmlFor="name">نام و نام خانوادگی</FieldLabel>
           <Input
@@ -72,6 +120,7 @@ export function SignupForm({
             className="bg-background"
           />
         </Field>
+
         <Field>
           <FieldLabel htmlFor="email">ایمیل</FieldLabel>
           <Input
@@ -87,36 +136,76 @@ export function SignupForm({
             ما ازش برای ارتباط باهات استفاده میکنیم و جاش پیش ما امنه.
           </FieldDescription>
         </Field>
+
         <Field>
           <FieldLabel htmlFor="password">پسورد</FieldLabel>
-          <Input
-            id="password"
-            value={password}
-            onChange={(e) => {setPassword(e.target.value)}}
-            type="password"
-            required
-            className="bg-background"
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              value={password}
+              onChange={(e) => {setPassword(e.target.value)}}
+              type={showPassword ? "text" : "password"}
+              required
+              className={cn("bg-background",
+                passwordStrong === "قویی" && "border-green-600! border focus-visible:ring-green-600/30 ",
+                passwordStrong === "ضعیف" && "border-destructive! border focus-visible:ring-destructive/30",
+                passwordStrong === "معمولی" && "border-secondary! border"
+              )}
+            />
+            <Button
+              type="button"
+              variant={'ghost'}
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute inset-y-0 left-0"
+            >
+              {showPassword ? <EyeClosed /> : <Eye />}
+            </Button>
+          </div>
           <FieldDescription>
-            طول پسورد باید حداقل هشت حرف باشه.
+            
+            امنیت رمز: 
+            <span className={cn("mr-1",
+              passwordStrong === "قویی" && "text-green-500",
+              passwordStrong === "معمولی" && "text-secondary-foreground",
+              passwordStrong === "ضعیف" && "text-destructive"
+            )}>{" "}
+              {passwordStrong}
+            </span>
           </FieldDescription>
         </Field>
+
         <Field>
           <FieldLabel htmlFor="confirm-password">تایید رمز عبور</FieldLabel>
-          <Input
-            id="confirm-password"
-            value={confirmPassword}
-            onChange={(e) => {setConfirmPassword(e.target.value)}}
-            type="password"
-            required
-            className="bg-background"
-          />
-          <FieldDescription>برای اینکه مطمئن شی که اون رمزی که میخوای رو گذاشتی.</FieldDescription>
+          <div className="relative">
+            <Input
+              id="confirm-password"
+              value={confirmPassword}
+              onChange={(e) => {setConfirmPassword(e.target.value)}}
+              onBlur={() => setConfirmTouched(true)}
+              type={showConfirm ? "text" : "password"}
+              required
+              className="bg-background"
+            />
+            <Button
+              type="button"
+              variant={'ghost'}
+              onClick={() => setShowConfirm((s) => !s)}
+              className="absolute inset-y-0 left-0"
+            >
+              {showConfirm ? <EyeClosed /> : <Eye />}
+            </Button>
+          </div>
+          {!passwordsMatch && confirmTouched && (
+            <FieldDescription className="text-destructive">
+              رمز عبور و تایید آن یکسان نیستند.
+            </FieldDescription>
+          )}
         </Field>
+
         <Field>
           <Button 
             type="submit"
-            disabled={loading || password !== confirmPassword}
+            disabled={!canSubmit}
           >
             {loading ? <Loader className="animate-spin" /> : "ساخت حساب"}
           </Button>
