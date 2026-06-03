@@ -146,7 +146,6 @@ export function SignupForm({
               onChange={(e) => {setPassword(e.target.value)}}
               type={showPassword ? "text" : "password"}
               required
-              autoComplete="new-password"
               className={cn("bg-background",
                 passwordStrong === "قویی" && "border-green-600! border focus-visible:ring-green-600/30 ",
                 passwordStrong === "ضعیف" && "border-destructive! border focus-visible:ring-destructive/30",
@@ -185,7 +184,6 @@ export function SignupForm({
               onBlur={() => setConfirmTouched(true)}
               type={showConfirm ? "text" : "password"}
               required
-              autocomplete="new-password"
               className="bg-background"
             />
             <Button
