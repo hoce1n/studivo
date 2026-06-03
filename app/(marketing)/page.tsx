@@ -19,14 +19,12 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-b from-background to-muted/20 p-4">
       <main className="w-full max-w-2xl space-y-8">
-
         <div className="text-center space-y-2">
           <h1 className="text-3xl md:text-4xl font-bold"></h1>
           <p className="text-muted-foreground"></p>
         </div>
-
 
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -47,7 +45,6 @@ export default function Home() {
             ))}
           </div>
         </section>
-
 
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -71,7 +68,6 @@ export default function Home() {
           </div>
         </section>
 
-
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-orange-600" />
@@ -94,10 +90,9 @@ export default function Home() {
           </div>
         </section>
 
-
         <section className="space-y-4 p-6 rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-950/20 dark:border-purple-800">
           <div className="flex items-start gap-2">
-            <HelpCircle className="w-5 h-5 text-purple-600 mt-1 flex-shrink-0" />
+            <HelpCircle className="w-5 h-5 text-purple-600 mt-1 shrink-0" />
             <div>
               <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-300 mb-2">
                 سوال اصلی

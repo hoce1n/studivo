@@ -14,18 +14,5 @@ export const auth = betterAuth({
     }),
     emailAndPassword: {
         enabled: true,
-        autoSignIn: false
     },
 });
-
-/*
-Better Auth
-↓
-prismaAdapter
-↓
-Prisma Client
-↓
-PrismaBetterSqlite3
-↓
-SQLite
-*/

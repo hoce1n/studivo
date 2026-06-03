@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "./providers/ThemeProvider";
+import { DirectionProvider } from "@/components/ui/direction";
 
 const estedaad = localFont({
   src: './fonts/Estedad[wght].woff2',
@@ -32,6 +33,7 @@ export default function RootLayout({
       )}
     >
       <body>
+        <DirectionProvider dir="rtl">
         <ThemeProvider>
         <TooltipProvider>
         {children}
@@ -43,6 +45,7 @@ export default function RootLayout({
           }}
         />
         </ThemeProvider>
+        </DirectionProvider>
       </body>
     </html>
   );
