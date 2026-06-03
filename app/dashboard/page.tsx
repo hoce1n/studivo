@@ -13,8 +13,15 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { redirect } from "next/navigation"
+import { getSession } from "@/lib/server"
 
-export default function Page() {
+export default async function Page() {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar side="right" />
