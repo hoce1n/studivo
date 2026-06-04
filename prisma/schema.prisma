@@ -12,22 +12,42 @@ datasource db {
   provider = "sqlite"
 }
 
-model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+model StudyHall {
+  id        String   @id @default(cuid())
+  name      String   @default("سالن مطالعه")
+  totalSeats Int      @default(0)
+  monthlyFee Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  phoneNumber   String?   @unique
-  role          String    @default("staff")
+  users         User[]
+  seats         Seat[]
   subscriptions Subscription[]
 
+  @@map("studyhall")
+}
+
+model User {
+  id            String         @id 
+  name          String
+  email         String
+  emailVerified Boolean        @default(false)
+  image         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  
+  phoneNumber   String?        
+  role          String         @default("staff") 
+  subscriptions Subscription[]
+
+  studyhallId   String?
+  studyhall     StudyHall?     @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+
   @@unique([email])
+  @@unique([studyhallId, phoneNumber])
+  @@index([studyhallId])
   @@map("user")
 }
 
@@ -79,23 +99,16 @@ model Verification {
   @@map("verification")
 }
 
-model StudyHallSetting {
-  id         String   @id @default(cuid())
-  salonName  String   @default("سالن مطالعه من")
-  totalSeats Int      @default(45)
-  monthlyFee Float    @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@map("studyhall_setting")
-}
-
 model Seat {
   id            String         @id @default(cuid())
-  seatNumber    Int            @unique
+  seatNumber    Int
   createdAt     DateTime       @default(now())
   subscriptions Subscription[]
 
+  studyhallId   String
+  studyhall     StudyHall      @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+
+  @@unique([studyhallId, seatNumber])
   @@map("seat")
 }
 
@@ -110,8 +123,14 @@ model Subscription {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  seat Seat @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seat          Seat     @relation(fields: [seatId], references: [id], onDelete: Cascade)
 
+  studyhallId   String
+  studyhall     StudyHall    @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([seatId])
+  @@index([studyhallId])
   @@map("subscription")
 }

@@ -56,9 +56,8 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl border bg-background/70 px-4 py-3 shadow-sm backdrop-blur">
           <Link href="/" className="flex items-center gap-2 font-mono text-sm font-semibold">
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Library className="size-4" />
+              <Library className="size-6" />
             </span>
-            Studivo
           </Link>
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
             <a href="#features" className="transition-colors hover:text-foreground">
