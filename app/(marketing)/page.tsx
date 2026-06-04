@@ -1,73 +1,74 @@
 import Link from "next/link";
 import {
   ArrowLeft,
-  BarChart3,
+  CalendarDays,
   CheckCircle2,
-  ClipboardCheck,
-  Inbox,
-  Layers3,
-  Rocket,
+  Clock,
+  LayoutGrid,
+  Library,
   Sparkles,
-  Target,
+  Users,
+  Wallet,
 } from "lucide-react";
 
 const features = [
   {
-    title: "نقشه راه MVP",
-    desc: "ایده را به milestone و taskهای کوچک تبدیل کن تا هر روز بدانی قدم بعدی چیست.",
-    icon: <Layers3 className="size-5" />,
+    title: "نقشه گرافیکی میزها",
+    desc: "وضعیت تمام میزهای سالن را در یک نگاه ببینید؛ میزهای پر قرمز و میزهای خالی سبز هستند.",
+    icon: <LayoutGrid className="size-5" />,
   },
   {
-    title: "چک‌لیست لانچ",
-    desc: "از problem statement تا landing، feedback و آماده‌سازی انتشار را مرحله‌به‌مرحله جلو ببر.",
-    icon: <ClipboardCheck className="size-5" />,
+    title: "هشدار خودکار شهریه",
+    desc: "موعد تمدید شهریه دانش‌آموزان را قبل از اتمام مهلت شناسایی کنید و از ضرر مالی جلوگیری کنید.",
+    icon: <Clock className="size-5" />,
   },
   {
-    title: "صندوق بازخورد",
-    desc: "نظر کاربران اولیه را کنار پروژه نگه دار و تصمیم‌های محصول را از حدس به داده نزدیک کن.",
-    icon: <Inbox className="size-5" />,
+    title: "مدیریت ساده اعضا",
+    desc: "اطلاعات تماس، کد ملی و تاریخچه ثبت‌نام دانش‌آموزان را یک‌بار برای همیشه یکپارچه کنید.",
+    icon: <Users className="size-5" />,
   },
   {
-    title: "متریک‌های ساده",
-    desc: "پیشرفت، blockerها، taskهای انجام‌شده و آمادگی لانچ را در یک نگاه ببین.",
-    icon: <BarChart3 className="size-5" />,
+    title: "کنترل وضعیت پرداخت",
+    desc: "به سادگی مشخص کنید چه کسی شهریه را تسویه کرده و چه کسی در وضعیت «در انتظار پرداخت» است.",
+    icon: <Wallet className="size-5" />,
   },
 ];
 
 const checklist = [
-  "مسئله و مخاطب هدف را تعریف کن",
-  "ویژگی‌های نسخه اول را محدود کن",
-  "متن landing و CTA را آماده کن",
-  "بازخورد ۵ کاربر اولیه را ثبت کن",
+  "مشاهده میزهای خالی سالن",
+  "بررسی تمدیدهای ۳ روز آینده",
+  "ثبت فیش واریزی دانش‌آموز جدید",
+  "ارسال پیامک یادآوری شهریه",
 ];
 
 const dashboardStats = [
-  { label: "پیشرفت MVP", value: "۶۸٪" },
-  { label: "تسک‌های باز", value: "۱۲" },
-  { label: "آماده‌سازی لانچ", value: "۷/۱۰" },
+  { label: "میزهای اشغال شده", value: "۳۲/۴۵" },
+  { label: "تمدیدهای رو به اتمام", value: "۴ میز" },
+  { label: "شهریه‌های معوقه", value: "۳ مورد" },
 ];
 
 export default function Home() {
   return (
     <main className="min-h-screen overflow-hidden bg-background text-foreground">
+      {/* هدر سایت */}
       <section className="relative isolate px-6 py-6 md:px-10 lg:px-16">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.18),transparent_30%),radial-gradient(circle_at_bottom_right,hsl(var(--muted-foreground)/0.12),transparent_26%)]" />
         <div className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl border bg-background/70 px-4 py-3 shadow-sm backdrop-blur">
           <Link href="/" className="flex items-center gap-2 font-mono text-sm font-semibold">
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Rocket className="size-4" />
+              <Library className="size-4" />
             </span>
-            void.launch
+            Studivo
           </Link>
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
             <a href="#features" className="transition-colors hover:text-foreground">
-              امکانات
+              امکانات سامانه
             </a>
             <a href="#workflow" className="transition-colors hover:text-foreground">
-              مسیر لانچ
+              مراحل راه‌اندازی
             </a>
             <a href="#dashboard" className="transition-colors hover:text-foreground">
-              داشبورد
+              پیش‌نمایش داشبورد
             </a>
           </nav>
           <div className="flex items-center gap-2">
@@ -75,32 +76,33 @@ export default function Home() {
               href="/login"
               className="hidden rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
             >
-              ورود
+              ورود به پنل
             </Link>
             <Link
               href="/signup"
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"
             >
-              شروع رایگان
+              ثبت نام سالن
               <ArrowLeft className="size-4" />
             </Link>
           </div>
         </div>
       </section>
 
+      {/* بخش هیرو (Hero Section) */}
       <section className="px-6 pb-16 pt-8 md:px-10 md:pb-24 lg:px-16">
         <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1fr_0.95fr]">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-sm text-muted-foreground">
               <Sparkles className="size-4 text-primary" />
-              برای سازنده‌های مستقل، فریلنسرها و تیم‌های کوچک
+              ویژه مدیران سالن‌های مطالعه، کتابخانه‌ها و پانسیون‌های کنکور
             </div>
             <div className="space-y-5">
-              <h1 className="max-w-4xl text-4xl font-black leading-tight tracking-tight md:text-6xl lg:text-7xl">
-                لانچ MVP را از یک ایده مبهم به یک مسیر قابل اجرا تبدیل کن.
+              <h1 className="max-w-4xl text-4xl font-black leading-tight tracking-tight md:text-5xl lg:text-6xl">
+                مدیریت میزها و شهریه‌ها، به سادگی یک نگاه
               </h1>
               <p className="max-w-2xl text-lg leading-8 text-muted-foreground md:text-xl">
-                void.launch یک داشبورد مینیمال برای تعریف پروژه، ساخت نقشه راه، مدیریت چک‌لیست لانچ و ثبت بازخورد کاربران اولیه است؛ دقیقاً همان چیزی که قبل از بزرگ‌کردن محصول لازم داری.
+                نرم‌افزار Studivo یک داشبورد مینیمال برای پایش وضعیت صندلی‌ها، مدیریت تمدید شهریه ماهانه و ساماندهی اعضای سالن مطالعه شماست؛ بدون شلوغی و پیچیدگی‌های سیستم‌های قدیمی.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -108,14 +110,14 @@ export default function Home() {
                 href="/signup"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
               >
-                اولین پروژه‌ام را بساز
+                تنظیم ۴۵ میز سالن من
                 <ArrowLeft className="size-5" />
               </Link>
               <Link
                 href="/dashboard"
                 className="inline-flex items-center justify-center rounded-2xl border bg-background/70 px-6 py-3 text-base font-bold transition-colors hover:bg-muted"
               >
-                دیدن داشبورد
+                مشاهده دموی داشبورد
               </Link>
             </div>
             <div className="grid max-w-2xl gap-3 pt-4 sm:grid-cols-3">
@@ -128,17 +130,18 @@ export default function Home() {
             </div>
           </div>
 
+          {/* پیش‌نمایش کامپوننت داشبورد */}
           <div id="dashboard" className="relative">
             <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-primary/10 blur-3xl" />
             <div className="rounded-[2rem] border bg-card p-4 shadow-2xl">
               <div className="rounded-[1.5rem] border bg-background p-5">
                 <div className="flex items-center justify-between border-b pb-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">پروژه فعال</p>
-                    <h2 className="mt-1 text-xl font-black">Minimal SaaS Starter</h2>
+                    <p className="text-sm text-muted-foreground">میز انتخاب شده</p>
+                    <h2 className="mt-1 text-xl font-black">میز شماره ۱۲ (VIP)</h2>
                   </div>
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
-                    Building
+                  <span className="rounded-full bg-red-500/10 px-3 py-1 text-sm font-semibold text-red-500">
+                    رزرو شده (پر)
                   </span>
                 </div>
 
@@ -154,18 +157,18 @@ export default function Home() {
                 <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
                   <div className="rounded-2xl border p-4">
                     <div className="mb-4 flex items-center gap-2">
-                      <Target className="size-5 text-primary" />
-                      <h3 className="font-bold">تمرکز این هفته</h3>
+                      <CalendarDays className="size-5 text-primary" />
+                      <h3 className="font-bold">تمدیدهای پیش‌رو (این هفته)</h3>
                     </div>
                     <div className="space-y-3">
                       {[
-                        ["Landing page واقعی", "در حال انجام"],
-                        ["مدل Project در دیتابیس", "بعدی"],
-                        ["چک‌لیست لانچ", "Backlog"],
+                        ["علی محمدی (میز ۲۴)", "فردا"],
+                        ["رضا احمدی (میز ۰۵)", "۳ روز بعد"],
+                        ["سارا اکبری (میز ۴۱)", "پایان هفته"],
                       ].map(([title, status]) => (
                         <div key={title} className="flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
                           <span className="text-sm font-medium">{title}</span>
-                          <span className="text-xs text-muted-foreground">{status}</span>
+                          <span className="text-xs text-red-500 font-medium">{status}</span>
                         </div>
                       ))}
                     </div>
@@ -173,8 +176,8 @@ export default function Home() {
 
                   <div className="rounded-2xl border p-4">
                     <div className="mb-4 flex items-center gap-2">
-                      <ClipboardCheck className="size-5 text-primary" />
-                      <h3 className="font-bold">چک‌لیست لانچ</h3>
+                      <CheckCircle2 className="size-5 text-primary" />
+                      <h3 className="font-bold">چک‌لیست روزانه مدیر</h3>
                     </div>
                     <div className="space-y-3">
                       {checklist.map((item, index) => (
@@ -192,13 +195,14 @@ export default function Home() {
         </div>
       </section>
 
+      {/* بخش ویژگی‌ها (Features) */}
       <section id="features" className="border-y bg-muted/30 px-6 py-16 md:px-10 lg:px-16">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl space-y-3">
             <p className="font-mono text-sm font-semibold text-primary">FEATURES</p>
-            <h2 className="text-3xl font-black md:text-5xl">همه‌چیز برای رساندن ایده به نسخه اول.</h2>
+            <h2 className="text-3xl font-black md:text-5xl">هر آنچه برای کنترل سالن نیاز دارید.</h2>
             <p className="text-lg leading-8 text-muted-foreground">
-              نه یک ابزار پیچیده مدیریت پروژه؛ یک فضای کوچک و دقیق برای اینکه محصولت از حالت ذهنی خارج شود و هر روز جلو برود.
+              نه یک نرم‌افزار پیچیده حسابداری یا اداری؛ یک فضای کاملاً متمرکز برای اینکه بدانید صندلی‌ها در چه وضعیتی هستند و چه زمانی باید شهریه بگیرید.
             </p>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -215,21 +219,22 @@ export default function Home() {
         </div>
       </section>
 
+      {/* بخش مراحل کار (Workflow) */}
       <section id="workflow" className="px-6 py-16 md:px-10 lg:px-16">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1fr]">
           <div className="space-y-4">
             <p className="font-mono text-sm font-semibold text-primary">WORKFLOW</p>
-            <h2 className="text-3xl font-black md:text-5xl">از ایده تا لانچ، بدون شلوغی.</h2>
+            <h2 className="text-3xl font-black md:text-5xl">راه‌اندازی سیستم در ۴ قدم ساده.</h2>
             <p className="text-lg leading-8 text-muted-foreground">
-              هر پروژه با یک مسیر ساده شروع می‌شود: تعریف مسئله، محدودکردن MVP، ساختن، گرفتن بازخورد و آماده‌شدن برای انتشار.
+              سیستم شما بلافاصله پس از ثبت‌نام آماده به کار است. کافیست پیکربندی اولیه را انجام دهید و مدیریت سالن را شروع کنید.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {[
-              ["۰۱", "تعریف پروژه", "نام، مخاطب هدف، مسئله و مرحله فعلی را مشخص کن."],
-              ["۰۲", "شکستن به قدم‌های کوچک", "milestone و task بساز تا اجرا قابل پیگیری شود."],
-              ["۰۳", "ثبت بازخورد", "نظر کاربران اولیه را کنار تصمیم‌های محصول نگه دار."],
-              ["۰۴", "آماده‌سازی لانچ", "قبل از انتشار، چک‌لیست لانچ را کامل کن."],
+              ["۰۱", "تعریف ظرفیت سالن", "تعداد کل میزها (مثلا ۴۵ صندلی) و مبلغ شهریه ثابت ماهانه را وارد کنید."],
+              ["۰۲", "ثبت اعضا و دانش‌آموزان", "نام و شماره تماس کاربران سالن را برای سیستم تعریف کنید."],
+              ["۰۳", "تخصیص صندلی", "میز مدنظر را انتخاب کرده و تاریخ شروع قرارداد دانش‌آموز را ثبت کنید."],
+              ["۰۴", "کنترل و پایش", "روزانه وضعیت صندلی‌ها را مانیتور کرده و هشدارهای تمدید را دریافت کنید."],
             ].map(([step, title, desc]) => (
               <div key={step} className="rounded-3xl border bg-card p-6">
                 <span className="font-mono text-sm font-bold text-primary">{step}</span>
@@ -241,20 +246,21 @@ export default function Home() {
         </div>
       </section>
 
+      {/* بخش دعوت به اقدام (CTA) */}
       <section className="px-6 pb-16 md:px-10 md:pb-24 lg:px-16">
         <div className="mx-auto max-w-7xl rounded-[2rem] border bg-primary p-8 text-primary-foreground shadow-2xl md:p-12">
           <div className="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
             <div className="space-y-3">
-              <h2 className="text-3xl font-black md:text-5xl">آماده‌ای اولین MVP را جدی‌تر جلو ببری؟</h2>
+              <h2 className="text-3xl font-black md:text-5xl">آماده‌اید نظم را به سالن مطالعه خود بیاورید؟</h2>
               <p className="max-w-2xl text-lg leading-8 text-primary-foreground/80">
-                همین حالا ثبت‌نام کن، وارد داشبورد شو و اولین پروژه‌ات را به یک مسیر قابل اجرا تبدیل کن.
+                همین حالا سالن خود را ثبت کنید، صندلی‌ها را بچینید و اولین تمدید شهریه را هوشمندانه ردیابی کنید.
               </p>
             </div>
             <Link
               href="/signup"
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-background px-6 py-3 text-base font-black text-foreground shadow-lg transition-transform hover:-translate-y-0.5"
             >
-              شروع کن
+              شروع رایگان مدیریت سالن
               <ArrowLeft className="size-5" />
             </Link>
           </div>
