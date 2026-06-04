@@ -13,169 +13,66 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { GalleryVerticalEndIcon, AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, BookOpenIcon, Settings2Icon, FrameIcon, PieChartIcon, MapIcon } from "lucide-react"
+import { ArmchairIcon, LayoutDashboardIcon, Settings2Icon, UsersRoundIcon, WalletCardsIcon } from "lucide-react"
 
-// This is sample data.
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatar.jpg",
+const adminOnlyItems = [
+  {
+    title: "تنظیمات سالن",
+    url: "#",
+    icon: <Settings2Icon />,
+    items: [
+      { title: "مشخصات سالن", url: "#" },
+      { title: "ظرفیت و صندلی‌ها", url: "#" },
+    ],
   },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: (
-        <GalleryVerticalEndIcon
-        />
-      ),
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: (
-        <AudioLinesIcon
-        />
-      ),
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: (
-        <TerminalIcon
-        />
-      ),
-      plan: "Free",
-    },
-  ],
-  navMain: [
-    {
-      title: "Playground",
-      url: "#",
-      icon: (
-        <TerminalSquareIcon
-        />
-      ),
-      isActive: true,
-      items: [
-        {
-          title: "History",
-          url: "#",
-        },
-        {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Models",
-      url: "#",
-      icon: (
-        <BotIcon
-        />
-      ),
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Documentation",
-      url: "#",
-      icon: (
-        <BookOpenIcon
-        />
-      ),
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: (
-        <Settings2Icon
-        />
-      ),
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: (
-        <FrameIcon
-        />
-      ),
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: (
-        <PieChartIcon
-        />
-      ),
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: (
-        <MapIcon
-        />
-      ),
-    },
-  ],
+  {
+    title: "مالی",
+    url: "#",
+    icon: <WalletCardsIcon />,
+    items: [
+      { title: "پرداخت‌ها", url: "#" },
+      { title: "گزارش درآمد", url: "#" },
+    ],
+  },
+];
+
+function sidebarData(userRole?: string, studyhallName?: string) {
+  return {
+    teams: [
+      {
+        name: studyhallName ?? "سالن مطالعه",
+        logo: <ArmchairIcon />,
+        plan: userRole === "admin" ? "مدیر" : "همکار",
+      },
+    ],
+    navMain: [
+      {
+        title: "داشبورد",
+        url: "/dashboard",
+        icon: <LayoutDashboardIcon />,
+        isActive: true,
+        items: [
+          { title: "نقشه صندلی‌ها", url: "#" },
+          { title: "پذیرش سریع", url: "#" },
+        ],
+      },
+      {
+        title: "کارکنان",
+        url: "#",
+        icon: <UsersRoundIcon />,
+        items: [
+          { title: "لیست همکاران", url: "#" },
+        ],
+      },
+      ...(userRole === "admin" ? adminOnlyItems : []),
+    ],
+    projects: [],
+  };
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ userRole, studyhallName, ...props }: React.ComponentProps<typeof Sidebar> & { userRole?: string; studyhallName?: string }) {
+  const data = sidebarData(userRole, studyhallName);
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>

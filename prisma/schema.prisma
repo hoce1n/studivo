@@ -13,12 +13,12 @@ datasource db {
 }
 
 model StudyHall {
-  id        String   @id @default(cuid())
-  name      String   @default("سالن مطالعه")
+  id         String   @id @default(cuid())
+  name       String   @default("سالن مطالعه")
   totalSeats Int      @default(0)
   monthlyFee Float    @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   users         User[]
   seats         Seat[]
@@ -39,7 +39,7 @@ model User {
   accounts      Account[]
   
   phoneNumber   String?        
-  role          String         @default("staff") 
+  role          String         @default("member") 
   subscriptions Subscription[]
 
   studyhallId   String?
