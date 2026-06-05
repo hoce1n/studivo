@@ -1,9 +1,22 @@
 import { redirect } from "next/navigation";
-import { Armchair, CalendarClock, CheckCircle2, CircleDollarSign, UsersRound } from "lucide-react";
 
-import { createStaff, releaseSeat, reserveSeat } from "@/app/actions";
+import { 
+  Armchair, 
+  CalendarClock, 
+  CheckCircle2, 
+  CircleDollarSign, 
+  UsersRound 
+} from "lucide-react";
+
+import { 
+  createStaff, 
+  releaseSeat, 
+  reserveSeat 
+} from "@/app/actions";
+
 import { AppSidebar } from "@/components/app-sidebar";
 import { Badge } from "@/components/ui/badge";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,8 +24,18 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { 
+  Field, 
+  FieldDescription, 
+  FieldGroup, 
+  FieldLabel 
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -24,6 +47,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
 
+
 const dayInMs = 24 * 60 * 60 * 1000;
 
 type SeatStatus = "available" | "reserved" | "renewal" | "expired";
@@ -32,7 +56,7 @@ function getSeatStatus(endDate?: Date): SeatStatus {
   if (!endDate) {
     return "available";
   }
-
+  
   const diffDays = Math.ceil((endDate.getTime() - Date.now()) / dayInMs);
 
   if (diffDays < 0) {
@@ -212,7 +236,7 @@ export default async function Page() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <CardTitle>نقشه زنده صندلی‌ها</CardTitle>
-                    <CardDescription>هر کوئری فقط با where: studyhallId سالن فعلی اجرا می‌شود.</CardDescription>
+                    <CardDescription></CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(statusCopy).map(([key, copy]) => (
@@ -222,7 +246,7 @@ export default async function Page() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-6 2xl:grid-cols-8">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-4 2xl:grid-cols-6">
                   {seatView.map((seat) => {
                     const copy = statusCopy[seat.status];
                     const release = seat.subscription ? releaseSeat.bind(null, seat.subscription.id) : undefined;
@@ -295,13 +319,41 @@ export default async function Page() {
                     <form action={createStaff}>
                       <FieldGroup>
                         <Field>
-                          <FieldLabel htmlFor="staffName">نام همکار</FieldLabel>
-                          <Input id="staffName" name="name" placeholder="نام مراقب" required />
+                          <FieldLabel htmlFor="staffName">
+                            نام همکار
+                          </FieldLabel>
+                          <Input 
+                            id="staffName" 
+                            name="name" 
+                            placeholder="نام مراقب" 
+                            required 
+                          />
                         </Field>
                         <Field>
-                          <FieldLabel htmlFor="staffEmail">ایمیل همکار</FieldLabel>
-                          <Input id="staffEmail" name="email" type="email" placeholder="staff@example.com" required />
-                          <FieldDescription>این بخش فقط برای مدیر نمایش داده می‌شود.</FieldDescription>
+                          <FieldLabel htmlFor="staffEmail">
+                            ایمیل همکار
+                          </FieldLabel>
+                          <Input 
+                            id="staffEmail" 
+                            name="email" 
+                            type="email" 
+                            placeholder="staff@example.com" required 
+                          />
+                          <FieldDescription>
+                            این بخش فقط برای مدیر نمایش داده می‌شود.
+                          </FieldDescription>
+                        </Field>
+                        <Field>
+                          <FieldLabel>رمز عبور</FieldLabel>
+                            <Input 
+                              id="staffPassword"
+                              name="password"
+                              type="password"
+                              required
+                            />
+                          <FieldDescription>
+                            مراقب پس از ورود میتواند رمزش را عوض کند.
+                          </FieldDescription>
                         </Field>
                         <Button type="submit" variant="secondary">افزودن همکار</Button>
                       </FieldGroup>

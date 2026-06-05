@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Building2, Armchair } from "lucide-react";
+import { Settings, Info } from "lucide-react";
 
 import { completeOnboarding } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export default async function OnboardingPage() {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: session?.user.id },
     select: { studyhallId: true },
   });
 
@@ -32,18 +32,18 @@ export default async function OnboardingPage() {
           <div className="grid md:grid-cols-[0.9fr_1.1fr]">
             <div className="bg-primary p-8 text-primary-foreground">
               <div className="mb-10 inline-flex size-12 items-center justify-center rounded-3xl bg-primary-foreground/15">
-                <Building2 className="size-6" />
+                <Settings className="size-6" />
               </div>
               <h1 className="text-3xl font-bold leading-relaxed">راه‌اندازی سالن مطالعه</h1>
               <p className="mt-4 text-sm leading-7 text-primary-foreground/80">
-                بعد از این مرحله، شما مدیر سالن می‌شوید، شناسه سالن ساخته می‌شود و صندلی‌ها به‌صورت خودکار در دیتابیس ثبت خواهند شد.
+                تنظیمات سالن مطالعه خود را وارد کنید. اسم سالن مطالعه، تعداد میزی که دارید و شهریه‌ی ماهانه.
               </p>
               <div className="mt-8 flex items-center gap-3 rounded-3xl bg-primary-foreground/10 p-4 text-sm">
-                <Armchair className="size-5" />
+                <Info className="size-5" />
                 <span>هر صندلی با شماره یکتا و مرز داده مخصوص همین سالن ساخته می‌شود.</span>
               </div>
             </div>
-            <div>
+            <div className="p-8 space-y-4">
               <CardHeader>
                 <CardTitle>مشخصات اولیه سالن</CardTitle>
                 <CardDescription>
@@ -55,18 +55,32 @@ export default async function OnboardingPage() {
                   <FieldGroup>
                     <Field>
                       <FieldLabel htmlFor="name">نام سالن</FieldLabel>
-                      <Input id="name" name="name" placeholder="سالن مطالعه نخبگان" required />
+                      <Input 
+                        id="name" 
+                        name="name" 
+                        placeholder="سالن مطالعه نخبگان" 
+                        className="placeholder:text-sm"
+                        required 
+                      />
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="totalSeats">تعداد صندلی‌ها</FieldLabel>
-                      <Input id="totalSeats" name="totalSeats" type="number" min="1" max="500" defaultValue="45" required />
+                      <Input 
+                        id="totalSeats" 
+                        name="totalSeats" 
+                        type="number" 
+                        min="1" 
+                        max="500" 
+                        defaultValue="1" 
+                        required 
+                      />
                       <FieldDescription>برای هر عدد، یک ردیف Seat با studyhallId همین سالن ساخته می‌شود.</FieldDescription>
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="monthlyFee">شهریه ماهانه پیش‌فرض (اختیاری)</FieldLabel>
                       <Input id="monthlyFee" name="monthlyFee" type="number" min="0" defaultValue="0" />
                     </Field>
-                    <Button type="submit" size="lg">ساخت سالن و ورود به داشبورد</Button>
+                    <Button type="submit" size="lg">تایید</Button>
                   </FieldGroup>
                 </form>
               </CardContent>

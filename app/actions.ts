@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
+import { auth } from "@/lib/auth";
 
 async function requireUser() {
   const session = await getSession();
@@ -98,6 +99,7 @@ export async function completeOnboarding(formData: FormData) {
 const staffSchema = z.object({
   name: z.string().trim().min(2),
   email: z.string().trim().email(),
+  password: z.string().min(8)
 });
 
 export async function createStaff(formData: FormData) {
@@ -110,22 +112,31 @@ export async function createStaff(formData: FormData) {
   const parsed = staffSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
+    password: formData.get("password"),
   });
 
   if (!parsed.success) {
     throw new Error("نام و ایمیل همکار را درست وارد کنید.");
   }
 
-  await prisma.user.create({
-    data: {
-      id: crypto.randomUUID(),
-      name: parsed.data.name,
-      email: parsed.data.email,
-      role: "staff",
-      studyhallId: user.studyhallId,
-      emailVerified: false,
-    },
-  });
+  await prisma.$transaction(async (tx) => {
+    await auth.api.signUpEmail({
+      body: {
+        email: parsed.data.email,
+        password: parsed.data.password,
+        name: parsed.data.name,
+      }
+    });
+    await tx.user.update({
+      where: {
+        email: parsed.data.email,
+      },
+      data: {
+        role: "staff",
+        studyhallId: user.studyhallId,
+      },
+    });
+  })
 
   revalidatePath("/dashboard");
 }
