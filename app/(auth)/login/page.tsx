@@ -1,7 +1,7 @@
 "use client"
 
 import { LoginForm } from "@/components/login-form"
-import { GalleryVerticalEndIcon } from "lucide-react"
+import { Library } from "lucide-react"
 import Link from "next/link"
 
 export default function LoginPage() {
@@ -10,10 +10,10 @@ export default function LoginPage() {
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
           <Link href="/" className="flex items-center gap-2 font-medium font-mono">
-            <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <GalleryVerticalEndIcon className="size-4" />
+            <div className="flex size-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Library className="size-8" />
             </div>
-            void():
+            
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-center">

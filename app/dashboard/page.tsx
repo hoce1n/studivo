@@ -46,6 +46,7 @@ import {
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
+import { ReserveForm } from "@/components/reserve-form";
 
 
 const dayInMs = 24 * 60 * 60 * 1000;
@@ -95,12 +96,6 @@ const statusCopy: Record<SeatStatus, { label: string; className: string; badge: 
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(date);
-}
-
-function defaultEndDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 30);
-  return date.toISOString().slice(0, 10);
 }
 
 export default async function Page() {
@@ -279,36 +274,7 @@ export default async function Page() {
             </Card>
 
             <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>پذیرش و رزرو صندلی</CardTitle>
-                  <CardDescription>برای دانش‌آموز یک User عضو و یک Subscription فعال ساخته می‌شود.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form action={reserveSeat}>
-                    <FieldGroup>
-                      <Field>
-                        <FieldLabel htmlFor="seatNumber">شماره صندلی</FieldLabel>
-                        <Input id="seatNumber" name="seatNumber" type="number" min="1" max={seats.length} placeholder="12" required />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="memberName">نام دانش‌آموز</FieldLabel>
-                        <Input id="memberName" name="memberName" placeholder="نام و نام خانوادگی" required />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="phoneNumber">شماره تلفن</FieldLabel>
-                        <Input id="phoneNumber" name="phoneNumber" inputMode="tel" placeholder="09123456789" required />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="endDate">تاریخ پایان اشتراک</FieldLabel>
-                        <Input id="endDate" name="endDate" type="date" defaultValue={defaultEndDate()} required />
-                      </Field>
-                      <Button type="submit">ثبت رزرو</Button>
-                    </FieldGroup>
-                  </form>
-                </CardContent>
-              </Card>
-
+              <ReserveForm maxSeats={seats.length} />
               {isAdmin ? (
                 <Card>
                   <CardHeader>
