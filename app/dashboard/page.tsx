@@ -9,9 +9,7 @@ import {
 } from "lucide-react";
 
 import { 
-  createStaff, 
-  releaseSeat, 
-  reserveSeat 
+  createStaff
 } from "@/app/actions";
 
 import { AppSidebar } from "@/components/app-sidebar";
@@ -47,6 +45,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
 import { ReserveForm } from "@/components/reserve-form";
+import { SeatCard } from "@/components/seat-card";
 
 
 const dayInMs = 24 * 60 * 60 * 1000;
@@ -293,35 +292,25 @@ export default async function Page() {
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
                     {seatView.map((seat) => {
                       const copy = statusCopy[seat.status];
-                      const release = seat.subscription ? releaseSeat.bind(null, seat.subscription.id) : undefined;
 
                       return (
-                        <div key={seat.id} className={cn("flex flex-col rounded-2xl border p-3 transition-shadow hover:shadow-sm", copy.className)}>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="inline-flex items-center gap-1.5 font-bold">
-                              <Armchair className="size-3.5 opacity-70" />
-                              صندلی {formatNumber(seat.seatNumber)}
-                            </span>
-                            <span className="inline-flex items-center gap-1 text-xs font-medium">
-                              <span className={cn("size-1.5 rounded-full", copy.dot)} aria-hidden />
-                              {copy.label}
-                            </span>
-                          </div>
-                          {seat.subscription ? (
-                            <div className="mt-3 flex flex-1 flex-col gap-1 text-xs leading-6">
-                              <p className="font-medium">{seat.subscription.user.name}</p>
-                              <p className="opacity-80">{seat.subscription.user.phoneNumber}</p>
-                              <p className="opacity-80">تا {formatDate(seat.subscription.endDate)}</p>
-                              <form action={release} className="mt-auto pt-2">
-                                <Button type="submit" variant="outline" size="xs" className="w-full bg-background/70">
-                                  تخلیه دستی
-                                </Button>
-                              </form>
-                            </div>
-                          ) : (
-                            <p className="mt-3 text-xs leading-6 opacity-80">برای پذیرش، شماره این صندلی را در فرم وارد کنید.</p>
-                          )}
-                        </div>
+                        <SeatCard
+                          key={seat.id}
+                          seatNumber={formatNumber(seat.seatNumber)}
+                          statusLabel={copy.label}
+                          className={copy.className}
+                          dotClass={copy.dot}
+                          subscription={
+                            seat.subscription
+                              ? {
+                                  id: seat.subscription.id,
+                                  memberName: seat.subscription.user.name ?? "بدون نام",
+                                  phoneNumber: seat.subscription.user.phoneNumber ?? "—",
+                                  endDate: formatDate(seat.subscription.endDate),
+                                }
+                              : undefined
+                          }
+                        />
                       );
                     })}
                   </div>
@@ -396,7 +385,7 @@ export default async function Page() {
                               required
                             />
                           <FieldDescription>
-                            مراقب پس از ورود میتواند رمزش را عوض کند.
+                            مراقب پس از ورود میتواند رمزش را ��وض کند.
                           </FieldDescription>
                         </Field>
                         <Button type="submit" variant="secondary">افزودن همکار</Button>
