@@ -235,6 +235,61 @@ export async function reserveSeat(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+const renewSchema = z.object({
+  subscriptionId: z.string().min(1),
+  endDate: z.coerce.date(),
+});
+
+export async function renewSubscription(subscriptionId: string, endDate: string) {
+  const user = await requireScopedUser();
+
+  const parsed = renewSchema.safeParse({ subscriptionId, endDate });
+
+  if (!parsed.success) {
+    throw new Error("اطلاعات تمدید اشتراک معتبر نیست.");
+  }
+
+  const now = new Date();
+  if (parsed.data.endDate <= now) {
+    throw new Error("تاریخ پایان جدید باید بعد از امروز باشد.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.subscription.findFirst({
+      where: {
+        id: parsed.data.subscriptionId,
+        studyhallId: user.studyhallId,
+        status: "active",
+      },
+      select: { id: true, userId: true, seatId: true },
+    });
+
+    if (!current) {
+      throw new Error("اشتراک فعالی برای تمدید پیدا نشد.");
+    }
+
+    // Gracefully close the expiring contract while preserving its history.
+    await tx.subscription.update({
+      where: { id: current.id },
+      data: { status: "expired" },
+    });
+
+    // Create a fresh subscription for the same member and seat.
+    await tx.subscription.create({
+      data: {
+        userId: current.userId,
+        seatId: current.seatId,
+        studyhallId: user.studyhallId,
+        startDate: now,
+        endDate: parsed.data.endDate,
+        status: "active",
+      },
+    });
+  });
+
+  revalidatePath("/dashboard");
+}
+
 export async function releaseSeat(subscriptionId: string) {
   const user = await requireScopedUser();
 
