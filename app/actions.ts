@@ -197,6 +197,21 @@ export async function reserveSeat(formData: FormData) {
       throw new Error("برای این صندلی هنوز اشتراک فعال ثبت شده است.");
     }
 
+    const memberActiveSubscription = await tx.subscription.findFirst({
+      where: {
+        studyhallId: user.studyhallId,
+        status: "active",
+        user: {
+          phoneNumber: parsed.data.phoneNumber,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (memberActiveSubscription) {
+      throw new Error("این دانش‌آموز در حال حاضر یک اشتراک فعال در این سالن دارد.");
+    }
+
     const member = await tx.user.upsert({
       where: {
         studyhallId_phoneNumber: {
