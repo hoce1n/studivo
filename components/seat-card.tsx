@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { Armchair, Phone, User, CalendarClock } from "lucide-react"
+import { Armchair, Phone, User, CalendarClock, CalendarPlus } from "lucide-react"
 
-import { releaseSeat } from "@/app/actions"
+import { releaseSeat, renewSubscription } from "@/app/actions"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Popover,
   PopoverContent,
@@ -47,11 +49,30 @@ export function SeatCard({
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [pending, startTransition] = React.useTransition()
 
+  const [renewOpen, setRenewOpen] = React.useState(false)
+  const [newEndDate, setNewEndDate] = React.useState("")
+  const [renewPending, startRenewTransition] = React.useTransition()
+  const [renewError, setRenewError] = React.useState<string | null>(null)
+
   function handleRelease() {
     if (!subscription) return
     startTransition(async () => {
       await releaseSeat(subscription.id)
       setConfirmOpen(false)
+    })
+  }
+
+  function handleRenew() {
+    if (!subscription || !newEndDate) return
+    setRenewError(null)
+    startRenewTransition(async () => {
+      try {
+        await renewSubscription(subscription.id, newEndDate)
+        setRenewOpen(false)
+        setNewEndDate("")
+      } catch (error) {
+        setRenewError(error instanceof Error ? error.message : "تمدید اشتراک ناموفق بود.")
+      }
     })
   }
 
@@ -116,37 +137,84 @@ export function SeatCard({
               </div>
             </div>
 
-            <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="w-full">
-                  تخلیه دستی
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogMedia className="text-destructive">
-                    <Armchair />
-                  </AlertDialogMedia>
-                  <AlertDialogTitle>تخلیه صندلی {seatNumber}؟</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    اشتراک فعال {subscription.memberName} لغو می‌شود و این صندلی خالی خواهد شد. این عمل قابل بازگشت نیست.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={pending}>انصراف</AlertDialogCancel>
-                  <Button
-                    variant="destructive"
-                    onClick={(event) => {
-                      event.preventDefault()
-                      handleRelease()
-                    }}
-                    disabled={pending}
-                  >
-                    {pending ? "در حال تخلیه…" : "بله، تخلیه کن"}
+            <div className="flex flex-col gap-2">
+              <AlertDialog open={renewOpen} onOpenChange={(open) => { setRenewOpen(open); if (!open) setRenewError(null) }}>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" className="w-full">
+                    <CalendarPlus />
+                    تمدید اشتراک
                   </Button>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogMedia>
+                      <CalendarPlus />
+                    </AlertDialogMedia>
+                    <AlertDialogTitle>تمدید اشتراک صندلی {seatNumber}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      اشتراک فعلی {subscription.memberName} بسته شده و یک اشتراک جدید با همان مشخصات و تاریخ پایان زیر ثبت می‌شود.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="space-y-2 text-right">
+                    <Label htmlFor={`renew-${subscription.id}`}>تاریخ پایان جدید</Label>
+                    <Input
+                      id={`renew-${subscription.id}`}
+                      type="date"
+                      value={newEndDate}
+                      onChange={(event) => setNewEndDate(event.target.value)}
+                      disabled={renewPending}
+                    />
+                    {renewError ? (
+                      <p className="text-xs text-destructive">{renewError}</p>
+                    ) : null}
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={renewPending}>انصراف</AlertDialogCancel>
+                    <Button
+                      onClick={(event) => {
+                        event.preventDefault()
+                        handleRenew()
+                      }}
+                      disabled={renewPending || !newEndDate}
+                    >
+                      {renewPending ? "در حال تمدید…" : "ثبت تمدید"}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full">
+                    تخلیه دستی
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogMedia className="text-destructive">
+                      <Armchair />
+                    </AlertDialogMedia>
+                    <AlertDialogTitle>تخلیه صندلی {seatNumber}؟</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      اشتراک فعال {subscription.memberName} لغو می‌شود و این صندلی خالی خواهد شد. این عمل قابل بازگشت نیست.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={pending}>انصراف</AlertDialogCancel>
+                    <Button
+                      variant="destructive"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        handleRelease()
+                      }}
+                      disabled={pending}
+                    >
+                      {pending ? "در حال تخلیه…" : "بله، تخلیه کن"}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </>
         ) : (
           <p className="rounded-2xl border border-dashed p-3 text-center text-xs leading-6 text-muted-foreground">
