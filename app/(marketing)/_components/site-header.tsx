@@ -17,7 +17,7 @@ export function SiteHeader() {
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Library className="size-5" />
           </span>
-          <span className="text-base">استودیوو</span>
+          <span className="text-base">Studivo</span>
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm text-muted-foreground lg:flex">

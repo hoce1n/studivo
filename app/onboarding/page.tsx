@@ -1,10 +1,28 @@
 import { redirect } from "next/navigation";
-import { Armchair, CheckCircle2, Info, Settings, Users, Wallet } from "lucide-react";
+import {
+  Armchair,
+  CheckCircle2,
+  Info,
+  Settings,
+  Users,
+  Wallet,
+} from "lucide-react";
 
-import { completeOnboarding } from "@/app/actions";
+import { completeOnboarding } from "@/app/actions/actions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
@@ -51,10 +69,14 @@ export default async function OnboardingPage() {
             <Settings className="size-6" />
           </div>
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[11px] text-primary-foreground">۱</span>
+            <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[11px] text-primary-foreground">
+              ۱
+            </span>
             <span className="text-foreground">راه‌اندازی سالن</span>
             <span className="h-px w-8 bg-border" aria-hidden />
-            <span className="flex size-5 items-center justify-center rounded-full bg-muted text-[11px]">۲</span>
+            <span className="flex size-5 items-center justify-center rounded-full bg-muted text-[11px]">
+              ۲
+            </span>
             <span>شروع پذیرش</span>
           </div>
         </div>
@@ -67,7 +89,8 @@ export default async function OnboardingPage() {
                   راه‌اندازی سالن مطالعه
                 </h1>
                 <p className="mt-3 text-sm leading-7 text-primary-foreground/80">
-                  در یک قدم، اطلاعات پایه‌ی سالن خود را وارد کنید: نام، تعداد میزها و شهریه‌ی ماهانه.
+                  در یک قدم، اطلاعات پایه‌ی سالن خود را وارد کنید: نام، تعداد
+                  میزها و شهریه‌ی ماهانه.
                 </p>
               </div>
 
@@ -79,7 +102,9 @@ export default async function OnboardingPage() {
                     </span>
                     <div>
                       <p className="text-sm font-semibold">{perk.title}</p>
-                      <p className="text-xs leading-6 text-primary-foreground/70">{perk.description}</p>
+                      <p className="text-xs leading-6 text-primary-foreground/70">
+                        {perk.description}
+                      </p>
                     </div>
                   </li>
                 ))}
@@ -87,31 +112,65 @@ export default async function OnboardingPage() {
 
               <div className="flex items-start gap-3 rounded-2xl bg-primary-foreground/10 p-4 text-xs leading-6">
                 <Info className="mt-0.5 size-4 shrink-0" />
-                <span>هر صندلی با شماره یکتا و مرز داده مخصوص همین سالن ساخته می‌شود.</span>
+                <span>
+                  هر صندلی با شماره یکتا و مرز داده مخصوص همین سالن ساخته
+                  می‌شود.
+                </span>
               </div>
             </div>
 
             <div className="p-8 md:p-10">
               <CardHeader className="px-0 pt-0">
                 <CardTitle className="text-xl">مشخصات اولیه سالن</CardTitle>
-                <CardDescription>این اطلاعات برای ساخت StudyHall و Seatهای اولیه استفاده می‌شود.</CardDescription>
+                <CardDescription>
+                  این اطلاعات برای ساخت StudyHall و Seatهای اولیه استفاده
+                  می‌شود.
+                </CardDescription>
               </CardHeader>
               <CardContent className="px-0 pb-0">
                 <form action={completeOnboarding}>
                   <FieldGroup>
                     <Field>
                       <FieldLabel htmlFor="name">نام سالن</FieldLabel>
-                      <Input id="name" name="name" placeholder="سالن مطالعه نخبگان" className="placeholder:text-sm" required />
+                      <Input
+                        id="name"
+                        name="name"
+                        placeholder="سالن مطالعه نخبگان"
+                        className="placeholder:text-sm"
+                        required
+                      />
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="totalSeats">تعداد صندلی‌ها</FieldLabel>
-                      <Input id="totalSeats" name="totalSeats" type="number" min="1" max="500" defaultValue="1" required />
-                      <FieldDescription>برای هر عدد، یک ردیف Seat با studyhallId همین سالن ساخته می‌شود.</FieldDescription>
+                      <FieldLabel htmlFor="totalSeats">
+                        تعداد صندلی‌ها
+                      </FieldLabel>
+                      <Input
+                        id="totalSeats"
+                        name="totalSeats"
+                        type="number"
+                        min="1"
+                        max="500"
+                        defaultValue="1"
+                        required
+                      />
+                      <FieldDescription>
+                        برای هر عدد، یک ردیف Seat با studyhallId همین سالن ساخته
+                        می‌شود.
+                      </FieldDescription>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="monthlyFee">شهریه ماهانه پیش‌فرض (اختیاری)</FieldLabel>
+                      <FieldLabel htmlFor="monthlyFee">
+                        شهریه ماهانه پیش‌فرض (اختیاری)
+                      </FieldLabel>
                       <div className="relative">
-                        <Input id="monthlyFee" name="monthlyFee" type="number" min="0" defaultValue="0" className="pe-16" />
+                        <Input
+                          id="monthlyFee"
+                          name="monthlyFee"
+                          type="number"
+                          min="0"
+                          defaultValue="0"
+                          className="pe-16"
+                        />
                         <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs text-muted-foreground">
                           تومان
                         </span>

@@ -1,136 +1,136 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+  // This is your Prisma schema file,
+  // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
+  // Get a free hosted Postgres database in seconds: `npx create-db`
 
-generator client {
-  provider = "prisma-client"
-  output   = "../lib/generated/prisma"
-}
+  generator client {
+    provider = "prisma-client"
+    output   = "../lib/generated/prisma"
+  }
 
-datasource db {
-  provider = "sqlite"
-}
+  datasource db {
+    provider = "sqlite"
+  }
 
-model StudyHall {
-  id         String   @id @default(cuid())
-  name       String   @default("سالن مطالعه")
-  totalSeats Int      @default(0)
-  monthlyFee Float    @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  model StudyHall {
+    id         String   @id @default(cuid())
+    name       String   @default("سالن مطالعه")
+    totalSeats Int      @default(0)
+    monthlyFee Float    @default(0)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
 
-  users         User[]
-  seats         Seat[]
-  subscriptions Subscription[]
+    users         User[]
+    seats         Seat[]
+    subscriptions Subscription[]
 
-  @@map("studyhall")
-}
+    @@map("studyhall")
+  }
 
-model User {
-  id            String         @id 
-  name          String
-  email         String
-  emailVerified Boolean        @default(false)
-  image         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  
-  phoneNumber   String?        
-  role          String         @default("member") 
-  subscriptions Subscription[]
+  model User {
+    id            String         @id 
+    name          String
+    email         String
+    emailVerified Boolean        @default(false)
+    image         String?
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+    sessions      Session[]
+    accounts      Account[]
+    
+    phoneNumber   String?        
+    role          String         @default("member") 
+    subscriptions Subscription[]
 
-  studyhallId   String?
-  studyhall     StudyHall?     @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+    studyhallId   String?
+    studyhall     StudyHall?     @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
 
-  @@unique([email])
-  @@unique([studyhallId, phoneNumber])
-  @@index([studyhallId])
-  @@map("user")
-}
+    @@unique([email])
+    @@unique([studyhallId, phoneNumber])
+    @@index([studyhallId])
+    @@map("user")
+  }
 
-model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model Session {
+    id        String   @id
+    expiresAt DateTime
+    token     String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    ipAddress String?
+    userAgent String?
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
-  @@index([userId])
-  @@map("session")
-}
+    @@unique([token])
+    @@index([userId])
+    @@map("session")
+  }
 
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  model Account {
+    id                    String    @id
+    accountId             String
+    providerId            String
+    userId                String
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
 
-  @@index([userId])
-  @@map("account")
-}
+    @@index([userId])
+    @@map("account")
+  }
 
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  model Verification {
+    id         String   @id
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
 
-  @@index([identifier])
-  @@map("verification")
-}
+    @@index([identifier])
+    @@map("verification")
+  }
 
-model Seat {
-  id            String         @id @default(cuid())
-  seatNumber    Int
-  createdAt     DateTime       @default(now())
-  subscriptions Subscription[]
+  model Seat {
+    id            String         @id @default(cuid())
+    seatNumber    Int
+    createdAt     DateTime       @default(now())
+    subscriptions Subscription[]
 
-  studyhallId   String
-  studyhall     StudyHall      @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+    studyhallId   String
+    studyhall     StudyHall      @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
 
-  @@unique([studyhallId, seatNumber])
-  @@map("seat")
-}
+    @@unique([studyhallId, seatNumber])
+    @@map("seat")
+  }
 
-model Subscription {
-  id            String   @id @default(cuid())
-  userId        String
-  seatId        String
-  startDate     DateTime @default(now())
-  endDate       DateTime
-  paymentStatus String   @default("unpaid") // paid, unpaid
-  status        String   @default("active") // active, expired, cancelled
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  model Subscription {
+    id            String   @id @default(cuid())
+    userId        String
+    seatId        String
+    startDate     DateTime @default(now())
+    endDate       DateTime
+    paymentStatus String   @default("unpaid") // paid, unpaid
+    status        String   @default("active") // active, expired, cancelled
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
 
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  seat          Seat     @relation(fields: [seatId], references: [id], onDelete: Cascade)
+    user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    seat          Seat     @relation(fields: [seatId], references: [id], onDelete: Cascade)
 
-  studyhallId   String
-  studyhall     StudyHall    @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+    studyhallId   String
+    studyhall     StudyHall    @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([seatId])
-  @@index([studyhallId])
-  @@map("subscription")
-}
+    @@index([userId])
+    @@index([seatId])
+    @@index([studyhallId])
+    @@map("subscription")
+  }

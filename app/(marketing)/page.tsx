@@ -14,6 +14,7 @@ import { SocialProof } from "./_components/social-proof";
 import { Pricing } from "./_components/pricing";
 import { Faq } from "./_components/faq";
 import { SiteFooter } from "./_components/site-footer";
+import PushNotificationManager from "@/components/pwa/PushNotificationManager";
 
 const features = [
   {
@@ -56,7 +57,6 @@ export default function Home() {
     <main className="min-h-screen overflow-hidden bg-background text-foreground">
       <SiteHeader />
 
-      {/* بخش هیرو */}
       <section className="relative isolate px-6 pb-16 pt-12 md:px-10 md:pb-24 md:pt-20 lg:px-16">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.12),transparent_45%)]" />
         <div className="mx-auto max-w-3xl space-y-7 text-center">
@@ -68,7 +68,7 @@ export default function Home() {
             مدیریت میزها و شهریه‌ها، به سادگی یک نگاه
           </h1>
           <p className="mx-auto max-w-2xl text-pretty text-lg leading-8 text-muted-foreground md:text-xl">
-            استودیوو یک داشبورد مینیمال برای پایش وضعیت صندلی‌ها، مدیریت تمدید شهریه ماهانه و
+            Studivo یک داشبورد مینیمال برای پایش وضعیت صندلی‌ها، مدیریت تمدید شهریه ماهانه و
             ساماندهی اعضای سالن مطالعه شماست؛ بدون شلوغی و پیچیدگی سیستم‌های قدیمی.
           </p>
           <div className="flex flex-col justify-center gap-3 sm:flex-row">
@@ -188,6 +188,7 @@ export default function Home() {
       </section>
 
       <SiteFooter />
+      <PushNotificationManager />
     </main>
   );
 }

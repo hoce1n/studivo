@@ -1,16 +1,14 @@
 import { redirect } from "next/navigation";
 
-import { 
-  Armchair, 
-  CalendarClock, 
-  CheckCircle2, 
-  CircleDollarSign, 
-  UsersRound 
+import {
+  Armchair,
+  CalendarClock,
+  CheckCircle2,
+  CircleDollarSign,
+  UsersRound,
 } from "lucide-react";
 
-import { 
-  createStaff
-} from "@/app/actions";
+import { createStaff } from "@/app/actions/actions";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { Badge } from "@/components/ui/badge";
@@ -22,17 +20,18 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
-import { 
-  Field, 
-  FieldDescription, 
-  FieldGroup, 
-  FieldLabel 
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -47,7 +46,6 @@ import { cn } from "@/lib/utils";
 import { ReserveForm } from "@/components/reserve-form";
 import { SeatCard } from "@/components/seat-card";
 
-
 const dayInMs = 24 * 60 * 60 * 1000;
 
 type SeatStatus = "available" | "reserved" | "renewal" | "expired";
@@ -56,7 +54,7 @@ function getSeatStatus(endDate?: Date): SeatStatus {
   if (!endDate) {
     return "available";
   }
-  
+
   const diffDays = Math.ceil((endDate.getTime() - Date.now()) / dayInMs);
 
   if (diffDays < 0) {
@@ -70,28 +68,40 @@ function getSeatStatus(endDate?: Date): SeatStatus {
   return "reserved";
 }
 
-const statusCopy: Record<SeatStatus, { label: string; className: string; dot: string; badge: "success" | "warning" | "destructive" | "muted" }> = {
+const statusCopy: Record<
+  SeatStatus,
+  {
+    label: string;
+    className: string;
+    dot: string;
+    badge: "success" | "warning" | "destructive" | "muted";
+  }
+> = {
   available: {
     label: "خالی",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
+    className:
+      "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
     dot: "bg-emerald-500",
     badge: "success",
   },
   reserved: {
     label: "رزرو فعال",
-    className: "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100",
+    className:
+      "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100",
     dot: "bg-red-500",
     badge: "destructive",
   },
   renewal: {
     label: "نیازمند تمدید",
-    className: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100",
+    className:
+      "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100",
     dot: "bg-amber-500",
     badge: "warning",
   },
   expired: {
     label: "منقضی",
-    className: "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300",
+    className:
+      "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300",
     dot: "bg-slate-400",
     badge: "muted",
   },
@@ -162,7 +172,9 @@ export default async function Page() {
       orderBy: { createdAt: "desc" },
       select: { id: true, name: true, email: true },
     }),
-    prisma.user.count({ where: { studyhallId: user.studyhallId, role: "member" } }),
+    prisma.user.count({
+      where: { studyhallId: user.studyhallId, role: "member" },
+    }),
   ]);
 
   const seatView = seats.map((seat) => {
@@ -182,7 +194,9 @@ export default async function Page() {
   };
 
   const occupied = stats.reserved + stats.renewal;
-  const occupancyRate = seats.length ? Math.round((occupied / seats.length) * 100) : 0;
+  const occupancyRate = seats.length
+    ? Math.round((occupied / seats.length) * 100)
+    : 0;
   const monthlyRevenue = occupied * (user.studyhall.monthlyFee ?? 0);
 
   const isAdmin = user.role === "admin";
@@ -221,12 +235,19 @@ export default async function Page() {
 
   return (
     <SidebarProvider>
-      <AppSidebar side="right" userRole={user.role} studyhallName={user.studyhall.name} />
+      <AppSidebar
+        side="right"
+        userRole={user.role}
+        studyhallName={user.studyhall.name}
+      />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ms-1" />
-            <Separator orientation="vertical" className="me-2 data-vertical:h-4 data-vertical:self-auto" />
+            <Separator
+              orientation="vertical"
+              className="me-2 data-vertical:h-4 data-vertical:self-auto"
+            />
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
@@ -239,7 +260,9 @@ export default async function Page() {
         <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="space-y-1">
-              <h1 className="text-xl font-bold md:text-2xl">سلام {user.name} 👋</h1>
+              <h1 className="text-xl font-bold md:text-2xl">
+                سلام {user.name} 👋
+              </h1>
               <p className="text-sm text-muted-foreground">
                 نمای کلی سالن مطالعه و وضعیت لحظه‌ای صندلی‌ها
               </p>
@@ -247,7 +270,10 @@ export default async function Page() {
             <div className="flex items-center gap-2">
               <Badge variant="muted">{roleLabel}</Badge>
               <Badge variant="outline" className="gap-1.5">
-                <span className="inline-block size-1.5 rounded-full bg-emerald-500" aria-hidden />
+                <span
+                  className="inline-block size-1.5 rounded-full bg-emerald-500"
+                  aria-hidden
+                />
                 اشغال {formatNumber(occupancyRate)}٪
               </Badge>
             </div>
@@ -257,11 +283,15 @@ export default async function Page() {
             {summaryCards.map((card) => (
               <Card key={card.title} className="gap-2">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {card.title}
+                  </CardTitle>
                   <card.icon className={cn("size-4", card.iconClass)} />
                 </CardHeader>
                 <CardContent className="space-y-1">
-                  <div className="text-2xl font-bold tracking-tight">{card.value}</div>
+                  <div className="text-2xl font-bold tracking-tight">
+                    {card.value}
+                  </div>
                   <p className="text-xs text-muted-foreground">{card.hint}</p>
                 </CardContent>
               </Card>
@@ -274,14 +304,24 @@ export default async function Page() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="space-y-1">
                     <CardTitle>نقشه زنده صندلی‌ها</CardTitle>
-                    <CardDescription>وضعیت هر صندلی بر اساس تاریخ پایان اشتراک به‌روز می‌شود.</CardDescription>
+                    <CardDescription>
+                      وضعیت هر صندلی بر اساس تاریخ پایان اشتراک به‌روز می‌شود.
+                    </CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(statusCopy).map(([key, copy]) => (
-                      <span key={key} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 text-xs">
-                        <span className={cn("size-2 rounded-full", copy.dot)} aria-hidden />
+                      <span
+                        key={key}
+                        className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 text-xs"
+                      >
+                        <span
+                          className={cn("size-2 rounded-full", copy.dot)}
+                          aria-hidden
+                        />
                         {copy.label}
-                        <span className="font-semibold">{formatNumber(stats[key as SeatStatus])}</span>
+                        <span className="font-semibold">
+                          {formatNumber(stats[key as SeatStatus])}
+                        </span>
                       </span>
                     ))}
                   </div>
@@ -304,9 +344,13 @@ export default async function Page() {
                             seat.subscription
                               ? {
                                   id: seat.subscription.id,
-                                  memberName: seat.subscription.user.name ?? "بدون نام",
-                                  phoneNumber: seat.subscription.user.phoneNumber ?? "—",
-                                  endDate: formatDate(seat.subscription.endDate),
+                                  memberName:
+                                    seat.subscription.user.name ?? "بدون نام",
+                                  phoneNumber:
+                                    seat.subscription.user.phoneNumber ?? "—",
+                                  endDate: formatDate(
+                                    seat.subscription.endDate,
+                                  ),
                                 }
                               : undefined
                           }
@@ -317,28 +361,40 @@ export default async function Page() {
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed py-12 text-center">
                     <Armchair className="size-6 text-muted-foreground" />
-                    <p className="text-sm font-medium">هنوز صندلی‌ای ثبت نشده است.</p>
-                    <p className="text-xs text-muted-foreground">از بخش تنظیمات، تعداد صندلی‌ها را مشخص کنید.</p>
+                    <p className="text-sm font-medium">
+                      هنوز صندلی‌ای ثبت نشده است.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      از بخش تنظیمات، تعداد صندلی‌ها را مشخص کنید.
+                    </p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             <div className="space-y-6">
+              {isAdmin && (
               <Card className="gap-2 bg-primary text-primary-foreground">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
-                  <CardTitle className="text-sm font-medium text-primary-foreground/80">درآمد ماهانه تخمینی</CardTitle>
+                  <CardTitle className="text-sm font-medium text-primary-foreground/80">
+                    درآمد ماهانه تخمینی
+                  </CardTitle>
                   <CircleDollarSign className="size-4 text-primary-foreground/70" />
                 </CardHeader>
                 <CardContent className="space-y-1">
                   <div className="text-2xl font-bold tracking-tight">
-                    {formatNumber(monthlyRevenue)} <span className="text-base font-normal text-primary-foreground/70">تومان</span>
+                    {formatNumber(monthlyRevenue)}{" "}
+                    <span className="text-base font-normal text-primary-foreground/70">
+                      تومان
+                    </span>
                   </div>
                   <p className="text-xs text-primary-foreground/70">
-                    بر اساس {formatNumber(occupied)} صندلی اشغال‌شده × {formatNumber(user.studyhall.monthlyFee ?? 0)} تومان
+                    بر اساس {formatNumber(occupied)} صندلی اشغال‌شده ×{" "}
+                    {formatNumber(user.studyhall.monthlyFee ?? 0)} تومان
                   </p>
                 </CardContent>
               </Card>
+              )}
 
               <ReserveForm maxSeats={seats.length} />
 
@@ -346,31 +402,32 @@ export default async function Page() {
                 <Card>
                   <CardHeader>
                     <CardTitle>مدیریت کارکنان</CardTitle>
-                    <CardDescription>همکار با role=staff و studyhallId همین سالن ساخته می‌شود.</CardDescription>
+                    <CardDescription>
+                      همکار با role=staff و studyhallId همین سالن ساخته می‌شود.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <form action={createStaff}>
                       <FieldGroup>
                         <Field>
-                          <FieldLabel htmlFor="staffName">
-                            نام همکار
-                          </FieldLabel>
-                          <Input 
-                            id="staffName" 
-                            name="name" 
-                            placeholder="نام مراقب" 
-                            required 
+                          <FieldLabel htmlFor="staffName">نام همکار</FieldLabel>
+                          <Input
+                            id="staffName"
+                            name="name"
+                            placeholder="نام مراقب"
+                            required
                           />
                         </Field>
                         <Field>
                           <FieldLabel htmlFor="staffEmail">
                             ایمیل همکار
                           </FieldLabel>
-                          <Input 
-                            id="staffEmail" 
-                            name="email" 
-                            type="email" 
-                            placeholder="staff@example.com" required 
+                          <Input
+                            id="staffEmail"
+                            name="email"
+                            type="email"
+                            placeholder="staff@example.com"
+                            required
                           />
                           <FieldDescription>
                             این بخش فقط برای مدیر نمایش داده می‌شود.
@@ -378,32 +435,47 @@ export default async function Page() {
                         </Field>
                         <Field>
                           <FieldLabel>رمز عبور</FieldLabel>
-                            <Input 
-                              id="staffPassword"
-                              name="password"
-                              type="password"
-                              required
-                            />
+                          <Input
+                            id="staffPassword"
+                            name="password"
+                            type="password"
+                            required
+                          />
                           <FieldDescription>
                             مراقب پس از ورود میتواند رمزش را ��وض کند.
                           </FieldDescription>
                         </Field>
-                        <Button type="submit" variant="secondary">افزودن همکار</Button>
+                        <Button type="submit" variant="secondary">
+                          افزودن همکار
+                        </Button>
                       </FieldGroup>
                     </form>
                     <Separator />
                     <div className="space-y-2">
-                      {staff.length ? staff.map((member) => (
-                        <div key={member.id} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 text-sm">
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background text-xs font-semibold">
-                            {member.name?.slice(0, 2) ?? "؟"}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="truncate font-medium">{member.name}</div>
-                            <div className="truncate text-muted-foreground">{member.email}</div>
+                      {staff.length ? (
+                        staff.map((member) => (
+                          <div
+                            key={member.id}
+                            className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 text-sm"
+                          >
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background text-xs font-semibold">
+                              {member.name?.slice(0, 2) ?? "؟"}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="truncate font-medium">
+                                {member.name}
+                              </div>
+                              <div className="truncate text-muted-foreground">
+                                {member.email}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )) : <p className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">هنوز همکاری تعریف نشده است.</p>}
+                        ))
+                      ) : (
+                        <p className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+                          هنوز همکاری تعریف نشده است.
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -411,18 +483,26 @@ export default async function Page() {
                 <Card>
                   <CardHeader>
                     <CardTitle>دسترسی همکار</CardTitle>
-                    <CardDescription>شما می‌توانید نقشه و پذیرش صندلی‌ها را مدیریت کنید، اما بخش تنظیمات و مالی برای نقش staff مخفی است.</CardDescription>
+                    <CardDescription>
+                      شما می‌توانید نقشه و پذیرش صندلی‌ها را مدیریت کنید، اما
+                      بخش تنظیمات و مالی برای نقش staff مخفی است.
+                    </CardDescription>
                   </CardHeader>
                 </Card>
               )}
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><CircleDollarSign className="size-4" /> مرزبندی داده</CardTitle>
-                  <CardDescription>شناسه سالن: {user.studyhall.id}</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <CircleDollarSign className="size-4" /> مرزبندی داده
+                  </CardTitle>
+                  <CardDescription>
+                    شناسه سالن: {user.studyhall.id}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="text-sm leading-7 text-muted-foreground">
-                  هر عملیات ایجاد همکار، عضو، صندلی و اشتراک با studyhallId همین سالن ذخیره و خوانده می‌شود.
+                  هر عملیات ایجاد همکار، عضو، صندلی و اشتراک با studyhallId همین
+                  سالن ذخیره و خوانده می‌شود.
                 </CardContent>
               </Card>
             </div>
