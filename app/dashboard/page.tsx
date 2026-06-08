@@ -45,8 +45,8 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
 import { ReserveForm } from "@/components/reserve-form";
-import { ActionForm } from "@/components/action-form";
 import { SeatCard } from "@/components/seat-card";
+import { CreateStaffForm } from "@/components/create-staff-form";
 
 const dayInMs = 24 * 60 * 60 * 1000;
 
@@ -409,55 +409,7 @@ export default async function Page() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <ActionForm
-                      action={createStaff}
-                      successMessage="همکار جدید با موفقیت اضافه شد."
-                      resetOnSuccess
-                    >
-                      {(pending) => (
-                      <FieldGroup>
-                        <Field>
-                          <FieldLabel htmlFor="staffName">نام همکار</FieldLabel>
-                          <Input
-                            id="staffName"
-                            name="name"
-                            placeholder="نام مراقب"
-                            required
-                          />
-                        </Field>
-                        <Field>
-                          <FieldLabel htmlFor="staffEmail">
-                            ایمیل همکار
-                          </FieldLabel>
-                          <Input
-                            id="staffEmail"
-                            name="email"
-                            type="email"
-                            placeholder="staff@example.com"
-                            required
-                          />
-                          <FieldDescription>
-                            این بخش فقط برای مدیر نمایش داده می‌شود.
-                          </FieldDescription>
-                        </Field>
-                        <Field>
-                          <FieldLabel>رمز عبور</FieldLabel>
-                          <Input
-                            id="staffPassword"
-                            name="password"
-                            type="password"
-                            required
-                          />
-                          <FieldDescription>
-                            مراقب پس از ورود میتواند رمزش را عوض کند.
-                          </FieldDescription>
-                        </Field>
-                        <Button type="submit" variant="secondary" disabled={pending}>
-                          افزودن همکار
-                        </Button>
-                      </FieldGroup>
-                      )}
-                    </ActionForm>
+                    <CreateStaffForm createStaff={createStaff} />
                     <Separator />
                     <div className="space-y-2">
                       {staff.length ? (
