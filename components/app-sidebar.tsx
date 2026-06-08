@@ -13,7 +13,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { ArmchairIcon, LayoutDashboardIcon, Settings2Icon, UsersRoundIcon, WalletCardsIcon } from "lucide-react"
+import { ArmchairIcon, LayoutDashboardIcon, Settings2Icon, UserCircleIcon, UsersRoundIcon, WalletCardsIcon } from "lucide-react"
 
 const adminOnlyItems = [
   {
@@ -54,6 +54,15 @@ function sidebarData(userRole?: string, studyhallName?: string) {
         items: [
           { title: "نقشه صندلی‌ها", url: "#" },
           { title: "پذیرش سریع", url: "#" },
+        ],
+      },
+      {
+        title: "پروفایل",
+        url: "/dashboard/profile",
+        icon: <UserCircleIcon />,
+        items: [
+          { title: "اطلاعات کاربری", url: "/dashboard/profile" },
+          { title: "امنیت و رمز عبور", url: "/dashboard/profile" },
         ],
       },
       {

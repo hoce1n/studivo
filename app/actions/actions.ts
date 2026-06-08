@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { auth } from "@/lib/auth";
 
-async function requireUser() {
+export async function requireUser() {
   const session = await getSession();
 
   if (!session?.user?.id) {
@@ -41,6 +41,30 @@ async function requireScopedUser() {
   }
 
   return { ...user, studyhallId: user.studyhallId };
+}
+
+const profileSchema = z.object({
+  name: z.string().trim().min(2, "نام باید حداقل ۲ کاراکتر باشد.").max(80),
+});
+
+export async function updateProfileDetails(formData: FormData) {
+  const user = await requireUser();
+
+  const parsed = profileSchema.safeParse({
+    name: formData.get("name"),
+  });
+
+  if (!parsed.success) {
+    throw new Error("نام و نام خانوادگی را به‌درستی وارد کنید.");
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { name: parsed.data.name },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/profile");
 }
 
 const onboardingSchema = z.object({

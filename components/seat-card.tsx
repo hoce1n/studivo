@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import {
   Armchair,
   Phone,
@@ -14,7 +15,6 @@ import {
 import { releaseSeat, renewSubscription } from "@/app/actions/actions";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -25,13 +25,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { getActionErrorMessage } from "@/lib/action-errors";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns-jalali";
 import { Calendar } from "./ui/calendar";
@@ -67,8 +67,13 @@ export function SeatCard({
   function handleRelease() {
     if (!subscription) return;
     startTransition(async () => {
-      await releaseSeat(subscription.id);
-      setConfirmOpen(false);
+      try {
+        await releaseSeat(subscription.id);
+        setConfirmOpen(false);
+        toast.success("صندلی با موفقیت تخلیه شد.");
+      } catch (error) {
+        toast.error(getActionErrorMessage(error, "تخلیه صندلی ناموفق بود."));
+      }
     });
   }
 
@@ -80,10 +85,11 @@ export function SeatCard({
         await renewSubscription(subscription.id, newEndDate.toISOString());
         setRenewOpen(false);
         setNewEndDate(undefined);
+        toast.success("تمدید اشتراک با موفقیت ثبت شد.");
       } catch (error) {
-        setRenewError(
-          error instanceof Error ? error.message : "تمدید اشتراک ناموفق بود.",
-        );
+        const message = getActionErrorMessage(error, "تمدید اشتراک ناموفق بود.");
+        setRenewError(message);
+        toast.error(message);
       }
     });
   }

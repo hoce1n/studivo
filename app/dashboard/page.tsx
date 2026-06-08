@@ -45,6 +45,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
 import { ReserveForm } from "@/components/reserve-form";
+import { ActionForm } from "@/components/action-form";
 import { SeatCard } from "@/components/seat-card";
 
 const dayInMs = 24 * 60 * 60 * 1000;
@@ -408,7 +409,12 @@ export default async function Page() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <form action={createStaff}>
+                    <ActionForm
+                      action={createStaff}
+                      successMessage="همکار جدید با موفقیت اضافه شد."
+                      resetOnSuccess
+                    >
+                      {(pending) => (
                       <FieldGroup>
                         <Field>
                           <FieldLabel htmlFor="staffName">نام همکار</FieldLabel>
@@ -446,11 +452,12 @@ export default async function Page() {
                             مراقب پس از ورود میتواند رمزش را عوض کند.
                           </FieldDescription>
                         </Field>
-                        <Button type="submit" variant="secondary">
+                        <Button type="submit" variant="secondary" disabled={pending}>
                           افزودن همکار
                         </Button>
                       </FieldGroup>
-                    </form>
+                      )}
+                    </ActionForm>
                     <Separator />
                     <div className="space-y-2">
                       {staff.length ? (

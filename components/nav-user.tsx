@@ -40,6 +40,7 @@ import {
   LogOutIcon 
 } from "lucide-react"
 
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { Skeleton } from "./ui/skeleton"
@@ -125,10 +126,11 @@ export function NavUser() {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheckIcon
-                />
-                Account
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/profile">
+                  <BadgeCheckIcon />
+                  پروفایل و امنیت
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCardIcon
