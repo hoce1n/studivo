@@ -15,7 +15,7 @@ import { Pricing } from "./_components/pricing";
 import { Faq } from "./_components/faq";
 import { SiteFooter } from "./_components/site-footer";
 import PushNotificationManager from "@/components/pwa/PushNotificationManager";
-import { InteractiveSimulator } from "@/app/_components/interactive-simulator";
+import { InteractiveSimulator } from "@/app/(marketing)/_components/interactive-simulator";
 
 const features = [
   {
@@ -195,7 +195,6 @@ export default function Home() {
       </section>
 
       <SiteFooter />
-      <PushNotificationManager />
     </main>
   );
 }

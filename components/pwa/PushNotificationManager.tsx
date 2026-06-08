@@ -21,33 +21,38 @@ function urlBase64ToUint8Array(base64String: string): BufferSource {
   return outputArray;
 }
 
+async function registerServiceWorker(
+  setSubscription: (sub: PushSubscription | null) => void,
+  setError: (err: string) => void
+) {
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
+    })
+    const sub = await registration.pushManager.getSubscription()
+    setSubscription(sub)
+  } catch (err) {
+    setError('Failed to register service worker')
+    console.error(err)
+  }
+}
+
 export default function PushNotificationManager() {
-  const [isSupported, setIsSupported] = useState(false)
   const [subscription, setSubscription] = useState<PushSubscription | null>(null)
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      setIsSupported(true)
-      registerServiceWorker()
-    }
-  }, [])
+  const isSupported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window
 
-  async function registerServiceWorker() {
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-        updateViaCache: 'none',
-      })
-      const sub = await registration.pushManager.getSubscription()
-      setSubscription(sub)
-    } catch (err) {
-      setError('Failed to register service worker')
-      console.error(err)
+  useEffect(() => {
+    if (isSupported) {
+
+      registerServiceWorker(setSubscription, setError)
     }
-  }
+  }, [isSupported])
+
 
   async function subscribeToPush() {
     try {

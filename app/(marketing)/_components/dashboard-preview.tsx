@@ -68,7 +68,6 @@ const sidebarItems = [
 export function DashboardPreview() {
   return (
     <div className="overflow-hidden rounded-2xl border bg-card shadow-2xl shadow-foreground/5">
-      {/* نوار بالای پنجره */}
       <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-3">
         <div className="flex gap-1.5">
           <span className="size-3 rounded-full bg-red-400" />
@@ -76,12 +75,11 @@ export function DashboardPreview() {
           <span className="size-3 rounded-full bg-emerald-400" />
         </div>
         <div className="mx-auto flex items-center gap-2 rounded-lg bg-background px-3 py-1 text-xs text-muted-foreground">
-          app.studivo.ir/dashboard
+          studivo.ir/dashboard
         </div>
       </div>
 
       <div className="flex" dir="rtl">
-        {/* سایدبار */}
         <aside className="hidden w-44 shrink-0 flex-col gap-1 border-l bg-muted/30 p-3 sm:flex">
           <p className="px-2 pb-2 text-xs font-semibold text-muted-foreground">سالن مطالعه ققنوس</p>
           {sidebarItems.map((item) => (
