@@ -1,17 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local"
+import localFont from "next/font/local";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "./providers/ThemeProvider";
 import { DirectionProvider } from "@/components/ui/direction";
-import PWARegister from "@/components/PWARegister";
 
 const estedaad = localFont({
-  src: './fonts/Estedad[wght].woff2',
+  src: "./fonts/Estedad[wght].woff2",
   variable: "--font-estedaad",
-  display: "swap"
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -47,31 +46,29 @@ export default function RootLayout({
       suppressHydrationWarning
       lang="fa"
       dir="rtl"
-      className={cn(
-        "antialiased", estedaad.variable, "font-sans",
-      )}
+      className={cn("antialiased", estedaad.variable, "font-sans")}
     >
       <head>
         <meta name="apple-mobile-web-app-title" content="Studivo" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
         <link rel="apple-touch-icon" href="/web-app-manifest-192x192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body>
-        <PWARegister />
         <DirectionProvider dir="rtl">
-        <ThemeProvider>
-        <TooltipProvider>
-        {children}
-        </TooltipProvider>
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            className: 'font-sans',
-          }}
-        />
-        </ThemeProvider>
+          <ThemeProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                className: "font-sans",
+              }}
+            />
+          </ThemeProvider>
         </DirectionProvider>
       </body>
     </html>

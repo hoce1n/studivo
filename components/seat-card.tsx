@@ -7,6 +7,8 @@ import {
   User,
   CalendarClock,
   CalendarPlus,
+  Loader,
+  CalendarIcon,
 } from "lucide-react";
 
 import { releaseSeat, renewSubscription } from "@/app/actions/actions";
@@ -31,6 +33,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns-jalali";
+import { Calendar } from "./ui/calendar";
 
 export type SeatCardProps = {
   seatNumber: string;
@@ -56,7 +60,7 @@ export function SeatCard({
   const [pending, startTransition] = React.useTransition();
 
   const [renewOpen, setRenewOpen] = React.useState(false);
-  const [newEndDate, setNewEndDate] = React.useState("");
+  const [newEndDate, setNewEndDate] = React.useState<Date | undefined>(undefined);
   const [renewPending, startRenewTransition] = React.useTransition();
   const [renewError, setRenewError] = React.useState<string | null>(null);
 
@@ -73,9 +77,9 @@ export function SeatCard({
     setRenewError(null);
     startRenewTransition(async () => {
       try {
-        await renewSubscription(subscription.id, newEndDate);
+        await renewSubscription(subscription.id, newEndDate.toISOString());
         setRenewOpen(false);
-        setNewEndDate("");
+        setNewEndDate(undefined);
       } catch (error) {
         setRenewError(
           error instanceof Error ? error.message : "تمدید اشتراک ناموفق بود.",
@@ -180,20 +184,57 @@ export function SeatCard({
                       جدید با همان مشخصات و تاریخ پایان زیر ثبت می‌شود.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <div className="space-y-2 text-right">
+
+                  <div className="space-y-3 text-right">
                     <Label htmlFor={`renew-${subscription.id}`}>
                       تاریخ پایان جدید
                     </Label>
-                    <Input
+
+                    <div className="flex flex-col gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant='outline'
+                            className={cn(
+                              "",
+                              !newEndDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon 
+                              className="ml-2 h-4 w-4 opacity-50" 
+                            />
+                            {newEndDate ? (
+                              format(newEndDate, "yyyy/MM/dd")
+                            ) : (
+                              <span>انتخاب تاریخ از تقویم</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className=" p-0" align="center">
+                          <Calendar
+                            className="w-full"
+                            mode="single"
+                            selected={newEndDate}
+                            onSelect={setNewEndDate}
+                            disabled={(date) => date < new Date()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    {renewError && (
+                      <p className="text-xs text-destructive">{renewError}</p>
+                    )}
+                    {/* <Input
                       id={`renew-${subscription.id}`}
                       type="date"
                       value={newEndDate}
                       onChange={(event) => setNewEndDate(event.target.value)}
                       disabled={renewPending}
                     />
+                    
                     {renewError ? (
                       <p className="text-xs text-destructive">{renewError}</p>
-                    ) : null}
+                    ) : null} */}
                   </div>
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={renewPending}>
@@ -206,7 +247,7 @@ export function SeatCard({
                       }}
                       disabled={renewPending || !newEndDate}
                     >
-                      {renewPending ? "در حال تمدید…" : "ثبت تمدید"}
+                      {renewPending ? <Loader className="animate-spin" /> : "ثبت تمدید"}
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -243,7 +284,7 @@ export function SeatCard({
                       }}
                       disabled={pending}
                     >
-                      {pending ? "در حال تخلیه…" : "بله، تخلیه کن"}
+                      {pending ? <Loader className="animate-spin" /> : "بله، تخلیه کن"}
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>

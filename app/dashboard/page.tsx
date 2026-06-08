@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
+  Map,
   UsersRound,
 } from "lucide-react";
 
@@ -207,7 +208,7 @@ export default async function Page() {
       title: "کل صندلی‌ها",
       value: formatNumber(seats.length),
       hint: `${formatNumber(occupied)} صندلی اشغال شده`,
-      icon: Armchair,
+      icon: Map,
       iconClass: "text-muted-foreground",
     },
     {
@@ -261,7 +262,7 @@ export default async function Page() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="space-y-1">
               <h1 className="text-xl font-bold md:text-2xl">
-                سلام {user.name} 👋
+                سلام {user.name}
               </h1>
               <p className="text-sm text-muted-foreground">
                 نمای کلی سالن مطالعه و وضعیت لحظه‌ای صندلی‌ها
@@ -442,7 +443,7 @@ export default async function Page() {
                             required
                           />
                           <FieldDescription>
-                            مراقب پس از ورود میتواند رمزش را ��وض کند.
+                            مراقب پس از ورود میتواند رمزش را عوض کند.
                           </FieldDescription>
                         </Field>
                         <Button type="submit" variant="secondary">
@@ -484,8 +485,7 @@ export default async function Page() {
                   <CardHeader>
                     <CardTitle>دسترسی همکار</CardTitle>
                     <CardDescription>
-                      شما می‌توانید نقشه و پذیرش صندلی‌ها را مدیریت کنید، اما
-                      بخش تنظیمات و مالی برای نقش staff مخفی است.
+                      شما به عنوان مراقب سالن، دسترسی کامل به نقشه زنده، ثبت نام دانش‌آموز جدید و تمدید یا تخلیه صندلی‌ها را دارید.                    
                     </CardDescription>
                   </CardHeader>
                 </Card>
@@ -501,8 +501,7 @@ export default async function Page() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="text-sm leading-7 text-muted-foreground">
-                  هر عملیات ایجاد همکار، عضو، صندلی و اشتراک با studyhallId همین
-                  سالن ذخیره و خوانده می‌شود.
+                  تمام اطلاعات ثبت‌شده (شامل لیست همکاران، اعضا، صندلی‌ها و تاریخچه‌ی اشتراک‌ها) کاملاً رمزگذاری شده و منحصراً متعلق به این سالن مطالعه است. هیچ کاربر یا سالن دیگری به این داده‌ها دسترسی ندارد.
                 </CardContent>
               </Card>
             </div>

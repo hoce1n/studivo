@@ -22,25 +22,31 @@ import { Input } from "@/components/ui/input";
 import { Button } from "./ui/button";
 import { Calendar } from "./ui/calendar";
 import React from "react";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns-jalali";
+import { useFormStatus } from "react-dom";
 
-function defaultEndDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 30);
-  return date.toISOString().slice(0, 10);
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit">
+      {pending ? <Loader className="animate-spin" /> : "ثبت رزرو"}
+    </Button>
+  )
 }
 
 export function ReserveForm({ maxSeats }: { maxSeats: number }) {
-  const defaultDate = new Date();
-  defaultDate.setDate(defaultDate.getDate() + 30);
-  const [date, setDate] = React.useState<Date | undefined>(defaultDate);
+  const [date, setDate] = React.useState<Date | undefined>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  });
 
   const handleDateChange = (selectedDate: Date | undefined) => {
     if (selectedDate) {
       const adjustedDate = new Date(selectedDate);
-      // تنظیم ساعت روی انتهای روز به وقت محلی (ایران)
       adjustedDate.setHours(23, 59, 59, 999);
       setDate(adjustedDate);
     } else {
@@ -91,7 +97,9 @@ export function ReserveForm({ maxSeats }: { maxSeats: number }) {
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="endDate">تاریخ پایان اشتراک</FieldLabel>
+              <FieldLabel htmlFor="endDate">
+                تاریخ پایان اشتراک
+              </FieldLabel>
               <input
                 type="hidden"
                 name="endDate"
@@ -125,7 +133,7 @@ export function ReserveForm({ maxSeats }: { maxSeats: number }) {
                 </PopoverContent>
               </Popover>
             </Field>
-            <Button type="submit">ثبت رزرو</Button>
+            <SubmitButton />
           </FieldGroup>
         </form>
       </CardContent>
