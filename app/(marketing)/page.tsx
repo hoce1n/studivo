@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowLeft,
+  CheckCircle2,
   Clock,
   LayoutGrid,
   Sparkles,
@@ -10,45 +11,47 @@ import {
 
 import { SiteHeader } from "./_components/site-header";
 import { DashboardPreview } from "./_components/dashboard-preview";
-import { SocialProof } from "./_components/social-proof";
 import { Pricing } from "./_components/pricing";
 import { Faq } from "./_components/faq";
 import { SiteFooter } from "./_components/site-footer";
 import PushNotificationManager from "@/components/pwa/PushNotificationManager";
+import { InteractiveSimulator } from "@/app/_components/interactive-simulator";
 
 const features = [
   {
     title: "نقشه گرافیکی میزها",
-    desc: "وضعیت تمام میزهای سالن را در یک نگاه ببینید؛ میزهای پر قرمز و میزهای خالی سبز هستند.",
+    desc: "وضعیت صندلی‌های سالن، کتابخانه یا پانسیون را در یک نگاه ببینید؛ جای خالی، رزرو فعال و نیازمند پیگیری همیشه مشخص است.",
     icon: <LayoutGrid className="size-5" />,
   },
   {
     title: "هشدار خودکار شهریه",
-    desc: "موعد تمدید شهریه دانش‌آموزان را قبل از اتمام مهلت شناسایی کنید و از ضرر مالی جلوگیری کنید.",
+    desc: "موعد تمدید شهریه اعضا و داوطلبان را قبل از سررسید ببینید و پیگیری مالی را منظم و بدون فراموشی انجام دهید.",
     icon: <Clock className="size-5" />,
   },
   {
     title: "مدیریت ساده اعضا",
-    desc: "اطلاعات تماس، کد ملی و تاریخچه ثبت‌نام دانش‌آموزان را یک‌بار برای همیشه یکپارچه کنید.",
+    desc: "اطلاعات تماس، کد ملی و تاریخچه ثبت‌نام دانش‌آموزان، اعضای کتابخانه و داوطلبان کنکور را یکپارچه نگه دارید.",
     icon: <Users className="size-5" />,
   },
   {
     title: "کنترل وضعیت پرداخت",
-    desc: "به سادگی مشخص کنید چه کسی شهریه را تسویه کرده و چه کسی در وضعیت «در انتظار پرداخت» است.",
+    desc: "به‌سادگی مشخص کنید کدام عضو تسویه کرده، کدام قرارداد نزدیک تمدید است و کدام پرداخت نیازمند پیگیری است.",
     icon: <Wallet className="size-5" />,
   },
 ];
 
-const heroStats = [
-  { label: "میزهای اشغال‌شده", value: "۳۲/۴۵" },
-  { label: "تمدیدهای رو به اتمام", value: "۴ میز" },
-  { label: "شهریه‌های معوقه", value: "۳ مورد" },
-];
-
 const workflowSteps = [
-  ["۰۱", "تعریف ظرفیت سالن", "تعداد کل میزها (مثلاً ۴۵ صندلی) و مبلغ شهریه ثابت ماهانه را وارد کنید."],
+  [
+    "۰۱",
+    "تعریف چیدمان سالن",
+    "چیدمان صندلی‌ها، تعرفه‌ها و قوانین تمدید را مطابق مدل کاری سالن، کتابخانه یا پانسیون خود تنظیم کنید.",
+  ],
   ["۰۲", "ثبت اعضا و دانش‌آموزان", "نام و شماره تماس کاربران سالن را برای سیستم تعریف کنید."],
-  ["۰۳", "تخصیص صندلی", "میز مدنظر را انتخاب کرده و تاریخ شروع قرارداد دانش‌آموز را ثبت کنید."],
+  [
+    "۰۳",
+    "تخصیص صندلی",
+    "صندلی مدنظر را انتخاب کرده و تاریخ شروع قرارداد دانش‌آموز یا عضو جدید را ثبت کنید.",
+  ],
   ["۰۴", "کنترل و پایش", "روزانه وضعیت صندلی‌ها را مانیتور کرده و هشدارهای تمدید را دریافت کنید."],
 ];
 
@@ -65,18 +68,18 @@ export default function Home() {
             ویژه مدیران سالن‌های مطالعه، کتابخانه‌ها و پانسیون‌های کنکور
           </div>
           <h1 className="text-balance text-4xl font-black leading-tight tracking-tight md:text-6xl">
-            مدیریت میزها و شهریه‌ها، به سادگی یک نگاه
+            رزرو صندلی و تمدید شهریه، بدون آشفتگی روزانه
           </h1>
           <p className="mx-auto max-w-2xl text-pretty text-lg leading-8 text-muted-foreground md:text-xl">
-            Studivo یک داشبورد مینیمال برای پایش وضعیت صندلی‌ها، مدیریت تمدید شهریه ماهانه و
-            ساماندهی اعضای سالن مطالعه شماست؛ بدون شلوغی و پیچیدگی سیستم‌های قدیمی.
+            Studivo برای مدیران سالن مطالعه، کتابخانه و پانسیون کنکور ساخته شده تا وضعیت صندلی‌ها،
+            قرارداد اعضا و تمدید شهریه‌ها را سریع، دقیق و قابل پیگیری مدیریت کنند.
           </p>
           <div className="flex flex-col justify-center gap-3 sm:flex-row">
             <Link
               href="/signup"
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
             >
-              تنظیم ۴۵ میز سالن من
+              راه‌اندازی هوشمند سالن مطالعه من
               <ArrowLeft className="size-5" />
             </Link>
             <Link
@@ -92,21 +95,25 @@ export default function Home() {
         <div id="preview" className="relative mx-auto mt-14 max-w-5xl">
           <div className="absolute -inset-4 -z-10 rounded-[2.5rem] bg-primary/10 blur-3xl" />
           <DashboardPreview />
-          <div className="mx-auto mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
-            {heroStats.map((stat) => (
-              <div key={stat.label} className="rounded-2xl border bg-card p-4 text-center shadow-sm">
-                <p className="text-2xl font-black">{stat.value}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            ))}
+          <div className="mt-6">
+            <InteractiveSimulator />
           </div>
         </div>
       </section>
 
-      <SocialProof />
+      <section className="px-6 pb-4 md:px-10 lg:px-16" aria-label="اعتماد و شروع سریع">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 rounded-[2rem] border bg-muted/30 p-4 text-sm font-bold text-muted-foreground sm:flex-row sm:items-center sm:justify-center md:p-5">
+          <span className="inline-flex items-center justify-center gap-2">
+            <CheckCircle2 className="size-4 text-emerald-600" />
+            بدون داده نمایشی ساختگی
+          </span>
+          <span className="hidden h-4 w-px bg-border sm:block" />
+          <span>تمرکز کامل روی تجربه واقعی مدیر سالن، کتابخانه و پانسیون کنکور</span>
+        </div>
+      </section>
 
       {/* بخش ویژگی‌ها */}
-      <section id="features" className="px-6 py-16 md:px-10 md:py-24 lg:px-16">
+      <section id="features" className="px-6 py-14 md:px-10 md:py-20 lg:px-16">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl space-y-3">
             <p className="font-mono text-sm font-semibold text-primary">FEATURES</p>
