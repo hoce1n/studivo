@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -20,22 +19,12 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "./ui/button";
+import { ActionForm } from "./action-form";
 import { Calendar } from "./ui/calendar";
 import React from "react";
 import { CalendarIcon, Loader } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns-jalali";
-import { useFormStatus } from "react-dom";
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit">
-      {pending ? <Loader className="animate-spin" /> : "ثبت رزرو"}
-    </Button>
-  )
-}
-
 export function ReserveForm({ maxSeats }: { maxSeats: number }) {
   const [date, setDate] = React.useState<Date | undefined>(() => {
     const d = new Date();
@@ -63,7 +52,12 @@ export function ReserveForm({ maxSeats }: { maxSeats: number }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={reserveSeat}>
+        <ActionForm
+          action={reserveSeat}
+          successMessage="رزرو صندلی با موفقیت ثبت شد."
+          resetOnSuccess
+        >
+          {(pending) => (
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="seatNumber">شماره صندلی</FieldLabel>
@@ -133,9 +127,12 @@ export function ReserveForm({ maxSeats }: { maxSeats: number }) {
                 </PopoverContent>
               </Popover>
             </Field>
-            <SubmitButton />
+            <Button type="submit" disabled={pending}>
+              {pending ? <Loader className="animate-spin" /> : "ثبت رزرو"}
+            </Button>
           </FieldGroup>
-        </form>
+          )}
+        </ActionForm>
       </CardContent>
     </Card>
   );

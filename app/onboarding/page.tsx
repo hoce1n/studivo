@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { completeOnboarding } from "@/app/actions/actions";
+import { ActionForm } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -128,7 +129,8 @@ export default async function OnboardingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-0 pb-0">
-                <form action={completeOnboarding}>
+                <ActionForm action={completeOnboarding}>
+                  {(pending) => (
                   <FieldGroup>
                     <Field>
                       <FieldLabel htmlFor="name">نام سالن</FieldLabel>
@@ -176,7 +178,7 @@ export default async function OnboardingPage() {
                         </span>
                       </div>
                     </Field>
-                    <Button type="submit" size="lg" className="w-full">
+                    <Button type="submit" size="lg" className="w-full" disabled={pending}>
                       <CheckCircle2 className="size-4" />
                       ساخت سالن و ورود به داشبورد
                     </Button>
@@ -184,7 +186,8 @@ export default async function OnboardingPage() {
                       بعداً می‌توانید تعداد صندلی‌ها و شهریه را تغییر دهید.
                     </p>
                   </FieldGroup>
-                </form>
+                  )}
+                </ActionForm>
               </CardContent>
             </div>
           </div>
