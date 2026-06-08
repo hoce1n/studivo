@@ -54,7 +54,7 @@ export function SiteFooter() {
       </div>
 
       <div className="mx-auto mt-10 flex max-w-7xl flex-col items-center justify-between gap-3 border-t pt-6 text-sm text-muted-foreground sm:flex-row">
-        <p>© {new Date().getFullYear()} استودیوو. تمامی حقوق محفوظ است.</p>
+        <p>© {new Date().getFullYear()} Studivo. تمامی حقوق محفوظ است.</p>
         <p>ساخته‌شده برای مدیران سالن‌های مطالعه</p>
       </div>
     </footer>
