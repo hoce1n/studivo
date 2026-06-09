@@ -336,6 +336,72 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
   revalidatePath("/dashboard");
 }
 
+const swapSchema = z.object({
+  subscriptionId: z.string().min(1),
+  newSeatNumber: z.coerce.number().int().min(1),
+});
+
+export async function swapSeat(subscriptionId: string, newSeatNumber: number) {
+  const user = await requireScopedUser();
+
+  const parsed = swapSchema.safeParse({ subscriptionId, newSeatNumber });
+
+  if (!parsed.success) {
+    throw new Error("اطلاعات جابجایی صندلی معتبر نیست.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.subscription.findFirst({
+      where: {
+        id: parsed.data.subscriptionId,
+        studyhallId: user.studyhallId,
+        status: "active",
+      },
+      select: { id: true, seat: { select: { seatNumber: true } } },
+    });
+
+    if (!current) {
+      throw new Error("اشتراک فعالی برای جابجایی پیدا نشد.");
+    }
+
+    if (current.seat.seatNumber === parsed.data.newSeatNumber) {
+      throw new Error("این دانش‌آموز هم‌اکنون روی همین صندلی نشسته است.");
+    }
+
+    const targetSeat = await tx.seat.findFirst({
+      where: {
+        studyhallId: user.studyhallId,
+        seatNumber: parsed.data.newSeatNumber,
+      },
+      select: { id: true },
+    });
+
+    if (!targetSeat) {
+      throw new Error("این صندلی در سالن شما وجود ندارد.");
+    }
+
+    const occupied = await tx.subscription.findFirst({
+      where: {
+        studyhallId: user.studyhallId,
+        seatId: targetSeat.id,
+        status: "active",
+      },
+      select: { id: true },
+    });
+
+    if (occupied) {
+      throw new Error("صندلی مقصد در حال حاضر اشتراک فعال دارد.");
+    }
+
+    await tx.subscription.update({
+      where: { id: current.id },
+      data: { seatId: targetSeat.id },
+    });
+  });
+
+  revalidatePath("/dashboard");
+}
+
 export async function releaseSeat(subscriptionId: string) {
   const user = await requireScopedUser();
 
