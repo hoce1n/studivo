@@ -350,3 +350,75 @@ export async function releaseSeat(subscriptionId: string) {
 
   revalidatePath("/dashboard");
 }
+
+const swapSeatSchema = z.object({
+  subscriptionId: z.string().min(1, "شناسه اشتراک معتبر نیست."),
+  newSeatNumber: z.coerce.number().int().min(1, "شماره صندلی باید یک عدد مثبت باشد."),
+});
+
+export async function swapSeat(subscriptionId: string, newSeatNumber: number) {
+  const user = await requireScopedUser();
+
+  // ۱. اعتبارسنجی اولیه داده‌ها با Zod
+  const parsed = swapSeatSchema.safeParse({ subscriptionId, newSeatNumber });
+  if (!parsed.success) {
+    throw new Error(parsed.error.errors[0].message || "اطلاعات جابه‌جایی صندلی معتبر نیست.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // ۲. پیدا کردن صندلی مقصد و به دست آوردن seatId آن
+    const targetSeat = await tx.seat.findFirst({
+      where: {
+        studyhallId: user.studyhallId,
+        seatNumber: parsed.data.newSeatNumber,
+      },
+      select: { id: true },
+    });
+
+    if (!targetSeat) {
+      throw new Error(`صندلی شماره ${parsed.data.newSeatNumber} در این سالن مطالعه تعریف نشده است.`);
+    }
+
+    // ۳. بررسی اینکه آیا صندلی مقصد در حال حاضر اشغال است یا خیر
+    const activeSubOnTarget = await tx.subscription.findFirst({
+      where: {
+        studyhallId: user.studyhallId,
+        seatId: targetSeat.id,
+        status: "active",
+      },
+      select: { id: true },
+    });
+
+    if (activeSubOnTarget) {
+      throw new Error(`صندلی شماره ${parsed.data.newSeatNumber} در حال حاضر توسط دانش‌آموز دیگری رزرو شده است.`);
+    }
+
+    // ۴. بررسی وجود و صحت اشتراک فعلی که قصد جابه‌جایی‌اش را داریم
+    const currentSubscription = await tx.subscription.findFirst({
+      where: {
+        id: parsed.data.subscriptionId,
+        studyhallId: user.studyhallId,
+        status: "active",
+      },
+      select: { id: true, seatId: true },
+    });
+
+    if (!currentSubscription) {
+      throw new Error("اشتراک فعال معتبری برای این جابه‌جایی پیدا نشد.");
+    }
+
+    // ۵. اگر شماره صندلی جدید با صندلی فعلی یکی بود، نیازی به عملیات نیست
+    if (currentSubscription.seatId === targetSeat.id) {
+      throw new Error("دانش‌آموز در حال حاضر روی همین صندلی مستقر است.");
+    }
+
+    // ۶. انتقال دانش‌آموز به صندلی جدید با به‌روزرسانی فیلد seatId
+    await tx.subscription.update({
+      where: { id: currentSubscription.id },
+      data: { seatId: targetSeat.id },
+    });
+  });
+
+  // ۷. بروزرسانی کش فرانت‌اَند برای نمایش آنی صندلی جدید در نقشه گرافیکی
+  revalidatePath("/dashboard");
+}
