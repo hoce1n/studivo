@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { ShieldAlert, User } from "lucide-react";
 
 import { AppSidebar } from "@/components/app-sidebar";
@@ -14,47 +13,17 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/server";
 import { ProfileSettings } from "./_components/profile-settings";
+import { requireUser } from "@/app/actions/actions";
 
 export default async function ProfilePage() {
-  const session = await getSession();
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      image: true,
-      studyhallId: true,
-      studyhall: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  });
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  if (!user.studyhallId || !user.studyhall) {
-    redirect("/onboarding");
-  }
-
+  const user = await requireUser();  
   return (
     <SidebarProvider>
       <AppSidebar
         side="right"
         userRole={user.role}
-        studyhallName={user.studyhall.name}
+        studyhallName={user.studyhall?.name ?? ""}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -93,7 +62,7 @@ export default async function ProfilePage() {
                 </div>
               </div>
               <div className="rounded-2xl border bg-background px-4 py-3 text-sm font-bold text-muted-foreground">
-                {user.studyhall.name}
+                {user.studyhall?.name ?? ""}
               </div>
             </div>
           </section>

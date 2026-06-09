@@ -12,7 +12,7 @@ import { useState } from "react"
 import { authClient } from "@/lib/auth-client"
 import { Eye, EyeClosed, Loader } from "lucide-react"
 import { toast } from "sonner"
-import { Checkbox } from "./ui/checkbox"
+import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 
 export function LoginForm({

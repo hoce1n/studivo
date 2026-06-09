@@ -21,8 +21,15 @@ export async function requireUser() {
       id: true,
       name: true,
       email: true,
+      phoneNumber: true,
       role: true,
+      image: true,
       studyhallId: true,
+      studyhall: {
+        select: {
+          name: true,
+        },
+      },
     },
   });
 

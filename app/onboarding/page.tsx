@@ -173,7 +173,7 @@ export default async function OnboardingPage() {
                           defaultValue="0"
                           className="pe-16"
                         />
-                        <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs text-muted-foreground">
+                        <span className="pointer-events-none absolute inset-y-0 inset-e-3 flex items-center text-xs text-muted-foreground">
                           تومان
                         </span>
                       </div>

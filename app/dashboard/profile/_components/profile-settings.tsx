@@ -27,6 +27,7 @@ type ProfileSettingsProps = {
     name: string;
     email: string;
     role: string;
+    phoneNumber?: string | null;
     image?: string | null;
     studyhall?: {
       name: string;
@@ -36,7 +37,7 @@ type ProfileSettingsProps = {
 
 function roleLabel(role: string) {
   if (role === "admin") return "مدیر سالن";
-  if (role === "staff") return "همکار / مراقب";
+  if (role === "staff") return "مراقب";
   return "عضو";
 }
 
@@ -138,9 +139,9 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
           <CardHeader className="border-b bg-muted/20">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                <Avatar className="size-16 rounded-2xl ring-1 ring-border">
+                <Avatar className="size-16 ring-1 ring-border">
                   <AvatarImage src={user.image ?? undefined} alt={user.name} />
-                  <AvatarFallback className="rounded-2xl text-lg font-black">
+                  <AvatarFallback className="text-lg font-black">
                     {getInitials(user.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -157,10 +158,14 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border bg-muted/20 p-4">
+                <p className="text-xs font-medium text-muted-foreground">شماره تلفن</p>
+                <p className="mt-2 truncate font-bold">{user.phoneNumber}</p>
+              </div>
               <div className="rounded-2xl border bg-muted/20 p-4">
                 <p className="text-xs font-medium text-muted-foreground">ایمیل</p>
-                <p className="mt-2 truncate font-bold" dir="ltr">{user.email}</p>
+                <p className="mt-2 truncate font-bold">{user.email}</p>
               </div>
               <div className="rounded-2xl border bg-muted/20 p-4">
                 <p className="text-xs font-medium text-muted-foreground">نقش دسترسی</p>

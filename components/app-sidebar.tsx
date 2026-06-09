@@ -13,7 +13,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { ArmchairIcon, LayoutDashboardIcon, Settings2Icon, UserCircleIcon, UsersRoundIcon, WalletCardsIcon } from "lucide-react"
+import { BookOpenCheck, LayoutDashboardIcon, Settings2Icon, UserCircleIcon, UsersRoundIcon, WalletCardsIcon } from "lucide-react"
 
 const adminOnlyItems = [
   {
@@ -34,6 +34,14 @@ const adminOnlyItems = [
       { title: "گزارش درآمد", url: "#" },
     ],
   },
+  {
+    title: "کارکنان",
+    url: "#",
+    icon: <UsersRoundIcon />,
+    items: [
+      { title: "لیست همکاران", url: "/dashboard#staff" },
+    ],
+  },
 ];
 
 function sidebarData(userRole?: string, studyhallName?: string) {
@@ -41,8 +49,8 @@ function sidebarData(userRole?: string, studyhallName?: string) {
     teams: [
       {
         name: studyhallName ?? "سالن مطالعه",
-        logo: <ArmchairIcon />,
-        plan: userRole === "admin" ? "مدیر" : "همکار",
+        logo: <BookOpenCheck />,
+        plan: userRole === "admin" ? "مدیر" : "مراقب",
       },
     ],
     navMain: [
@@ -52,8 +60,8 @@ function sidebarData(userRole?: string, studyhallName?: string) {
         icon: <LayoutDashboardIcon />,
         isActive: true,
         items: [
-          { title: "نقشه صندلی‌ها", url: "#" },
-          { title: "پذیرش سریع", url: "#" },
+          { title: "نقشه صندلی‌ها", url: "/dashboard#map" },
+          { title: "پذیرش", url: "/dashboard#reserve" },
         ],
       },
       {
@@ -63,14 +71,6 @@ function sidebarData(userRole?: string, studyhallName?: string) {
         items: [
           { title: "اطلاعات کاربری", url: "/dashboard/profile" },
           { title: "امنیت و رمز عبور", url: "/dashboard/profile" },
-        ],
-      },
-      {
-        title: "کارکنان",
-        url: "#",
-        icon: <UsersRoundIcon />,
-        items: [
-          { title: "لیست همکاران", url: "#" },
         ],
       },
       ...(userRole === "admin" ? adminOnlyItems : []),

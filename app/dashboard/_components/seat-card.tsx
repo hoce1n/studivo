@@ -34,7 +34,7 @@ import {
 import { getActionErrorMessage } from "@/lib/action-errors";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns-jalali";
-import { Calendar } from "./ui/calendar";
+import { Calendar } from "../../../components/ui/calendar";
 
 export type SeatCardProps = {
   seatNumber: string;
@@ -49,6 +49,20 @@ export type SeatCardProps = {
   };
 };
 
+function getStatusMessage(statusLabel: string, memberName: string, seatNumber: string): string {
+  const baseMessage = `سلام ${memberName} عزیز، از سالن مطالعه ${""} مزاحمتون میشم. `;
+
+  switch (statusLabel) {
+    case "نیازمند تمدید":
+      return `${baseMessage}اشتراک صندلی شماره ${seatNumber} شما رو به اتمام است. لطفاً جهت تمدید و حفظ صندلی خود اقدام کنید.`;
+    case "منقضی":
+      return `${baseMessage}اشتراک صندلی شماره ${seatNumber} شما به اتمام رسیده است. در صورت تمایل به ادامه حضور، لطفاً نسبت به تمدید آن اقدام فرمایید.`;
+    case "رزرو شده":
+    default:
+      return `${baseMessage}خواستار ارتباط با شما در خصوص صندلی شماره ${seatNumber} بودم.`;
+  }
+}
+
 export function SeatCard({
   seatNumber,
   statusLabel,
@@ -60,7 +74,9 @@ export function SeatCard({
   const [pending, startTransition] = React.useTransition();
 
   const [renewOpen, setRenewOpen] = React.useState(false);
-  const [newEndDate, setNewEndDate] = React.useState<Date | undefined>(undefined);
+  const [newEndDate, setNewEndDate] = React.useState<Date | undefined>(
+    undefined,
+  );
   const [renewPending, startRenewTransition] = React.useTransition();
   const [renewError, setRenewError] = React.useState<string | null>(null);
 
@@ -87,7 +103,10 @@ export function SeatCard({
         setNewEndDate(undefined);
         toast.success("تمدید اشتراک با موفقیت ثبت شد.");
       } catch (error) {
-        const message = getActionErrorMessage(error, "تمدید اشتراک ناموفق بود.");
+        const message = getActionErrorMessage(
+          error,
+          "تمدید اشتراک ناموفق بود.",
+        );
         setRenewError(message);
         toast.error(message);
       }
@@ -157,6 +176,28 @@ export function SeatCard({
                 <Phone className="size-4 shrink-0 text-muted-foreground" />
                 <span className="font-mono">{subscription.phoneNumber}</span>
               </div>
+              <div className="flex items-center gap-1.5">
+                <a 
+                  href={`sms:${subscription.phoneNumber}?body=${encodeURIComponent(
+                    getStatusMessage(statusLabel, subscription.memberName, seatNumber)
+                  )}`}
+                  className="inline-flex items-center justify-center rounded-lg border bg-background px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground w-full"
+                  title="ارسال پیامک پیش‌فرض"
+                >
+                  پیامک
+                </a>
+                {/* <a
+                  href={`https://wa.me/${subscription.phoneNumber.replace(/^0/, "+98")}?text=${encodeURIComponent(
+                    getStatusMessage(statusLabel, subscription.memberName, seatNumber)
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50"
+                  title="ارسال در واتس‌اپ"
+                >
+                  واتس‌اپ
+                </a> */}
+              </div>
               <div className="flex items-center gap-2">
                 <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
                 <span>پایان اشتراک: {subscription.endDate}</span>
@@ -200,15 +241,13 @@ export function SeatCard({
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
-                            variant='outline'
+                            variant="outline"
                             className={cn(
                               "",
-                              !newEndDate && "text-muted-foreground"
+                              !newEndDate && "text-muted-foreground",
                             )}
                           >
-                            <CalendarIcon 
-                              className="ml-2 h-4 w-4 opacity-50" 
-                            />
+                            <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
                             {newEndDate ? (
                               format(newEndDate, "yyyy/MM/dd")
                             ) : (
@@ -253,7 +292,11 @@ export function SeatCard({
                       }}
                       disabled={renewPending || !newEndDate}
                     >
-                      {renewPending ? <Loader className="animate-spin" /> : "ثبت تمدید"}
+                      {renewPending ? (
+                        <Loader className="animate-spin" />
+                      ) : (
+                        "ثبت تمدید"
+                      )}
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -290,7 +333,11 @@ export function SeatCard({
                       }}
                       disabled={pending}
                     >
-                      {pending ? <Loader className="animate-spin" /> : "بله، تخلیه کن"}
+                      {pending ? (
+                        <Loader className="animate-spin" />
+                      ) : (
+                        "بله، تخلیه کن"
+                      )}
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>
