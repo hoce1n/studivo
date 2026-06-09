@@ -10,9 +10,10 @@ import {
   CalendarPlus,
   Loader,
   CalendarIcon,
+  ArrowLeftRight,
 } from "lucide-react";
 
-import { releaseSeat, renewSubscription } from "@/app/actions/actions";
+import { releaseSeat, renewSubscription, swapSeat } from "@/app/actions/actions";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -25,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -80,6 +82,11 @@ export function SeatCard({
   const [renewPending, startRenewTransition] = React.useTransition();
   const [renewError, setRenewError] = React.useState<string | null>(null);
 
+  const [swapOpen, setSwapOpen] = React.useState(false);
+  const [newSeatNumber, setNewSeatNumber] = React.useState("");
+  const [swapPending, startSwapTransition] = React.useTransition();
+  const [swapError, setSwapError] = React.useState<string | null>(null);
+
   function handleRelease() {
     if (!subscription) return;
     startTransition(async () => {
@@ -93,8 +100,7 @@ export function SeatCard({
     });
   }
 
-  function handleRenew() {
-    if (!subscription || !newEndDate) return;
+  function handleRenew() {    if (!subscription || !newEndDate) return;
     setRenewError(null);
     startRenewTransition(async () => {
       try {
@@ -108,6 +114,31 @@ export function SeatCard({
           "تمدید اشتراک ناموفق بود.",
         );
         setRenewError(message);
+        toast.error(message);
+      }
+    });
+  }
+
+  function handleSwap() {
+    if (!subscription) return;
+    const parsedSeat = Number(newSeatNumber);
+    if (!newSeatNumber || Number.isNaN(parsedSeat) || parsedSeat < 1) {
+      setSwapError("شماره صندلی معتبر وارد کنید.");
+      return;
+    }
+    setSwapError(null);
+    startSwapTransition(async () => {
+      try {
+        await swapSeat(subscription.id, parsedSeat);
+        setSwapOpen(false);
+        setNewSeatNumber("");
+        toast.success("دانش‌آموز با موفقیت به صندلی جدید منتقل شد.");
+      } catch (error) {
+        const message = getActionErrorMessage(
+          error,
+          "جابجایی صندلی ناموفق بود.",
+        );
+        setSwapError(message);
         toast.error(message);
       }
     });
@@ -302,8 +333,77 @@ export function SeatCard({
                 </AlertDialogContent>
               </AlertDialog>
 
-              <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+              <AlertDialog
+                open={swapOpen}
+                onOpenChange={(open) => {
+                  setSwapOpen(open);
+                  if (!open) {
+                    setSwapError(null);
+                    setNewSeatNumber("");
+                  }
+                }}
+              >
                 <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <ArrowLeftRight />
+                    جابجایی صندلی
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogMedia>
+                      <ArrowLeftRight />
+                    </AlertDialogMedia>
+                    <AlertDialogTitle>
+                      جابجایی از صندلی {seatNumber}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {subscription.memberName} از صندلی {seatNumber} به صندلی
+                      خالی دیگری منتقل می‌شود. اشتراک و تاریخ پایان آن بدون تغییر
+                      باقی می‌ماند.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <div className="space-y-3 text-right">
+                    <Label htmlFor={`swap-${subscription.id}`}>
+                      شماره صندلی جدید
+                    </Label>
+                    <Input
+                      id={`swap-${subscription.id}`}
+                      type="number"
+                      min={1}
+                      inputMode="numeric"
+                      placeholder="مثلاً ۱۲"
+                      value={newSeatNumber}
+                      onChange={(event) => setNewSeatNumber(event.target.value)}
+                      disabled={swapPending}
+                    />
+                    {swapError && (
+                      <p className="text-xs text-destructive">{swapError}</p>
+                    )}
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={swapPending}>
+                      انصراف
+                    </AlertDialogCancel>
+                    <Button
+                      onClick={(event) => {
+                        event.preventDefault();
+                        handleSwap();
+                      }}
+                      disabled={swapPending || !newSeatNumber}
+                    >
+                      {swapPending ? (
+                        <Loader className="animate-spin" />
+                      ) : (
+                        "انتقال به صندلی جدید"
+                      )}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>                <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm" className="w-full">
                     تخلیه دستی
                   </Button>
