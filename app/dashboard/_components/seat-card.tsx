@@ -100,7 +100,8 @@ export function SeatCard({
     });
   }
 
-  function handleRenew() {    if (!subscription || !newEndDate) return;
+  function handleRenew() {    
+    if (!subscription || !newEndDate) return;
     setRenewError(null);
     startRenewTransition(async () => {
       try {

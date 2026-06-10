@@ -7,6 +7,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { auth } from "@/lib/auth";
+import { createHash } from "crypto";
 
 export async function requireUser() {
   const session = await getSession();
@@ -180,8 +181,9 @@ const subscriptionSchema = z.object({
 });
 
 function localMemberEmail(phoneNumber: string, studyhallId: string) {
-  const normalizedPhone = phoneNumber.replace(/[^0-9+]/g, "").replace(/^\+/, "plus");
-  return `member-${studyhallId}-${normalizedPhone}@local.studyhall`;
+  const input = `${studyhallId}-${phoneNumber}`;
+  const shortHash = createHash("sha1").update(input).digest("hex").slice(0, 8);
+  return `${shortHash}@studivo.ir`
 }
 
 export async function reserveSeat(formData: FormData) {
@@ -240,7 +242,7 @@ export async function reserveSeat(formData: FormData) {
     });
 
     if (memberActiveSubscription) {
-      throw new Error("این دانش‌آموز در حال حاضر یک اشتراک فعال در این سالن دارد.");
+      throw new Error("دانش آموزی با این شماره تلفن در حال حاضر یک اشتراک فعال در این سالن دارد.");
     }
 
     const member = await tx.user.upsert({
@@ -335,12 +337,6 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
 
   revalidatePath("/dashboard");
 }
-
-const swapSchema = z.object({
-  subscriptionId: z.string().min(1),
-  newSeatNumber: z.coerce.number().int().min(1),
-});
-
 
 export async function releaseSeat(subscriptionId: string) {
   const user = await requireScopedUser();
