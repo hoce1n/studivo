@@ -17,6 +17,8 @@
     name       String   @default("سالن مطالعه")
     totalSeats Int      @default(0)
     monthlyFee Float    @default(0)
+    gender String @default("unspecified")
+    address String @default("")
     createdAt  DateTime @default(now())
     updatedAt  DateTime @updatedAt
 
