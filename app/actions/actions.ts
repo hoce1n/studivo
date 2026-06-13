@@ -29,6 +29,10 @@ export async function requireUser() {
       studyhall: {
         select: {
           name: true,
+          totalSeats: true,
+          monthlyFee: true,
+          gender: true,
+          address: true,
         },
       },
     },
@@ -55,6 +59,16 @@ const profileSchema = z.object({
   name: z.string().trim().min(2, "نام باید حداقل ۲ کاراکتر باشد.").max(80),
 });
 
+const studyHallSettingsSchema = z.object({
+  name: z.string().trim().min(2, "نام سالن باید حداقل ۲ کاراکتر باشد.").max(100),
+  totalSeats: z.coerce.number().int("تعداد صندلی باید عدد صحیح باشد.").min(1, "تعداد صندلی باید حداقل ۱ باشد.").max(500, "تعداد صندلی نمی‌تواند بیشتر از ۵۰۰ باشد."),
+  monthlyFee: z.coerce.number().min(0, "شهریه ماهانه نمی‌تواند منفی باشد."),
+  gender: z.enum(["male", "female", "mix"], {
+    error: "نوع سالن را انتخاب کنید.",
+  }),
+  address: z.string().trim().max(300, "آدرس نمی‌تواند بیشتر از ۳۰۰ کاراکتر باشد.").default(""),
+});
+
 export async function updateProfileDetails(formData: FormData) {
   const user = await requireUser();
 
@@ -69,6 +83,34 @@ export async function updateProfileDetails(formData: FormData) {
   await prisma.user.update({
     where: { id: user.id },
     data: { name: parsed.data.name },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/profile");
+}
+
+export async function updateStudyHallSettings(formData: FormData) {
+  const user = await requireScopedUser();
+
+  if (user.role !== "admin") {
+    throw new Error("فقط مدیر سالن اجازه تغییر تنظیمات سالن را دارد.");
+  }
+
+  const parsed = studyHallSettingsSchema.safeParse({
+    name: formData.get("name"),
+    totalSeats: formData.get("totalSeats"),
+    monthlyFee: formData.get("monthlyFee"),
+    gender: formData.get("gender"),
+    address: formData.get("address") ?? "",
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "اطلاعات تنظیمات سالن معتبر نیست.");
+  }
+
+  await prisma.studyHall.update({
+    where: { id: user.studyhallId },
+    data: parsed.data,
   });
 
   revalidatePath("/dashboard");
