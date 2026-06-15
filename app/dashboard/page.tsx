@@ -1,15 +1,11 @@
 import { redirect } from "next/navigation";
 
 import {
-  Armchair,
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
-  Filter,
   Map,
-  Search,
   UsersRound,
-  XIcon,
 } from "lucide-react";
 
 import { createStaff } from "@/app/actions/actions";
@@ -40,10 +36,8 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
 import { ReserveForm } from "@/app/dashboard/_components/reserve-form";
-import { SeatCard } from "@/app/dashboard/_components/seat-card";
+import { StudyHallSeatsMap } from "@/app/dashboard/_components/study-hall-seats-map";
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
-import Link from "next/link";
-import { Input } from "@/components/ui/input";
 
 const dayInMs = 24 * 60 * 60 * 1000;
 
@@ -318,98 +312,29 @@ export default async function Page({ searchParams }: PageProps) {
           </section>
 
           <section id="map" className="grid gap-6 xl:grid-cols-[1.6fr_0.9fr]">
-            <Card className="gap-4">
-              <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="relative w-full">
-                    <Search className="absolute size-4 top-2 right-2" />
-                    <Input
-                      type="text"
-                      placeholder="جستجو..." 
-                      className="px-8"
-                    />
-                    <XIcon className="absolute size-4 top-2 left-2" />
-                  </div>
-                  <div className="space-y-1">
-                    <CardTitle>نقشه زنده صندلی‌ها</CardTitle>
-                    <CardDescription>
-                      وضعیت هر صندلی بر اساس تاریخ پایان اشتراک به‌روز می‌شود.
-                    </CardDescription>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={shouldSortByRenewal ? "?" : "?sortBy=renewal"}
-                      className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                        shouldSortByRenewal
-                        ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                        : "bg-background hover:bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {shouldSortByRenewal ? <div className="flex gap-1"><XIcon className="size-3.5" /><span>لغو فیلتر</span></div> : <div className="flex gap-1"><Filter className="size-3.5" /><span>مرتب سازی بر اساس تاریخ اشتراک</span></div>}
-                    </Link>
-                    {Object.entries(statusCopy).map(([key, copy]) => (
-                      <span
-                        key={key}
-                        className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 text-xs"
-                      >
-                        <span
-                          className={cn("size-2 rounded-full", copy.dot)}
-                          aria-hidden
-                        />
-                        {copy.label}
-                        <span className="font-semibold">
-                          {formatNumber(stats[key as SeatStatus])}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {seatView.length ? (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
-                    {seatView.map((seat) => {
-                      const copy = statusCopy[seat.status];
-
-                      return (
-                        <SeatCard
-                          key={seat.id}
-                          seatNumber={formatNumber(seat.seatNumber)}
-                          statusLabel={copy.label}
-                          className={copy.className}
-                          dotClass={copy.dot}
-                          subscription={
-                            seat.subscription
-                              ? {
-                                  id: seat.subscription.id,
-                                  memberName:
-                                    seat.subscription.user.name ?? "بدون نام",
-                                  phoneNumber:
-                                    seat.subscription.user.phoneNumber ?? "—",
-                                  endDate: formatDate(
-                                    seat.subscription.endDate,
-                                  ),
-                                }
-                              : undefined
-                          }
-                        />
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed py-12 text-center">
-                    <Armchair className="size-6 text-muted-foreground" />
-                    <p className="text-sm font-medium">
-                      هنوز صندلی‌ای ثبت نشده است.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      از بخش تنظیمات، تعداد صندلی‌ها را مشخص کنید.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <StudyHallSeatsMap
+              seats={seatView.map((seat) => ({
+                id: seat.id,
+                seatNumber: formatNumber(seat.seatNumber),
+                status: seat.status,
+                subscription: seat.subscription
+                  ? {
+                      id: seat.subscription.id,
+                      memberName: seat.subscription.user.name ?? "بدون نام",
+                      phoneNumber: seat.subscription.user.phoneNumber ?? "—",
+                      endDate: formatDate(seat.subscription.endDate),
+                    }
+                  : undefined,
+              }))}
+              shouldSortByRenewal={shouldSortByRenewal}
+              statusCopy={statusCopy}
+              stats={{
+                available: formatNumber(stats.available),
+                reserved: formatNumber(stats.reserved),
+                renewal: formatNumber(stats.renewal),
+                expired: formatNumber(stats.expired),
+              }}
+            />
 
             <div className="space-y-6">
               {isAdmin && (
