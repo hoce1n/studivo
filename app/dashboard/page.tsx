@@ -7,6 +7,7 @@ import {
   CircleDollarSign,
   Filter,
   Map,
+  Search,
   UsersRound,
   XIcon,
 } from "lucide-react";
@@ -42,6 +43,7 @@ import { ReserveForm } from "@/app/dashboard/_components/reserve-form";
 import { SeatCard } from "@/app/dashboard/_components/seat-card";
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
 
 const dayInMs = 24 * 60 * 60 * 1000;
 
@@ -319,6 +321,15 @@ export default async function Page({ searchParams }: PageProps) {
             <Card className="gap-4">
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="relative w-full">
+                    <Search className="absolute size-4 top-2 right-2" />
+                    <Input
+                      type="text"
+                      placeholder="جستجو..." 
+                      className="px-8"
+                    />
+                    <XIcon className="absolute size-4 top-2 left-2" />
+                  </div>
                   <div className="space-y-1">
                     <CardTitle>نقشه زنده صندلی‌ها</CardTitle>
                     <CardDescription>

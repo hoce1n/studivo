@@ -1,3 +1,4 @@
+import { Input } from "@/components/ui/input";
 import {
   Armchair,
   CalendarClock,
@@ -111,7 +112,6 @@ export function DashboardPreview() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-            {/* نقشه زنده صندلی‌ها */}
             <div className="rounded-xl border bg-background p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-bold">نقشه زنده صندلی‌ها</h3>

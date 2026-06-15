@@ -206,7 +206,7 @@ export function SeatCard({
               </div>
               <div className="flex items-center gap-2" dir="ltr">
                 <Phone className="size-4 shrink-0 text-muted-foreground" />
-                <span className="font-mono">{subscription.phoneNumber}</span>
+                <a href={`tel:${subscription.phoneNumber}`} className="font-mono">{subscription.phoneNumber}</a>
               </div>
               <div className="flex items-center gap-1.5">
                 <a 
