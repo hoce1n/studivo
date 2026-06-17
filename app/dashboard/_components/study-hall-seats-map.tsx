@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { ReserveForm } from "@/app/dashboard/_components/reserve-form";
 import { SeatCard } from "@/app/dashboard/_components/seat-card";
 
 type SeatStatus = "available" | "reserved" | "renewal" | "expired";
@@ -29,6 +30,7 @@ type StatusCopy = Record<
 type SeatMapItem = {
   id: string;
   seatNumber: string;
+  reserveSeatNumber: number;
   status: SeatStatus;
   subscription?: {
     id: string;
@@ -52,8 +54,19 @@ export function StudyHallSeatsMap({
   stats,
 }: StudyHallSeatsMapProps) {
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedSeatNumber, setSelectedSeatNumber] = useState<number | null>(null);
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("fa-IR");
   const isSearchActive = normalizedSearchQuery.length >= 3;
+
+  const handleQuickReserve = (seatNumber: number) => {
+    setSelectedSeatNumber(seatNumber);
+  };
+
+  const handleReserveSheetOpenChange = (open: boolean) => {
+    if (!open) {
+      setSelectedSeatNumber(null);
+    }
+  };
 
   return (
     <Card className="gap-4">
@@ -147,6 +160,11 @@ export function StudyHallSeatsMap({
                   )}
                   dotClass={copy.dot}
                   subscription={seat.subscription}
+                  onQuickReserve={
+                    seat.status === "available"
+                      ? () => handleQuickReserve(seat.reserveSeatNumber)
+                      : undefined
+                  }
                 />
               );
             })}
@@ -161,6 +179,12 @@ export function StudyHallSeatsMap({
           </div>
         )}
       </CardContent>
+      <ReserveForm
+        maxSeats={seats.length}
+        open={selectedSeatNumber !== null}
+        seatNumber={selectedSeatNumber}
+        onOpenChange={handleReserveSheetOpenChange}
+      />
     </Card>
   );
 }

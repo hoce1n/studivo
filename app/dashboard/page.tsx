@@ -35,7 +35,6 @@ import {
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
-import { ReserveForm } from "@/app/dashboard/_components/reserve-form";
 import { StudyHallSeatsMap } from "@/app/dashboard/_components/study-hall-seats-map";
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
 
@@ -316,6 +315,7 @@ export default async function Page({ searchParams }: PageProps) {
               seats={seatView.map((seat) => ({
                 id: seat.id,
                 seatNumber: formatNumber(seat.seatNumber),
+                reserveSeatNumber: seat.seatNumber,
                 status: seat.status,
                 subscription: seat.subscription
                   ? {
@@ -382,8 +382,6 @@ export default async function Page({ searchParams }: PageProps) {
                   </CardContent>
                 </Card>
               )}
-              <ReserveForm maxSeats={seats.length} />
-
               {isAdmin ? (
                 <Card id="staff">
                   <CardHeader>
