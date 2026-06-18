@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, CirclePlay, Sparkles } from "lucide-react";
 import Image from "next/image";
@@ -14,17 +13,17 @@ const Hero = () => {
           </div>
 
           <h1 className="mt-6 max-w-[20ch] text-3xl xs:text-4xl sm:text-5xl lg:text-[2.75rem] xl:text-5xl font-semibold leading-[1.2]! tracking-tight">
-            رزرو صندلی و تمدید شهریه، بدون آشفتگی روزانه
+            سالن مطالعه‌تان را بدون تداخل صندلی و پیگیری‌های فرساینده مدیریت کنید
           </h1>
           <p className="mt-6 max-w-[60ch] xs:text-lg">
-            Studivo برای مدیران سالن مطالعه، کتابخانه و پانسیون کنکور ساخته شده تا وضعیت صندلی‌ها، قرارداد اعضا و تمدید شهریه‌ها را سریع، دقیق و قابل پیگیری مدیریت کنند.
+            Studivo نرم‌افزار ساده و قابل اعتماد مدیریت سالن مطالعه است؛ از ثبت‌نام عضو و نقشه زنده صندلی‌ها تا تمدید اشتراک و جابه‌جایی میز، همه‌چیز در یک داشبورد آرام، دقیق و بدون دوباره‌کاری انجام می‌شود.
           </p>
           <div className="mt-12 flex flex-col sm:flex-row items-center gap-4">
             <Button
               size="lg"
               className="w-full sm:w-auto rounded-full text-base"
             >
-              راه‌اندازی سالن <ArrowUpRight className="h-5! w-5!" />
+              شروع مدیریت هوشمند <ArrowUpRight className="h-5! w-5!" />
             </Button>
             <Button
               variant="outline"
