@@ -1,21 +1,29 @@
-import Link from "next/link";
-import { ArrowLeft, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import { CircleCheck } from "lucide-react";
 
 const plans = [
   {
-    name: "رایگان",
-    price: "۰",
-    period: "همیشه رایگان",
-    description: "برای سالن‌های کوچک و شروع کار.",
-    features: ["تا ۱۵ صندلی", "نقشه زنده صندلی‌ها", "مدیریت اعضا", "هشدار تمدید شهریه"],
-    cta: "شروع رایگان",
-    highlighted: false,
+    name: "پایه",
+    price: 0,
+    description:
+      "برای سالن‌های کوچک و شروع کار.",
+    features: [
+      "تا ۱۵ صندلی",
+      "نقشه زنده صندلی‌ها",
+      "مدیریت اعضا",
+      "هشدار تمدید شهریه",
+    ],
+    buttonText: "شروع رایگان",
   },
   {
     name: "حرفه‌ای",
-    price: "۸۹۰", // تبدیل قیمت از ۲۹۰ به ۸۹۰ (نزدیک‌ترین و جذاب‌ترین عدد به یک میلیون)
-    period: "هزار تومان ماهانه",
-    description: "برای سالن‌های فعال با چند همکار.",
+    price: 890,
+    isRecommended: true,
+    description:
+      "برای سالن‌های فعال با چند همکار.",
     features: [
       "صندلی نامحدود",
       "مدیریت کارکنان و سطح دسترسی",
@@ -23,76 +31,81 @@ const plans = [
       "ارسال پیامک یادآوری",
       "پشتیبانی اولویت‌دار",
     ],
-    cta: "انتخاب پلن حرفه‌ای",
-    highlighted: true,
+    buttonText: "انتخاب پلن حرفه‌ای",
+    isPopular: true,
   },
   {
-    name: "سازمانی",
+    name: "ویژه",
     price: "تماس بگیرید",
-    period: "متناسب با نیاز شما",
-    description: "برای مجموعه‌های چندشعبه‌ای.",
-    features: ["چند شعبه", "داشبورد یکپارچه", "API اختصاصی", "مدیر حساب اختصاصی"],
-    cta: "گفتگو با تیم فروش",
-    highlighted: false,
+    description:
+      "برای مجموعه‌های چندشعبه‌ای.",
+    features: [
+      "چند شعبه",
+      "داشبورد یکپارچه",
+      "API اختصاصی",
+      "مدیر حساب اختصاصی",
+    ],
+    buttonText: "گفتگو با تیم فروش",
   },
 ];
 
-export function Pricing() {
+const Pricing = () => {
   return (
-    <section id="pricing" className="px-6 py-16 md:px-10 md:py-24 lg:px-16">
-      <div className="mx-auto max-w-7xl">
-        <div className="mx-auto max-w-2xl space-y-3 text-center">
-          <p className="font-mono text-sm font-semibold text-primary">PRICING</p>
-          <h2 className="text-3xl font-black md:text-5xl">تعرفه‌ای ساده و شفاف</h2>
-          <p className="text-lg leading-8 text-muted-foreground">
-            بدون قرارداد پیچیده و هزینه‌های پنهان. هر زمان خواستید پلن خود را تغییر دهید.
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-6 lg:grid-cols-3">
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`relative flex flex-col rounded-3xl border p-7 shadow-sm ${
-                plan.highlighted
-                  ? "border-primary bg-card ring-2 ring-primary"
-                  : "bg-card"
-              }`}
+    <div
+      id="pricing"
+      className="max-w-(--breakpoint-lg) mx-auto py-12 xs:py-20 px-6"
+    >
+      <h1 className="text-4xl xs:text-5xl font-semibold text-center tracking-tight">
+        تعرفه‌ای ساده و شفاف
+      </h1>
+      <div className="mt-8 xs:mt-14 grid grid-cols-1 lg:grid-cols-3 items-center gap-8 lg:gap-0">
+        {plans.map((plan) => (
+          <div
+            key={plan.name}
+            className={cn(
+              "relative bg-accent/50 border p-7 rounded-xl lg:rounded-none lg:first:rounded-l-xl lg:last:rounded-r-xl",
+              {
+                "bg-background border-[2px] border-primary py-12 rounded-xl!":
+                  plan.isPopular,
+              }
+            )}
+          >
+            {plan.isPopular && (
+              <Badge className="absolute top-0 right-1/2 translate-x-1/2 -translate-y-1/2">
+                محبوب‌ترین
+              </Badge>
+            )}
+            <h3 className="text-lg font-medium">{plan.name}</h3>
+            <p className="mt-2 text-4xl font-bold">
+              {plan.price} 
+              <span className="text-xs  font-light mr-1">
+                {plan.name === "پایه" ? "همیشه رایگان" : plan.name === "ویژه" ? "متناسب با نیاز شما" : "هزار تومان ماهانه"}
+              </span>
+            </p>
+            <p className="mt-4 font-medium text-muted-foreground">
+              {plan.description}
+            </p>
+            <Separator className="my-6" />
+            <ul className="space-y-2">
+              {plan.features.map((feature) => (
+                <li key={feature} className="flex items-start gap-2">
+                  <CircleCheck className="h-4 w-4 mt-1 text-green-600" />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <Button
+              variant={plan.isPopular ? "default" : "outline"}
+              size="lg"
+              className="w-full mt-6 rounded-full"
             >
-              {plan.highlighted && (
-                <span className="absolute -top-3 right-7 rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
-                  محبوب‌ترین
-                </span>
-              )}
-              <h3 className="text-lg font-black">{plan.name}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-              <div className="mt-5 flex items-baseline gap-2">
-                <span className="text-4xl font-black">{plan.price}</span>
-                <span className="text-sm text-muted-foreground">{plan.period}</span>
-              </div>
-              <ul className="mt-6 flex-1 space-y-3">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm">
-                    <Check className="size-4 shrink-0 text-primary" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/signup"
-                className={`mt-7 inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-transform hover:-translate-y-0.5 ${
-                  plan.highlighted
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                    : "border bg-background hover:bg-muted"
-                }`}
-              >
-                {plan.cta}
-                <ArrowLeft className="size-4" />
-              </Link>
-            </div>
-          ))}
-        </div>
+              {plan.buttonText}
+            </Button>
+          </div>
+        ))}
       </div>
-    </section>
+    </div>
   );
-}
+};
+
+export default Pricing;

@@ -72,7 +72,6 @@ export function SeatCard({
   className,
   dotClass,
   subscription,
-  onQuickReserve,
 }: SeatCardProps) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
@@ -147,49 +146,42 @@ export function SeatCard({
     });
   }
 
-  const seatButton = (
-    <button
-      type="button"
-      className={cn(
-        "flex flex-col rounded-2xl border p-3 text-right transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-        className,
-      )}
-      onClick={onQuickReserve}
-      aria-label={`${onQuickReserve ? "رزرو سریع" : "جزئیات"} صندلی ${seatNumber} — ${statusLabel}`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 font-bold">
-          <Armchair className="size-3.5 opacity-70" />
-          صندلی {seatNumber}
-        </span>
-        <span className="inline-flex items-center gap-1 text-xs font-medium">
-          <span
-            className={cn("size-1.5 rounded-full", dotClass)}
-            aria-hidden
-          />
-          {statusLabel}
-        </span>
-      </div>
-      {subscription ? (
-        <div className="mt-3 space-y-1 text-xs leading-6">
-          <p className="truncate font-medium">{subscription.memberName}</p>
-          <p className="opacity-80">تا {subscription.endDate}</p>
-        </div>
-      ) : (
-        <p className="mt-3 text-xs leading-6 opacity-80">
-          برای رزرو سریع کلیک کنید.
-        </p>
-      )}
-    </button>
-  );
-
-  if (onQuickReserve) {
-    return seatButton;
-  }
-
   return (
     <Popover>
-      <PopoverTrigger asChild>{seatButton}</PopoverTrigger>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "flex flex-col rounded-2xl border p-3 text-right transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+            className,
+          )}
+          aria-label={`جزئیات صندلی ${seatNumber} — ${statusLabel}`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 font-bold">
+              <Armchair className="size-3.5 opacity-70" />
+              صندلی {seatNumber}
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs font-medium">
+              <span
+                className={cn("size-1.5 rounded-full", dotClass)}
+                aria-hidden
+              />
+              {statusLabel}
+            </span>
+          </div>
+          {subscription ? (
+            <div className="mt-3 space-y-1 text-xs leading-6">
+              <p className="truncate font-medium">{subscription.memberName}</p>
+              <p className="opacity-80">تا {subscription.endDate}</p>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs leading-6 opacity-80">
+              برای مشاهده جزئیات کلیک کنید.
+            </p>
+          )}
+        </button>
+      </PopoverTrigger>
 
       <PopoverContent align="center" className="gap-3">
         <div className="flex items-center justify-between gap-2">

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import {
   Armchair,
-  CheckCircle2,
   Info,
   Settings,
   Users,
@@ -17,13 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 
