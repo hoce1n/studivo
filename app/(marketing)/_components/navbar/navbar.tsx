@@ -3,6 +3,7 @@ import { Logo } from "./logo";
 import { NavMenu } from "./nav-menu";
 import { NavigationSheet } from "./navigation-sheet";
 import ThemeToggle from "../theme-toggle";
+import Link from "next/link";
 
 const Navbar = () => {
   return (
@@ -15,9 +16,11 @@ const Navbar = () => {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <Button variant="outline" className="hidden sm:inline-flex">
-            پنل کاربری
+            <Link href={'/dashboard'}>پنل کاربری</Link> 
           </Button>
-          <Button className="hidden xs:inline-flex">شروع کنید</Button>
+          <Button className="hidden xs:inline-flex">
+            <Link href={'/dashboard'}>شروع کنید</Link>
+          </Button>
 
           {/* Mobile Menu */}
           <div className="md:hidden">

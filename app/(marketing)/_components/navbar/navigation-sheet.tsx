@@ -9,6 +9,7 @@ import { VisuallyHidden as VisuallyHiddenPrimitive } from "radix-ui";
 import { Menu } from "lucide-react";
 import { Logo } from "./logo";
 import { NavMenu } from "./nav-menu";
+import Link from "next/link";
 
 export const NavigationSheet = () => {
   return (
@@ -27,9 +28,11 @@ export const NavigationSheet = () => {
 
         <div className="mt-8 space-y-4">
           <Button variant="outline" className="w-full sm:hidden">
-            پنل کاربری
+            <Link href={'/dashboard'}>پنل کاربری</Link>
           </Button>
-          <Button className="w-full xs:hidden">شروع کنید</Button>
+          <Button className="w-full xs:hidden">
+            <Link href={'/dashboard'}>شروع کنید</Link>
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
