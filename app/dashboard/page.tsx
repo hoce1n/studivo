@@ -37,6 +37,7 @@ import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
 import { StudyHallSeatsMap } from "@/app/dashboard/_components/study-hall-seats-map";
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
+import ThemeToggle from "../(marketing)/_components/theme-toggle";
 
 const dayInMs = 24 * 60 * 60 * 1000;
 
@@ -254,6 +255,7 @@ export default async function Page({ searchParams }: PageProps) {
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <div className="flex justify-between w-full pl-5">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ms-1" />
             <Separator
@@ -267,6 +269,8 @@ export default async function Page({ searchParams }: PageProps) {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+          </div>
+          <ThemeToggle />
           </div>
         </header>
         <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
