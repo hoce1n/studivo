@@ -332,6 +332,7 @@ export default async function Page({ searchParams }: PageProps) {
               }))}
               shouldSortByRenewal={shouldSortByRenewal}
               statusCopy={statusCopy}
+              studyHallName={user.studyhall.name}
               stats={{
                 available: formatNumber(stats.available),
                 reserved: formatNumber(stats.reserved),

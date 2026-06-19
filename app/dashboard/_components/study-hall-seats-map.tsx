@@ -13,10 +13,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { ReserveForm } from "@/app/dashboard/_components/reserve-form";
+import {
+  ReserveForm,
+  type ReserveFormSeat,
+} from "@/app/dashboard/_components/reserve-form";
 import { SeatCard } from "@/app/dashboard/_components/seat-card";
 
-type SeatStatus = "available" | "reserved" | "renewal" | "expired";
+type SeatStatus = ReserveFormSeat["status"];
 
 type StatusCopy = Record<
   SeatStatus,
@@ -27,24 +30,14 @@ type StatusCopy = Record<
   }
 >;
 
-type SeatMapItem = {
-  id: string;
-  seatNumber: string;
-  reserveSeatNumber: number;
-  status: SeatStatus;
-  subscription?: {
-    id: string;
-    memberName: string;
-    phoneNumber: string;
-    endDate: string;
-  };
-};
+type SeatMapItem = ReserveFormSeat;
 
 type StudyHallSeatsMapProps = {
   seats: SeatMapItem[];
   shouldSortByRenewal: boolean;
   statusCopy: StatusCopy;
   stats: Record<SeatStatus, string>;
+  studyHallName: string;
 };
 
 export function StudyHallSeatsMap({
@@ -52,19 +45,20 @@ export function StudyHallSeatsMap({
   shouldSortByRenewal,
   statusCopy,
   stats,
+  studyHallName,
 }: StudyHallSeatsMapProps) {
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedSeatNumber, setSelectedSeatNumber] = useState<number | null>(null);
+  const [selectedSeat, setSelectedSeat] = useState<SeatMapItem | null>(null);
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("fa-IR");
   const isSearchActive = normalizedSearchQuery.length >= 3;
 
-  const handleQuickReserve = (seatNumber: number) => {
-    setSelectedSeatNumber(seatNumber);
+  const handleSeatSelect = (seat: SeatMapItem) => {
+    setSelectedSeat(seat);
   };
 
   const handleReserveSheetOpenChange = (open: boolean) => {
     if (!open) {
-      setSelectedSeatNumber(null);
+      setSelectedSeat(null);
     }
   };
 
@@ -127,9 +121,14 @@ export function StudyHallSeatsMap({
                 key={key}
                 className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 text-xs"
               >
-                <span className={cn("size-2 rounded-full", copy.dot)} aria-hidden />
+                <span
+                  className={cn("size-2 rounded-full", copy.dot)}
+                  aria-hidden
+                />
                 {copy.label}
-                <span className="font-semibold">{stats[key as SeatStatus]}</span>
+                <span className="font-semibold">
+                  {stats[key as SeatStatus]}
+                </span>
               </span>
             ))}
           </div>
@@ -146,26 +145,33 @@ export function StudyHallSeatsMap({
                 .includes(normalizedSearchQuery);
 
               return (
-                <SeatCard
+                <button
                   key={seat.id}
-                  seatNumber={seat.seatNumber}
-                  statusLabel={copy.label}
+                  type="button"
                   className={cn(
-                    copy.className,
-                    "transition-all duration-200",
-                    isSearchActive && !isMatch &&
-                      "pointer-events-none scale-95 opacity-20 blur-[0.5px]",
-                    isSearchActive && isMatch &&
-                      "z-10 scale-105 ring-2 ring-indigo-500",
+                    "rounded-2xl text-right focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                    isSearchActive && !isMatch && "pointer-events-none",
                   )}
-                  dotClass={copy.dot}
-                  subscription={seat.subscription}
-                  onQuickReserve={
-                    seat.status === "available"
-                      ? () => handleQuickReserve(seat.reserveSeatNumber)
-                      : undefined
-                  }
-                />
+                  onClick={() => handleSeatSelect(seat)}
+                  aria-label={`باز کردن ${seat.status === "available" ? "فرم رزرو" : "مدیریت"} صندلی ${seat.seatNumber}`}
+                >
+                  <SeatCard
+                    seatNumber={seat.seatNumber}
+                    statusLabel={copy.label}
+                    className={cn(
+                      copy.className,
+                      "h-full transition-all duration-200",
+                      isSearchActive &&
+                        !isMatch &&
+                        "scale-95 opacity-20 blur-[0.5px]",
+                      isSearchActive &&
+                        isMatch &&
+                        "z-10 scale-105 ring-2 ring-indigo-500",
+                    )}
+                    dotClass={copy.dot}
+                    subscription={seat.subscription}
+                  />
+                </button>
               );
             })}
           </div>
@@ -181,8 +187,9 @@ export function StudyHallSeatsMap({
       </CardContent>
       <ReserveForm
         maxSeats={seats.length}
-        open={selectedSeatNumber !== null}
-        seatNumber={selectedSeatNumber}
+        open={selectedSeat !== null}
+        seat={selectedSeat}
+        studyHallName={studyHallName}
         onOpenChange={handleReserveSheetOpenChange}
       />
     </Card>
