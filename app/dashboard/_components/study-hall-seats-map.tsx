@@ -37,6 +37,7 @@ type StudyHallSeatsMapProps = {
   shouldSortByRenewal: boolean;
   statusCopy: StatusCopy;
   stats: Record<SeatStatus, string>;
+  studyHallName: string;
 };
 
 export function StudyHallSeatsMap({
@@ -44,6 +45,7 @@ export function StudyHallSeatsMap({
   shouldSortByRenewal,
   statusCopy,
   stats,
+  studyHallName,
 }: StudyHallSeatsMapProps) {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedSeat, setSelectedSeat] = useState<SeatMapItem | null>(null);
@@ -187,6 +189,7 @@ export function StudyHallSeatsMap({
         maxSeats={seats.length}
         open={selectedSeat !== null}
         seat={selectedSeat}
+        studyHallName={studyHallName}
         onOpenChange={handleReserveSheetOpenChange}
       />
     </Card>

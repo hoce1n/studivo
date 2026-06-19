@@ -8,6 +8,7 @@ import {
   CalendarIcon,
   CalendarPlus,
   Loader,
+  MessageSquare,
   Phone,
   Trash2,
   User,
@@ -73,6 +74,28 @@ function getDefaultEndDate() {
   return date;
 }
 
+function getStatusMessage(
+  statusLabel: string,
+  memberName: string,
+  seatNumber: string,
+  studyHallName: string,
+): string {
+  const baseMessage = `سلام ${memberName} عزیز، از سالن مطالعه ${studyHallName || ""} مزاحمتون میشم. `;
+
+  switch (statusLabel) {
+    case "renewal":
+    case "نیازمند تمدید":
+      return `${baseMessage}اشتراک صندلی شماره ${seatNumber} شما رو به اتمام است. لطفاً جهت تمدید و حفظ صندلی خود اقدام کنید.`;
+    case "expired":
+    case "منقضی":
+      return `${baseMessage}اشتراک صندلی شماره ${seatNumber} شما به اتمام رسیده است. در صورت تمایل به ادامه حضور، لطفاً نسبت به تمدید آن اقدام فرمایید.`;
+    case "reserved":
+    case "رزرو شده":
+    default:
+      return `${baseMessage}خواستار ارتباط با شما در خصوص صندلی شماره ${seatNumber} بودم.`;
+  }
+}
+
 function normalizeSeatNumber(value: string | number | null | undefined) {
   if (value === null || value === undefined) return "";
 
@@ -86,11 +109,13 @@ export function ReserveForm({
   maxSeats,
   open,
   seat,
+  studyHallName,
   onOpenChange,
 }: {
   maxSeats: number;
   open: boolean;
   seat: ReserveFormSeat | null;
+  studyHallName: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const [date, setDate] = React.useState<Date | undefined>(getDefaultEndDate);
@@ -124,6 +149,22 @@ export function ReserveForm({
     setDate(getDefaultEndDate());
     onOpenChange(false);
   };
+
+  function handleSendStatusMessage() {
+    if (!seat || !subscription) return;
+
+    const message = getStatusMessage(
+      seat.status,
+      subscription.memberName,
+      seat.seatNumber,
+      studyHallName,
+    );
+
+    window.open(
+      `sms:${subscription.phoneNumber}?body=${encodeURIComponent(message)}`,
+      "_blank",
+    );
+  }
 
   function handleRenew() {
     if (!subscription || !renewDate) return;
@@ -322,6 +363,16 @@ export function ReserveForm({
                   <CalendarClock className="size-4 text-muted-foreground" />
                   <span>پایان اشتراک: {subscription.endDate}</span>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center gap-2 bg-background/80"
+                  onClick={handleSendStatusMessage}
+                >
+                  <MessageSquare className="size-4" />
+                  ارسال پیامک اطلاع‌رسانی
+                </Button>
               </div>
 
               <div className="grid gap-2">
