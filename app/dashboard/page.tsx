@@ -337,6 +337,8 @@ export default async function Page({ searchParams }: PageProps) {
                       memberName: seat.subscription.user.name ?? "بدون نام",
                       phoneNumber: seat.subscription.user.phoneNumber ?? "—",
                       endDate: formatDate(seat.subscription.endDate),
+                      startDateISO: seat.subscription.startDate.toISOString(),
+                      endDateISO: seat.subscription.endDate.toISOString(),
                     }
                   : undefined,
               }))}

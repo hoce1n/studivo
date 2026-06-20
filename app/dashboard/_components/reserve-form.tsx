@@ -22,6 +22,7 @@ import {
   swapSeat,
 } from "@/app/actions/actions";
 import { ActionForm } from "@/components/action-form";
+import { SubscriptionProgress } from "@/app/dashboard/_components/subscription-progress";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -64,6 +65,8 @@ export type ReserveFormSeat = {
     memberName: string;
     phoneNumber: string;
     endDate: string;
+    startDateISO: string;
+    endDateISO: string;
   };
 };
 
@@ -374,6 +377,12 @@ export function ReserveForm({
                   ارسال پیامک اطلاع‌رسانی
                 </Button>
               </div>
+
+              <SubscriptionProgress
+                startDate={subscription.startDateISO}
+                endDate={subscription.endDateISO}
+                className="rounded-2xl border p-3"
+              />
 
               <div className="grid gap-2">
                 <Popover>
