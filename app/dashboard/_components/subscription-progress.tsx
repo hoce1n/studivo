@@ -41,10 +41,10 @@ export function SubscriptionProgress({
         اعتبار اشتراک
       </p>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>شروع: {formatJalali(start)}</span>
-        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+        <span className="font-medium text-foreground">
           پایان: {formatJalali(end)}
         </span>
+        <span>شروع: {formatJalali(start)}</span>
       </div>
       <Progress
         value={progress}
