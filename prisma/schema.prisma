@@ -9,7 +9,7 @@
   }
 
   datasource db {
-    provider = "sqlite"
+    provider = "postgresql"
   }
 
   model StudyHall {
