@@ -1,50 +1,58 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
+import {
+  BookOpenCheck,
+  LayoutDashboardIcon,
+  Settings2Icon,
+  UserCircleIcon,
+  UsersRoundIcon,
+  WalletCardsIcon,
+} from "lucide-react";
 
-import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
-import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NavMain } from "@/components/nav-main";
+import { NavProjects } from "@/components/nav-projects";
+import { NavUser } from "@/components/nav-user";
+import { TeamSwitcher } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import { BookOpenCheck, LayoutDashboardIcon, Settings2Icon, UserCircleIcon, UsersRoundIcon, WalletCardsIcon } from "lucide-react"
+} from "@/components/ui/sidebar";
 
-const adminOnlyItems = [
-  {
-    title: "تنظیمات سالن",
-    url: "#",
-    icon: <Settings2Icon />,
-    items: [
-      { title: "مشخصات سالن", url: "#" },
-      { title: "ظرفیت و صندلی‌ها", url: "#" },
-    ],
-  },
-  {
-    title: "مالی",
-    url: "#",
-    icon: <WalletCardsIcon />,
-    items: [
-      { title: "پرداخت‌ها", url: "#" },
-      { title: "گزارش درآمد", url: "#" },
-    ],
-  },
-  {
-    title: "کارکنان",
-    url: "#",
-    icon: <UsersRoundIcon />,
-    items: [
-      { title: "لیست همکاران", url: "/dashboard#staff" },
-    ],
-  },
-];
+function adminOnlyItems(activePath?: string) {
+  return [
+    {
+      title: "تنظیمات سالن",
+      url: "/dashboard/settings",
+      icon: <Settings2Icon />,
+      isActive: activePath === "/dashboard/settings",
+      items: [
+        { title: "مشخصات سالن", url: "/dashboard/settings" },
+        { title: "ظرفیت و صندلی‌ها", url: "/dashboard/settings" },
+      ],
+    },
+    {
+      title: "مالی",
+      url: "#",
+      icon: <WalletCardsIcon />,
+      items: [
+        { title: "پرداخت‌ها", url: "#" },
+        { title: "گزارش درآمد", url: "#" },
+      ],
+    },
+    {
+      title: "کارکنان",
+      url: "#",
+      icon: <UsersRoundIcon />,
+      items: [{ title: "لیست همکاران", url: "/dashboard#staff" }],
+    },
+  ];
+}
 
-function sidebarData(userRole?: string, studyhallName?: string) {
+function sidebarData(userRole?: string, studyhallName?: string, activePath = "/dashboard") {
   return {
     teams: [
       {
@@ -58,7 +66,7 @@ function sidebarData(userRole?: string, studyhallName?: string) {
         title: "داشبورد",
         url: "/dashboard",
         icon: <LayoutDashboardIcon />,
-        isActive: true,
+        isActive: activePath === "/dashboard",
         items: [
           { title: "نقشه صندلی‌ها", url: "/dashboard#map" },
           { title: "پذیرش", url: "/dashboard#reserve" },
@@ -68,19 +76,29 @@ function sidebarData(userRole?: string, studyhallName?: string) {
         title: "پروفایل",
         url: "/dashboard/profile",
         icon: <UserCircleIcon />,
+        isActive: activePath === "/dashboard/profile",
         items: [
           { title: "اطلاعات کاربری", url: "/dashboard/profile" },
           { title: "امنیت و رمز عبور", url: "/dashboard/profile" },
         ],
       },
-      ...(userRole === "admin" ? adminOnlyItems : []),
+      ...(userRole === "admin" ? adminOnlyItems(activePath) : []),
     ],
     projects: [],
   };
 }
 
-export function AppSidebar({ userRole, studyhallName, ...props }: React.ComponentProps<typeof Sidebar> & { userRole?: string; studyhallName?: string }) {
-  const data = sidebarData(userRole, studyhallName);
+export function AppSidebar({
+  userRole,
+  studyhallName,
+  activePath,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  userRole?: string;
+  studyhallName?: string;
+  activePath?: string;
+}) {
+  const data = sidebarData(userRole, studyhallName, activePath);
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -96,5 +114,5 @@ export function AppSidebar({ userRole, studyhallName, ...props }: React.Componen
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

@@ -8,6 +8,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getActionErrorMessage, isNextNavigationError } from "@/lib/action-errors";
 import { cn } from "@/lib/utils";
 
+type ServerActionResult = {
+  success?: boolean;
+  error?: string;
+  message?: string;
+};
+
+function isServerActionResult(value: unknown): value is ServerActionResult {
+  return typeof value === "object" && value !== null && "success" in value;
+}
+
 type ActionFormProps = Omit<React.ComponentProps<"form">, "action" | "children" | "onSubmit"> & {
   action: (formData: FormData) => Promise<unknown>;
   children: React.ReactNode | ((pending: boolean) => React.ReactNode);
@@ -38,12 +48,25 @@ export function ActionForm({
     setErrorMessage(null);
     startTransition(async () => {
       try {
-        await action(formData);
+        const result = await action(formData);
+
+        if (isServerActionResult(result) && result.success === false) {
+          const message = result.error || "انجام عملیات ناموفق بود.";
+          setErrorMessage(message);
+          toast.error(message);
+          return;
+        }
+
         if (resetOnSuccess) {
           form.reset();
         }
-        if (successMessage) {
-          toast.success(successMessage);
+        const resolvedSuccessMessage =
+          isServerActionResult(result) && result.message
+            ? result.message
+            : successMessage;
+
+        if (resolvedSuccessMessage) {
+          toast.success(resolvedSuccessMessage);
         }
         onSuccess?.();
       } catch (error) {

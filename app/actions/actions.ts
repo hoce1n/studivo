@@ -63,10 +63,10 @@ const studyHallSettingsSchema = z.object({
   name: z.string().trim().min(2, "نام سالن باید حداقل ۲ کاراکتر باشد.").max(100),
   totalSeats: z.coerce.number().int("تعداد صندلی باید عدد صحیح باشد.").min(1, "تعداد صندلی باید حداقل ۱ باشد.").max(500, "تعداد صندلی نمی‌تواند بیشتر از ۵۰۰ باشد."),
   monthlyFee: z.coerce.number().min(0, "شهریه ماهانه نمی‌تواند منفی باشد."),
-  gender: z.enum(["male", "female", "mix"], {
+  gender: z.enum(["male", "female"], {
     error: "نوع سالن را انتخاب کنید.",
   }),
-  address: z.string().trim().max(300, "آدرس نمی‌تواند بیشتر از ۳۰۰ کاراکتر باشد.").default(""),
+  address: z.string().trim().min(5, "آدرس سالن را کامل‌تر وارد کنید.").max(300, "آدرس نمی‌تواند بیشتر از ۳۰۰ کاراکتر باشد."),
 });
 
 export async function updateProfileDetails(formData: FormData) {
@@ -93,7 +93,10 @@ export async function updateStudyHallSettings(formData: FormData) {
   const user = await requireScopedUser();
 
   if (user.role !== "admin") {
-    throw new Error("فقط مدیر سالن اجازه تغییر تنظیمات سالن را دارد.");
+    return {
+      success: false,
+      error: "فقط مدیر سالن اجازه تغییر تنظیمات سالن را دارد.",
+    };
   }
 
   const parsed = studyHallSettingsSchema.safeParse({
@@ -105,7 +108,10 @@ export async function updateStudyHallSettings(formData: FormData) {
   });
 
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "اطلاعات تنظیمات سالن معتبر نیست.");
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "اطلاعات تنظیمات سالن معتبر نیست.",
+    };
   }
 
   await prisma.studyHall.update({
@@ -114,13 +120,19 @@ export async function updateStudyHallSettings(formData: FormData) {
   });
 
   revalidatePath("/dashboard");
-  revalidatePath("/dashboard/profile");
+  revalidatePath("/dashboard/settings");
+
+  return { success: true, message: "تنظیمات سالن با موفقیت به‌روزرسانی شد." };
 }
 
 const onboardingSchema = z.object({
   name: z.string().trim().min(2),
   totalSeats: z.coerce.number().int().min(1).max(500),
   monthlyFee: z.coerce.number().min(0).default(0),
+  gender: z.enum(["male", "female"], {
+    error: "نوع سالن را انتخاب کنید.",
+  }),
+  address: z.string().trim().min(5, "آدرس سالن را کامل‌تر وارد کنید.").max(300),
 });
 
 export async function completeOnboarding(formData: FormData) {
@@ -134,10 +146,12 @@ export async function completeOnboarding(formData: FormData) {
     name: formData.get("name"),
     totalSeats: formData.get("totalSeats"),
     monthlyFee: formData.get("monthlyFee") ?? 0,
+    gender: formData.get("gender"),
+    address: formData.get("address") ?? "",
   });
 
   if (!parsed.success) {
-    throw new Error("اطلاعات سالن مطالعه معتبر نیست.");
+    throw new Error(parsed.error.issues[0]?.message ?? "اطلاعات سالن مطالعه معتبر نیست.");
   }
 
   await prisma.$transaction(async (tx) => {
@@ -146,6 +160,8 @@ export async function completeOnboarding(formData: FormData) {
         name: parsed.data.name,
         totalSeats: parsed.data.totalSeats,
         monthlyFee: parsed.data.monthlyFee,
+        gender: parsed.data.gender,
+        address: parsed.data.address,
       },
       select: { id: true },
     });
