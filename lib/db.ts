@@ -1,18 +1,19 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/lib/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient;
+const globalForPrisma = global as unknown as {
+  prisma: PrismaClient;
 };
 
-function createPrismaClient() {
-  return new PrismaClient({
-    accelerateUrl:
-      process.env.PRISMA_ACCELERATE_URL ??
-      "prisma://accelerate.prisma-data.net/?api_key=local-build-placeholder",
-  });
-}
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL!,
+});
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    adapter,
+  });
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
