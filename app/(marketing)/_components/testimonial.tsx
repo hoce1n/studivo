@@ -78,20 +78,22 @@ const testimonials = [
 ];
 const Testimonial = () => {
   const [api, setApi] = useState<CarouselApi>();
-  const [current, setCurrent] = useState(0);
-  const [count, setCount] = useState(0);
+  const [current, setCurrent] = useState(1);
 
   useEffect(() => {
     if (!api) {
       return;
     }
 
-    setCount(api.scrollSnapList().length);
-    setCurrent(api.selectedScrollSnap() + 1);
-
-    api.on("select", () => {
+    const handleSelect = () => {
       setCurrent(api.selectedScrollSnap() + 1);
-    });
+    };
+
+    api.on("select", handleSelect);
+
+    return () => {
+      api.off("select", handleSelect);
+    };
   }, [api]);
 
   return (
@@ -114,7 +116,7 @@ const Testimonial = () => {
           </CarouselContent>
         </Carousel>
         <div className="flex items-center justify-center gap-2">
-          {Array.from({ length: count }).map((_, index) => (
+          {Array.from({ length: api?.scrollSnapList().length ?? 0 }).map((_, index) => (
             <button
               key={index}
               onClick={() => api?.scrollTo(index)}

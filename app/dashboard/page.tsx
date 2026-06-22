@@ -254,6 +254,7 @@ export default async function Page({ searchParams }: PageProps) {
         side="right"
         userRole={user.role}
         studyhallName={user.studyhall.name}
+        activePath="/dashboard"
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

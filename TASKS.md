@@ -13,8 +13,8 @@ This board reflects the current repository state after reviewing the Prisma sche
   - Next step: migrate expected failures to a unified `{ ok, data?, error? }` action-state contract.
 
 - [ ] Harden transactional seat collision prevention.
-  - Current state: `reserveSeat` and `swapSeat` check active subscriptions inside Prisma transactions.
-  - Next step: add database-level active-seat protection during the PostgreSQL migration.
+  - Current state: `reserveSeat` and `swapSeat` check active subscriptions inside Prisma transactions backed by PostgreSQL.
+  - Next step: add database-level active-seat protection with a PostgreSQL partial unique index or equivalent invariant.
 
 - [ ] Improve renewal visibility and operator workflow.
   - Current state: dashboard marks seats as available, reserved, renewal-needed, or expired based on active subscription end date.
@@ -29,11 +29,6 @@ This board reflects the current repository state after reviewing the Prisma sche
   - Next step: persist subscriptions by user/study hall and trigger renewal reminders.
 
 ## Planned Features (Short-term)
-
-- [ ] PostgreSQL production migration.
-  - Update Prisma datasource/provider strategy.
-  - Add production connection configuration.
-  - Add migration notes and deployment checklist.
 
 - [ ] Database-level no-double-booking invariant.
   - Add an active-seat uniqueness strategy, ideally a PostgreSQL partial unique index for active subscriptions.
@@ -81,14 +76,16 @@ This board reflects the current repository state after reviewing the Prisma sche
 
 ## Completed
 
+- [x] PostgreSQL production migration completed.
+- [x] SQLite-specific adapter cleanup completed from Prisma client wiring.
 - [x] Next.js 16 App Router project initialized.
 - [x] React 19 and TypeScript configured.
 - [x] Tailwind CSS v4 and shadcn/Radix-style UI primitives available.
 - [x] Better Auth integration configured with Prisma adapter and email/password auth.
 - [x] Auth API route mounted at `app/api/auth/[...all]/route.ts`.
 - [x] Prisma schema created for `StudyHall`, `User`, `Seat`, `Subscription`, and Better Auth tables.
-- [x] SQLite local development database adapter configured through Prisma.
-- [x] Onboarding flow creates a study hall, assigns owner as admin, and generates seats.
+- [x] PostgreSQL datasource/provider configured through Prisma.
+- [x] Onboarding flow creates a study hall with name, hall type, address, monthly fee, assigns owner as admin, and generates seats.
 - [x] Dashboard route protects unauthenticated users and redirects users without a study hall to onboarding.
 - [x] Live seat map implemented with visual statuses for available, reserved, renewal-needed, and expired seats.
 - [x] Quick reserve/manage Sheet implemented from the seat map.
@@ -97,7 +94,8 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Release seat server action cancels active subscriptions.
 - [x] Swap seat server action validates destination seats and blocks occupied targets inside a transaction.
 - [x] Admin-only staff creation server action exists.
-- [x] Profile and study hall settings screens exist with admin-only venue setting updates.
+- [x] Profile settings are separated from admin-only hall settings.
+- [x] Dedicated `تنظیمات سالن` admin dashboard route exists for venue configuration.
 - [x] PWA manifest and service-worker registration exist.
 - [x] Push notification proof-of-concept exists with VAPID/web-push scaffolding.
 - [x] Product positioning and marketing docs exist under `docs/`.

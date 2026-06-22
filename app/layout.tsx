@@ -7,7 +7,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "./providers/ThemeProvider";
 import { DirectionProvider } from "@/components/ui/direction";
 import CommandPalette from "@/components/command-palette";
-import { prisma } from "@/lib/db";
 
 const estedaad = localFont({
   src: "./fonts/Estedad[wght].woff2",
@@ -43,21 +42,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const seats = await prisma.seat.findMany({
-    take: 200,
-    orderBy: { seatNumber: "asc" },
-    select: { id: true, seatNumber: true },
-  });
-  const membersData = await prisma.user.findMany({
-    where: { role: "member" },
-    take: 200,
-    select: { id: true, name: true, phoneNumber: true },
-  });
-  const members = membersData.map((m) => ({
-    ...m,
-    phoneNumber: m.phoneNumber ?? undefined,
-  }));
-
   return (
     <html
       suppressHydrationWarning
@@ -80,7 +64,7 @@ export default async function RootLayout({
           <ThemeProvider>
             <TooltipProvider>
               {children}
-              <CommandPalette initialSeats={seats} initialMembers={members} />
+              <CommandPalette />
             </TooltipProvider>
             <Toaster
               position="top-right"

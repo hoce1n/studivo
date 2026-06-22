@@ -1,5 +1,7 @@
 "use client";
 
+import { CheckCircle2, MapPin } from "lucide-react";
+
 import { ActionForm } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,15 +11,14 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { CheckCircle2 } from "lucide-react";
 
 type Props = {
-  action: any;
+  action: (formData: FormData) => Promise<unknown>;
 };
 
 export default function OnboardingForm({ action }: Props) {
   return (
-    <ActionForm action={action}>
+    <ActionForm action={action} successMessage="سالن مطالعه با موفقیت ساخته شد.">
       {(pending: boolean) => (
         <FieldGroup>
           <Field>
@@ -32,6 +33,39 @@ export default function OnboardingForm({ action }: Props) {
           </Field>
 
           <Field>
+            <FieldLabel htmlFor="gender">نوع سالن</FieldLabel>
+            <select
+              id="gender"
+              name="gender"
+              defaultValue="female"
+              className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-2xl border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+              required
+            >
+              <option value="female">بانوان</option>
+              <option value="male">آقایان</option>
+            </select>
+            <FieldDescription>
+              نوع پذیرش سالن برای نمایش و فیلترهای عملیاتی Studivo ذخیره می‌شود.
+            </FieldDescription>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="address">آدرس سالن</FieldLabel>
+            <div className="relative">
+              <MapPin className="pointer-events-none absolute right-3 top-3 size-4 text-muted-foreground" />
+              <textarea
+                id="address"
+                name="address"
+                rows={3}
+                maxLength={300}
+                placeholder="آدرس کامل سالن مطالعه"
+                className="border-input bg-background ring-offset-background focus-visible:ring-ring min-h-24 w-full rounded-2xl border px-10 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+                required
+              />
+            </div>
+          </Field>
+
+          <Field>
             <FieldLabel htmlFor="totalSeats">تعداد صندلی‌ها</FieldLabel>
             <Input
               id="totalSeats"
@@ -43,8 +77,7 @@ export default function OnboardingForm({ action }: Props) {
               required
             />
             <FieldDescription>
-              برای هر عدد، یک ردیف Seat با studyhallId همین سالن ساخته
-              می‌شود.
+              برای هر عدد، یک ردیف Seat با studyhallId همین سالن ساخته می‌شود.
             </FieldDescription>
           </Field>
 
@@ -71,7 +104,7 @@ export default function OnboardingForm({ action }: Props) {
           </Button>
 
           <p className="text-center text-xs leading-6 text-muted-foreground">
-            بعداً می‌توانید تعداد صندلی‌ها و شهریه را تغییر دهید.
+            بعداً می‌توانید مشخصات سالن، ظرفیت، آدرس و شهریه را از بخش تنظیمات سالن تغییر دهید.
           </p>
         </FieldGroup>
       )}

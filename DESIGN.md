@@ -18,11 +18,13 @@ The current application is a Next.js 16 App Router application with server-rende
 
 - **Framework:** Next.js 16.2.6 using the App Router.
 - **Runtime/UI:** React 19, TypeScript, Server Components, Client Components where interactivity is required.
-- **Persistence:** Prisma 7.8 with a generated client in `lib/generated/prisma` and a Better SQLite adapter for local development.
-- **Database:** SQLite today via `@prisma/adapter-better-sqlite3`; PostgreSQL is the expected production migration path.
+- **Persistence:** Prisma 7.8 with a generated client in `lib/generated/prisma`.
+- **Database:** PostgreSQL is the official platform database for development-aligned production workflows and transactional seat-management safety.
 - **Authentication:** Better Auth with email/password enabled and a Prisma adapter.
 - **Styling:** Tailwind CSS v4, next-themes, Radix/shadcn-style UI components, Sonner toasts.
 - **PWA:** Web app manifest, service-worker registration, push-notification helper actions, and a demo in-memory push subscription.
+
+PostgreSQL now backs Studivo's server-side concurrency model. Seat reservation, renewal, release, and swap flows still use explicit Prisma transactions, and those transactions are now backed by PostgreSQL isolation and locking behavior instead of file-level database locking. This is critical for peak-season front-desk activity where multiple staff members may attempt high-value seat operations at the same time.
 
 ## 3. Database & Entity Relationships
 
@@ -30,7 +32,7 @@ The authoritative domain model is `prisma/schema.prisma`.
 
 ### StudyHall
 
-`StudyHall` represents one managed venue/branch. It stores the venue name, total seat count, monthly fee, gender policy, address, and timestamps.
+`StudyHall` represents one managed venue/branch. It stores the venue name, total seat count, monthly fee, hall type/gender policy, address, and timestamps.
 
 Relationships:
 
@@ -100,7 +102,7 @@ Relationships:
 Integrity notes:
 
 - There is currently no database-level partial unique index that prevents more than one `active` subscription per seat. Double-booking prevention is implemented in transactional server actions.
-- A production PostgreSQL migration should add stronger constraints or transaction isolation around active seat occupancy.
+- PostgreSQL transaction isolation and locking now provide the database foundation for safe active-seat occupancy checks. A future partial unique index can further harden the invariant at schema level.
 
 ### Auth Tables
 
@@ -113,7 +115,7 @@ Primary business logic lives in `app/actions/actions.ts` as Next.js Server Actio
 ### Onboarding Flow
 
 1. A signed-in user without `studyhallId` is redirected to `/onboarding`.
-2. `completeOnboarding` validates venue name, total seats, and monthly fee with Zod.
+2. `completeOnboarding` validates venue name, hall type, address, total seats, and monthly fee with Zod.
 3. Inside a Prisma transaction:
    - Create the `StudyHall`.
    - Promote the current user to `admin`.
@@ -159,9 +161,9 @@ The current implementation prevents common double-booking scenarios through appl
 
 Production hardening recommendation:
 
-- Move to PostgreSQL.
-- Add a database-level invariant for active seat occupancy, such as a partial unique index on `(studyhallId, seatId)` where `status = 'active'`.
-- Use appropriate transaction isolation for high-concurrency front-desk operations.
+- Keep all seat mutations inside Prisma transactions so PostgreSQL can enforce isolation and locking around concurrent reads/writes.
+- Add a database-level invariant for active seat occupancy, such as a PostgreSQL partial unique index on `(studyhallId, seatId)` where `status = 'active'`.
+- Use explicit row-level locking patterns if future high-concurrency booking queues require stricter serialization.
 
 ### Dynamic Seat Changes / Swapping Seats
 
@@ -203,7 +205,7 @@ The subscription history remains attached to the same subscription row for a mov
 Better Auth is configured in `lib/auth.ts` with:
 
 - Prisma adapter.
-- SQLite provider.
+- PostgreSQL provider.
 - Email/password authentication enabled.
 
 The route handler at `app/api/auth/[...all]/route.ts` exposes the Better Auth API. Server-side code reads sessions through `getSession` in `lib/server.ts`, which passes Next.js request headers to Better Auth.
@@ -241,7 +243,8 @@ Future hardening:
 - `app/onboarding`: first-run venue creation flow.
 - `app/dashboard`: authenticated study hall operations dashboard.
 - `app/dashboard/_components`: dashboard-specific seat map, seat cards, reserve/manage sheet, and staff form.
-- `app/dashboard/profile`: profile and venue settings.
+- `app/dashboard/profile`: user profile and password/security settings.
+- `app/dashboard/settings`: admin-only hall settings for name, type, address, capacity, and monthly fee.
 - `app/actions`: server actions for core business mutations and PWA actions.
 - `app/api/auth/[...all]`: Better Auth route handler.
 - `app/manifest.json`: PWA manifest.
@@ -256,7 +259,7 @@ Future hardening:
 
 ### `lib/`
 
-- `lib/db.ts`: Prisma client singleton with Better SQLite adapter.
+- `lib/db.ts`: Prisma client singleton for the PostgreSQL-backed Prisma datasource.
 - `lib/auth.ts`: Better Auth configuration.
 - `lib/auth-client.ts`: client-side Better Auth integration.
 - `lib/server.ts`: server helper for reading sessions.
@@ -272,9 +275,8 @@ Future hardening:
 
 ## 7. Current Architecture Risks
 
-1. **SQLite is not the production concurrency target.** It is acceptable for local development, but production study halls need PostgreSQL-level concurrency and stronger constraints.
-2. **Active-seat uniqueness is not enforced by schema.** Application transactions reduce risk, but production should add database-level protection.
-3. **Server Actions currently throw for expected failures.** Future work should standardize `{ ok, data?, error? }` action result objects.
-4. **Push subscriptions are in-memory.** They disappear on restart and are not user- or venue-scoped.
-5. **Payment status is modeled but not integrated.** `paymentStatus` exists without invoices, receipts, or payment-provider webhooks.
-6. **Role values are strings.** A Prisma enum and permission helpers would reduce accidental authorization drift.
+1. **Active-seat uniqueness is not yet enforced by a partial unique index.** PostgreSQL transactions reduce risk, but a database-level active-seat invariant should still be added.
+2. **Some Server Actions still throw for expected failures.** New or touched actions should continue migrating to structured `{ success, error?, message? }` result objects.
+3. **Push subscriptions are in-memory.** They disappear on restart and are not user- or venue-scoped.
+4. **Payment status is modeled but not integrated.** `paymentStatus` exists without invoices, receipts, or payment-provider webhooks.
+5. **Role values are strings.** A Prisma enum and permission helpers would reduce accidental authorization drift.

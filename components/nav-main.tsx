@@ -44,7 +44,7 @@ export function NavMain({
           >
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={item.title}>
+                <SidebarMenuButton tooltip={item.title} isActive={item.isActive}>
                   {item.icon}
                   <span>{item.title}</span>
                   <ChevronRightIcon className="ms-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -54,7 +54,7 @@ export function NavMain({
                 <SidebarMenuSub>
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton asChild>
+                      <SidebarMenuSubButton asChild isActive={item.isActive && subItem.url === item.url}>
                         <a href={subItem.url}>
                           <span>{subItem.title}</span>
                         </a>

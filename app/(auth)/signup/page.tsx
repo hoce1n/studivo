@@ -2,6 +2,7 @@
 
 import { SignupForm } from "@/app/(auth)/signup/_components/signup-form"
 import { Logo } from "@/app/(marketing)/_components/navbar/logo"
+import Image from "next/image"
 import Link from "next/link"
 
 export default function SignupPage() {
@@ -20,10 +21,12 @@ export default function SignupPage() {
         </div>
       </div>
       <div className="relative hidden lg:block">
-        <img
+        <Image
           src="/placeholder.svg"
-          alt="Image"
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          alt="تصویر پس‌زمینه Studivo"
+          fill
+          className="object-cover dark:brightness-[0.2] dark:grayscale"
+          priority
         />
       </div>
     </div>

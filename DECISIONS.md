@@ -46,19 +46,19 @@ This file records architectural and product decisions whose reasoning is not ful
 - Schema constraints should be preferred over ad-hoc UI assumptions.
 - The generated Prisma client lives under `lib/generated/prisma` per the current generator configuration.
 
-## ADR-004: SQLite for Local Development, PostgreSQL for Production Path
+## ADR-004: PostgreSQL as the Platform Database
 
-**Status:** Accepted as current state with planned migration
+**Status:** Accepted
 
-**Decision:** The current repository uses SQLite via `@prisma/adapter-better-sqlite3`, while the production path should move to PostgreSQL.
+**Decision:** Studivo uses PostgreSQL as the official application database through Prisma.
 
-**Reasoning:** SQLite keeps the starter simple and fast for local development. However, Studivo's core promise depends on concurrent seat booking integrity. Real multi-staff venues need stronger production concurrency, better isolation, operational backups, and database-level constraints such as partial unique indexes.
+**Reasoning:** Studivo's core promise depends on concurrent seat booking integrity. Real multi-staff venues need strong transaction behavior, isolation, row-level locking capabilities, operational backups, and database-level constraints such as partial unique indexes.
 
 **Consequences:**
 
-- Development remains easy today.
-- Production readiness requires a database migration plan.
-- Active-seat uniqueness should eventually be enforced at the database level, not only in application transactions.
+- Development and production should target PostgreSQL-compatible behavior.
+- Seat booking, renewal, release, and swap flows remain wrapped in Prisma transactions.
+- Active-seat uniqueness should be hardened with PostgreSQL-native constraints where possible.
 
 ## ADR-005: PWA + Push Notifications Before Native Apps
 
@@ -101,3 +101,19 @@ This file records architectural and product decisions whose reasoning is not ful
 - Renewals expire the current active row and create a fresh active subscription.
 - Reporting can later calculate retention, renewal rates, and revenue history.
 - Future payment models should link invoices/payments to subscription periods.
+
+
+## ADR-008: Migration from SQLite to PostgreSQL
+
+**Status:** Accepted
+
+**Decision:** Complete the platform migration from SQLite-style local persistence to PostgreSQL-backed persistence.
+
+**Context/Rationale:** Studivo manages real physical seats during high-pressure operational windows such as exam seasons and peak registration days. PostgreSQL is required for strict transactions, reduced lock contention under concurrent staff usage, and robust row-level locking patterns that support double-booking prevention when multiple operators attempt seat reservations, renewals, or swaps at the same time.
+
+**Consequences:**
+
+- Prisma datasource configuration now targets PostgreSQL.
+- Better Auth uses the PostgreSQL Prisma adapter provider.
+- Server-side concurrency logic is backed by PostgreSQL isolation and locking instead of file-level database locking.
+- Future schema hardening should add a partial unique index or equivalent invariant for active seat occupancy.

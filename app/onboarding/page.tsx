@@ -81,8 +81,8 @@ export default async function OnboardingPage() {
                   راه‌اندازی سالن مطالعه
                 </h1>
                 <p className="mt-3 text-sm leading-7 text-primary-foreground/80">
-                  در یک قدم، اطلاعات پایه‌ی سالن خود را وارد کنید: نام، تعداد
-                  میزها و شهریه‌ی ماهانه.
+                  در یک قدم، اطلاعات پایه‌ی سالن خود را وارد کنید: نام، نوع پذیرش،
+                  آدرس، تعداد میزها و شهریه‌ی ماهانه.
                 </p>
               </div>
 
@@ -115,7 +115,7 @@ export default async function OnboardingPage() {
               <CardHeader className="px-0 pt-0">
                 <CardTitle className="text-xl">مشخصات اولیه سالن</CardTitle>
                 <CardDescription>
-                  این اطلاعات برای ساخت StudyHall و Seatهای اولیه استفاده
+                  این اطلاعات برای ساخت StudyHall، ذخیره آدرس و نوع سالن، و ایجاد Seatهای اولیه استفاده
                   می‌شود.
                 </CardDescription>
               </CardHeader>
