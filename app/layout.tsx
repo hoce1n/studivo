@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "./providers/ThemeProvider";
+import { PostHogProvider } from "./providers/PostHogProvider";
 import { DirectionProvider } from "@/components/ui/direction";
 import CommandPalette from "@/components/command-palette";
 
@@ -60,20 +61,22 @@ export default async function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body>
-        <DirectionProvider dir="rtl">
-          <ThemeProvider>
-            <TooltipProvider>
-              {children}
-              <CommandPalette />
-            </TooltipProvider>
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                className: "font-sans",
-              }}
-            />
-          </ThemeProvider>
-        </DirectionProvider>
+        <PostHogProvider>
+          <DirectionProvider dir="rtl">
+            <ThemeProvider>
+              <TooltipProvider>
+                {children}
+                <CommandPalette />
+              </TooltipProvider>
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  className: "font-sans",
+                }}
+              />
+            </ThemeProvider>
+          </DirectionProvider>
+        </PostHogProvider>
       </body>
     </html>
   );
