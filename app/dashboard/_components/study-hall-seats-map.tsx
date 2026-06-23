@@ -38,6 +38,7 @@ type StudyHallSeatsMapProps = {
   statusCopy: StatusCopy;
   stats: Record<SeatStatus, string>;
   studyHallName: string;
+  returningMember?: { id: string; name: string; phoneNumber: string | null } | null;
 };
 
 export function StudyHallSeatsMap({
@@ -46,6 +47,7 @@ export function StudyHallSeatsMap({
   statusCopy,
   stats,
   studyHallName,
+  returningMember,
 }: StudyHallSeatsMapProps) {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedSeat, setSelectedSeat] = useState<SeatMapItem | null>(null);
@@ -190,6 +192,7 @@ export function StudyHallSeatsMap({
         open={selectedSeat !== null}
         seat={selectedSeat}
         studyHallName={studyHallName}
+        returningMember={returningMember}
         onOpenChange={handleReserveSheetOpenChange}
       />
     </Card>

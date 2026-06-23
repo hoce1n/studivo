@@ -100,3 +100,11 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Push notification proof-of-concept exists with VAPID/web-push scaffolding.
 - [x] Product positioning and marketing docs exist under `docs/`.
 - [x] Strategic root documentation files populated: `AGENT.md`, `DESIGN.md`, `DECISIONS.md`, and `TASKS.md`.
+
+## Completed — Data Preservation & Trust
+
+- [x] Expose seat-level subscription history in the seat management sheet.
+- [x] Add a member archive/profile view for active and inactive members with historical subscription/payment timelines.
+- [x] Add one-click archived-member reactivation through pre-filled dashboard reservations.
+- [x] Add venue-scoped `AuditLog` persistence for reservation, renewal, release, and seat swap operations.
+- [x] Add an admin-only `/dashboard/logs` digital event notebook.

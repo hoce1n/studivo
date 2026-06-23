@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Phone,
   Trash2,
+  History,
   User,
 } from "lucide-react";
 import { format } from "date-fns-jalali";
@@ -43,6 +44,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sheet,
   SheetContent,
@@ -68,6 +70,15 @@ export type ReserveFormSeat = {
     startDateISO: string;
     endDateISO: string;
   };
+  history?: {
+    id: string;
+    memberName: string;
+    phoneNumber: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+    paymentStatus: string;
+  }[];
 };
 
 function getDefaultEndDate() {
@@ -108,17 +119,56 @@ function normalizeSeatNumber(value: string | number | null | undefined) {
     .replace(/\D/g, "");
 }
 
+function SeatHistoryTimeline({ history }: { history: NonNullable<ReserveFormSeat["history"]> }) {
+  if (!history.length) {
+    return (
+      <div className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+        هنوز سابقه‌ای برای این صندلی ثبت نشده است.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-2xl border p-3">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <History className="size-4 text-muted-foreground" />
+        آرشیو امن اشغال این صندلی
+      </div>
+      <div className="space-y-3">
+        {history.map((item) => (
+          <div key={item.id} className="relative border-r pr-4 text-sm">
+            <span className="absolute -right-1.5 top-1.5 size-3 rounded-full bg-primary" aria-hidden />
+            <div className="font-medium">{item.memberName}</div>
+            <div className="text-xs text-muted-foreground" dir="ltr">{item.phoneNumber}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {item.startDate} تا {item.endDate} · {statusLabels[item.status] ?? item.status}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const statusLabels: Record<string, string> = {
+  active: "فعال",
+  expired: "منقضی",
+  cancelled: "لغوشده",
+};
+
 export function ReserveForm({
   maxSeats,
   open,
   seat,
   studyHallName,
+  returningMember,
   onOpenChange,
 }: {
   maxSeats: number;
   open: boolean;
   seat: ReserveFormSeat | null;
   studyHallName: string;
+  returningMember?: { id: string; name: string; phoneNumber: string | null } | null;
   onOpenChange: (open: boolean) => void;
 }) {
   const [date, setDate] = React.useState<Date | undefined>(getDefaultEndDate);
@@ -177,8 +227,11 @@ export function ReserveForm({
     setRenewError(null);
     startRenewTransition(async () => {
       try {
-        await renewSubscription(subscription.id, adjustedDate.toISOString());
-        toast.success("تمدید اشتراک با موفقیت ثبت شد.");
+        const result = await renewSubscription(subscription.id, adjustedDate.toISOString());
+        if (!result.success) {
+          throw new Error(result.error || "تمدید اشتراک ناموفق بود.");
+        }
+        toast.success(result.message || "تمدید اشتراک با موفقیت ثبت شد.");
         setRenewDate(getDefaultEndDate());
         onOpenChange(false);
       } catch (error) {
@@ -209,8 +262,11 @@ export function ReserveForm({
     setSwapError(null);
     startSwapTransition(async () => {
       try {
-        await swapSeat(subscription.id, parsedSeatNumber);
-        toast.success("دانش‌آموز با موفقیت به صندلی جدید منتقل شد.");
+        const result = await swapSeat(subscription.id, parsedSeatNumber);
+        if (!result.success) {
+          throw new Error(result.error || "جابجایی صندلی ناموفق بود.");
+        }
+        toast.success(result.message || "دانش‌آموز با موفقیت به صندلی جدید منتقل شد.");
         setSwapSeatNumber("");
         onOpenChange(false);
       } catch (error) {
@@ -229,8 +285,11 @@ export function ReserveForm({
 
     startReleaseTransition(async () => {
       try {
-        await releaseSeat(subscription.id);
-        toast.success("صندلی با موفقیت تخلیه شد.");
+        const result = await releaseSeat(subscription.id);
+        if (!result.success) {
+          throw new Error(result.error || "تخلیه صندلی ناموفق بود.");
+        }
+        toast.success(result.message || "صندلی با موفقیت تخلیه شد.");
         onOpenChange(false);
       } catch (error) {
         toast.error(getActionErrorMessage(error, "تخلیه صندلی ناموفق بود."));
@@ -255,6 +314,11 @@ export function ReserveForm({
         </SheetHeader>
 
         <div className="px-6 pb-6">
+          {isAvailable && returningMember ? (
+            <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-right text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+              اطلاعات {returningMember.name} از آرشیو اعضا آماده شده؛ فقط صندلی و تاریخ پایان را تأیید کنید.
+            </div>
+          ) : null}
           {isAvailable ? (
             <ActionForm
               key={seat?.id ?? "empty"}
@@ -273,6 +337,7 @@ export function ReserveForm({
                       inputMode="tel"
                       placeholder="09123456789"
                       autoFocus
+                      defaultValue={returningMember?.phoneNumber ?? ""}
                       required
                     />
                   </Field>
@@ -282,6 +347,7 @@ export function ReserveForm({
                       id="memberName"
                       name="memberName"
                       placeholder="نام و نام خانوادگی"
+                      defaultValue={returningMember?.name ?? ""}
                       required
                     />
                   </Field>
@@ -347,7 +413,12 @@ export function ReserveForm({
               )}
             </ActionForm>
           ) : subscription ? (
-            <div className="space-y-4 text-right">
+            <Tabs defaultValue="current" className="text-right">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="current">مدیریت فعلی</TabsTrigger>
+                <TabsTrigger value="history">تاریخچه صندلی</TabsTrigger>
+              </TabsList>
+              <TabsContent value="current" className="space-y-4">
               <div className="space-y-2 rounded-2xl bg-muted/50 p-3 text-sm">
                 <div className="flex items-center gap-2">
                   <User className="size-4 text-muted-foreground" />
@@ -484,7 +555,11 @@ export function ReserveForm({
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
-            </div>
+              </TabsContent>
+              <TabsContent value="history">
+                <SeatHistoryTimeline history={seat?.history ?? []} />
+              </TabsContent>
+            </Tabs>
           ) : (
             <p className="rounded-2xl border border-dashed p-3 text-center text-sm text-muted-foreground">
               برای این صندلی اشتراک فعالی ثبت نشده است.

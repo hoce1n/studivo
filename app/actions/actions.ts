@@ -238,13 +238,23 @@ const subscriptionSchema = z.object({
   endDate: z.coerce.date(),
 });
 
+type ActionResult = { success: boolean; error?: string; message?: string };
+
+function actionError(error: unknown, fallback: string): ActionResult {
+  if (error instanceof Error && error.message.trim()) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: false, error: fallback };
+}
+
 function localMemberEmail(phoneNumber: string, studyhallId: string) {
   const input = `${studyhallId}-${phoneNumber}`;
   const shortHash = createHash("sha1").update(input).digest("hex").slice(0, 8);
   return `${shortHash}@studivo.ir`
 }
 
-export async function reserveSeat(formData: FormData) {
+export async function reserveSeat(formData: FormData): Promise<ActionResult> {
   const user = await requireScopedUser();
   const parsed = subscriptionSchema.safeParse({
     seatNumber: formData.get("seatNumber"),
@@ -254,15 +264,16 @@ export async function reserveSeat(formData: FormData) {
   });
 
   if (!parsed.success) {
-    throw new Error("اطلاعات رزرو صندلی کامل یا معتبر نیست.");
+    return { success: false, error: "اطلاعات رزرو صندلی کامل یا معتبر نیست." };
   }
 
   const now = new Date();
   if (parsed.data.endDate <= now) {
-    throw new Error("تاریخ پایان باید بعد از امروز باشد.");
+    return { success: false, error: "تاریخ پایان باید بعد از امروز باشد." };
   }
 
-  await prisma.$transaction(async (tx) => {
+  try {
+    await prisma.$transaction(async (tx) => {
     const seat = await tx.seat.findFirst({
       where: {
         studyhallId: user.studyhallId,
@@ -323,10 +334,10 @@ export async function reserveSeat(formData: FormData) {
         studyhallId: user.studyhallId,
         emailVerified: false,
       },
-      select: { id: true },
+      select: { id: true, name: true, phoneNumber: true },
     });
 
-    await tx.subscription.create({
+    const createdSubscription = await tx.subscription.create({
       data: {
         userId: member.id,
         seatId: seat.id,
@@ -335,10 +346,33 @@ export async function reserveSeat(formData: FormData) {
         endDate: parsed.data.endDate,
         status: "active",
       },
+      include: { seat: { select: { seatNumber: true } } },
     });
-  });
+
+    await tx.auditLog.create({
+      data: {
+        studyhallId: user.studyhallId,
+        userId: user.id,
+        action: "RESERVE_SEAT",
+        details: {
+          operatorName: user.name,
+          memberName: member.name,
+          phoneNumber: member.phoneNumber,
+          seatNumber: createdSubscription.seat.seatNumber,
+          endDate: parsed.data.endDate.toISOString(),
+          message: `${user.name} صندلی ${createdSubscription.seat.seatNumber} را برای ${member.name} رزرو کرد.`,
+        },
+      },
+    });
+    });
+  } catch (error) {
+    return actionError(error, "رزرو صندلی ناموفق بود.");
+  }
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/logs");
+  return { success: true, message: "رزرو صندلی با موفقیت ثبت شد." };
 }
 
 const renewSchema = z.object({
@@ -346,28 +380,29 @@ const renewSchema = z.object({
   endDate: z.coerce.date(),
 });
 
-export async function renewSubscription(subscriptionId: string, endDate: string) {
+export async function renewSubscription(subscriptionId: string, endDate: string): Promise<ActionResult> {
   const user = await requireScopedUser();
 
   const parsed = renewSchema.safeParse({ subscriptionId, endDate });
 
   if (!parsed.success) {
-    throw new Error("اطلاعات تمدید اشتراک معتبر نیست.");
+    return { success: false, error: "اطلاعات تمدید اشتراک معتبر نیست." };
   }
 
   const now = new Date();
   if (parsed.data.endDate <= now) {
-    throw new Error("تاریخ پایان جدید باید بعد از امروز باشد.");
+    return { success: false, error: "تاریخ پایان جدید باید بعد از امروز باشد." };
   }
 
-  await prisma.$transaction(async (tx) => {
+  try {
+    await prisma.$transaction(async (tx) => {
     const current = await tx.subscription.findFirst({
       where: {
         id: parsed.data.subscriptionId,
         studyhallId: user.studyhallId,
         status: "active",
       },
-      select: { id: true, userId: true, seatId: true },
+      select: { id: true, userId: true, seatId: true, user: { select: { name: true } }, seat: { select: { seatNumber: true } } },
     });
 
     if (!current) {
@@ -391,24 +426,37 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
         status: "active",
       },
     });
-  });
+
+    await tx.auditLog.create({ data: { studyhallId: user.studyhallId, userId: user.id, action: "RENEW_SUBSCRIPTION", details: { operatorName: user.name, memberName: current.user.name, seatNumber: current.seat.seatNumber, endDate: parsed.data.endDate.toISOString(), message: `${user.name} اشتراک صندلی ${current.seat.seatNumber} را برای ${current.user.name} تمدید کرد.` } } });
+    });
+  } catch (error) {
+    return actionError(error, "تمدید اشتراک ناموفق بود.");
+  }
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/logs");
+  return { success: true, message: "تمدید اشتراک با موفقیت ثبت شد." };
 }
 
-export async function releaseSeat(subscriptionId: string) {
+export async function releaseSeat(subscriptionId: string): Promise<ActionResult> {
   const user = await requireScopedUser();
 
-  await prisma.subscription.updateMany({
-    where: {
-      id: subscriptionId,
-      studyhallId: user.studyhallId,
-      status: "active",
-    },
-    data: { status: "cancelled" },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      const current = await tx.subscription.findFirst({ where: { id: subscriptionId, studyhallId: user.studyhallId, status: "active" }, select: { id: true, user: { select: { name: true } }, seat: { select: { seatNumber: true } } } });
+      if (!current) throw new Error("اشتراک فعالی برای تخلیه پیدا نشد.");
+      await tx.subscription.update({ where: { id: current.id }, data: { status: "cancelled" } });
+      await tx.auditLog.create({ data: { studyhallId: user.studyhallId, userId: user.id, action: "RELEASE_SEAT", details: { operatorName: user.name, memberName: current.user.name, seatNumber: current.seat.seatNumber, message: `${user.name} صندلی ${current.seat.seatNumber} را از ${current.user.name} تخلیه کرد.` } } });
+    });
+  } catch (error) {
+    return actionError(error, "تخلیه صندلی ناموفق بود.");
+  }
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/members");
+  revalidatePath("/dashboard/logs");
+  return { success: true, message: "صندلی با موفقیت تخلیه شد." };
 }
 
 const swapSeatSchema = z.object({
@@ -416,15 +464,16 @@ const swapSeatSchema = z.object({
   newSeatNumber: z.coerce.number().int().min(1, "شماره صندلی باید یک عدد مثبت باشد."),
 });
 
-export async function swapSeat(subscriptionId: string, newSeatNumber: number) {
+export async function swapSeat(subscriptionId: string, newSeatNumber: number): Promise<ActionResult> {
   const user = await requireScopedUser();
 
   const parsed = swapSeatSchema.safeParse({ subscriptionId, newSeatNumber });
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || "اطلاعات جابه‌جایی صندلی معتبر نیست.");
+    return { success: false, error: parsed.error.issues[0]?.message || "اطلاعات جابه‌جایی صندلی معتبر نیست." };
   }
 
-  await prisma.$transaction(async (tx) => {
+  try {
+    await prisma.$transaction(async (tx) => {
     const targetSeat = await tx.seat.findFirst({
       where: {
         studyhallId: user.studyhallId,
@@ -456,7 +505,7 @@ export async function swapSeat(subscriptionId: string, newSeatNumber: number) {
         studyhallId: user.studyhallId,
         status: "active",
       },
-      select: { id: true, seatId: true },
+      select: { id: true, seatId: true, user: { select: { name: true } }, seat: { select: { seatNumber: true } } },
     });
 
     if (!currentSubscription) {
@@ -471,7 +520,14 @@ export async function swapSeat(subscriptionId: string, newSeatNumber: number) {
       where: { id: currentSubscription.id },
       data: { seatId: targetSeat.id },
     });
-  });
+
+    await tx.auditLog.create({ data: { studyhallId: user.studyhallId, userId: user.id, action: "SWAP_SEAT", details: { operatorName: user.name, memberName: currentSubscription.user.name, fromSeatNumber: currentSubscription.seat.seatNumber, toSeatNumber: parsed.data.newSeatNumber, message: `${user.name} ${currentSubscription.user.name} را از صندلی ${currentSubscription.seat.seatNumber} به صندلی ${parsed.data.newSeatNumber} منتقل کرد.` } } });
+    });
+  } catch (error) {
+    return actionError(error, "جابجایی صندلی ناموفق بود.");
+  }
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/logs");
+  return { success: true, message: "دانش‌آموز با موفقیت به صندلی جدید منتقل شد." };
 }
