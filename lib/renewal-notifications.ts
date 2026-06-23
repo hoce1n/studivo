@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { sendPushToMany } from "@/lib/push";
 
 const dayInMs = 24 * 60 * 60 * 1000;
-export const RENEWAL_THRESHOLD_DAYS = 3;
+export const DEFAULT_RENEWAL_THRESHOLD_DAYS = 3;
 
 type ReminderCandidate = {
   subscriptionId: string;
@@ -50,38 +50,65 @@ function buildReminderMessage(candidate: ReminderCandidate) {
 export async function sendRenewalReminders() {
   const now = new Date();
   const dateKey = now.toISOString().slice(0, 10);
-  const renewalCutoff = new Date(now.getTime() + RENEWAL_THRESHOLD_DAYS * dayInMs);
+  const maxReminderDaysBefore = 14;
+  const renewalCutoff = new Date(now.getTime() + maxReminderDaysBefore * dayInMs);
 
   const subscriptions = await prisma.subscription.findMany({
     where: {
       status: "active",
       OR: [{ endDate: { lt: now } }, { endDate: { lte: renewalCutoff } }],
+      studyhall: {
+        OR: [
+          { renewalRemindersEnabled: true },
+          { expiryRemindersEnabled: true },
+        ],
+      },
     },
     select: {
       id: true,
       endDate: true,
       studyhallId: true,
-      studyhall: { select: { name: true } },
+      studyhall: {
+        select: {
+          name: true,
+          reminderDaysBefore: true,
+          renewalRemindersEnabled: true,
+          expiryRemindersEnabled: true,
+        },
+      },
       seat: { select: { seatNumber: true } },
       user: { select: { name: true } },
     },
   });
 
-  const candidates: ReminderCandidate[] = subscriptions.map((subscription) => {
+  const candidates: ReminderCandidate[] = subscriptions.flatMap((subscription) => {
     const daysLeft = Math.ceil(
       (subscription.endDate.getTime() - now.getTime()) / dayInMs,
     );
+    const kind = daysLeft < 0 ? "expired" : "renewal";
 
-    return {
+    if (kind === "expired" && !subscription.studyhall.expiryRemindersEnabled) {
+      return [];
+    }
+
+    if (
+      kind === "renewal" &&
+      (!subscription.studyhall.renewalRemindersEnabled ||
+        daysLeft > subscription.studyhall.reminderDaysBefore)
+    ) {
+      return [];
+    }
+
+    return [{
       subscriptionId: subscription.id,
       studyhallId: subscription.studyhallId,
       studyhallName: subscription.studyhall.name,
       seatNumber: subscription.seat.seatNumber,
       memberName: subscription.user.name,
       endDate: subscription.endDate,
-      kind: daysLeft < 0 ? "expired" : "renewal",
+      kind,
       daysLeft,
-    };
+    }];
   });
 
   if (candidates.length === 0) {

@@ -19,6 +19,9 @@
     monthlyFee Float    @default(0)
     gender String @default("unspecified")
     address String @default("")
+    reminderDaysBefore Int @default(3)
+    renewalRemindersEnabled Boolean @default(true)
+    expiryRemindersEnabled Boolean @default(true)
     createdAt  DateTime @default(now())
     updatedAt  DateTime @updatedAt
 

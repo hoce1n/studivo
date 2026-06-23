@@ -1,6 +1,7 @@
 import { ShieldAlert, User } from "lucide-react";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { NotificationBell } from "@/components/notification-bell";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -17,7 +18,7 @@ import { ProfileSettings } from "./_components/profile-settings";
 import { requireUser } from "@/app/actions/actions";
 
 export default async function ProfilePage() {
-  const user = await requireUser();  
+  const user = await requireUser();
   return (
     <SidebarProvider>
       <AppSidebar
@@ -28,19 +29,22 @@ export default async function ProfilePage() {
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ms-1" />
-            <Separator
-              orientation="vertical"
-              className="me-2 data-vertical:h-4 data-vertical:self-auto"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbPage>پروفایل و امنیت</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+          <div className="flex w-full items-center justify-between gap-2 px-4">
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="-ms-1" />
+              <Separator
+                orientation="vertical"
+                className="me-2 data-vertical:h-4 data-vertical:self-auto"
+              />
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>پروفایل و امنیت</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+            <NotificationBell />
           </div>
         </header>
         <main className="flex flex-1 flex-col gap-6 p-4 md:p-6" dir="rtl">

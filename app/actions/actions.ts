@@ -33,6 +33,9 @@ export async function requireUser() {
           monthlyFee: true,
           gender: true,
           address: true,
+          reminderDaysBefore: true,
+          renewalRemindersEnabled: true,
+          expiryRemindersEnabled: true,
         },
       },
     },
@@ -69,6 +72,16 @@ const studyHallSettingsSchema = z.object({
   address: z.string().trim().min(5, "آدرس سالن را کامل‌تر وارد کنید.").max(300, "آدرس نمی‌تواند بیشتر از ۳۰۰ کاراکتر باشد."),
 });
 
+const notificationPreferencesSchema = z.object({
+  renewalRemindersEnabled: z.coerce.boolean(),
+  expiryRemindersEnabled: z.coerce.boolean(),
+  reminderDaysBefore: z.coerce
+    .number()
+    .int("بازه یادآوری باید عدد صحیح باشد.")
+    .min(1, "یادآوری باید حداقل ۱ روز قبل ارسال شود.")
+    .max(14, "یادآوری نمی‌تواند بیشتر از ۱۴ روز قبل ارسال شود."),
+});
+
 export async function updateProfileDetails(formData: FormData) {
   const user = await requireUser();
 
@@ -87,6 +100,40 @@ export async function updateProfileDetails(formData: FormData) {
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/profile");
+}
+
+export async function updateNotificationPreferences(formData: FormData) {
+  const user = await requireScopedUser();
+
+  if (user.role !== "admin") {
+    return {
+      success: false,
+      error: "فقط مدیر سالن اجازه تغییر تنظیمات اعلان‌ها را دارد.",
+    };
+  }
+
+  const parsed = notificationPreferencesSchema.safeParse({
+    renewalRemindersEnabled: formData.get("renewalRemindersEnabled") === "on",
+    expiryRemindersEnabled: formData.get("expiryRemindersEnabled") === "on",
+    reminderDaysBefore: formData.get("reminderDaysBefore"),
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "تنظیمات اعلان‌ها معتبر نیست.",
+    };
+  }
+
+  await prisma.studyHall.update({
+    where: { id: user.studyhallId },
+    data: parsed.data,
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/settings");
+
+  return { success: true, message: "تنظیمات اعلان‌ها با موفقیت ذخیره شد." };
 }
 
 export async function updateStudyHallSettings(formData: FormData) {
