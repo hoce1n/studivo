@@ -189,6 +189,6 @@ If a check cannot run because of environment limitations, report it clearly and 
 1. Harden reservation actions with standardized action-state returns.
 2. Move production persistence to PostgreSQL.
 3. Add DB-level active-seat collision prevention.
-4. Persist push subscriptions and implement renewal notifications.
+4. Add owner-configurable renewal notification preferences.
 5. Add audit logs for staff/admin activity.
 6. Add automated tests for reservation, renewal, release, and swap flows.

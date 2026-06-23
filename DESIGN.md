@@ -22,7 +22,7 @@ The current application is a Next.js 16 App Router application with server-rende
 - **Database:** PostgreSQL is the official platform database for development-aligned production workflows and transactional seat-management safety.
 - **Authentication:** Better Auth with email/password enabled and a Prisma adapter.
 - **Styling:** Tailwind CSS v4, next-themes, Radix/shadcn-style UI components, Sonner toasts.
-- **PWA:** Web app manifest, service-worker registration, push-notification helper actions, and a demo in-memory push subscription.
+- **PWA:** Web app manifest, service-worker registration, persisted push subscriptions scoped by user/study hall, and automated renewal reminder delivery for staff/admin operators.
 
 PostgreSQL now backs Studivo's server-side concurrency model. Seat reservation, renewal, release, and swap flows still use explicit Prisma transactions, and those transactions are now backed by PostgreSQL isolation and locking behavior instead of file-level database locking. This is critical for peak-season front-desk activity where multiple staff members may attempt high-value seat operations at the same time.
 
@@ -108,7 +108,14 @@ Integrity notes:
 
 `Session`, `Account`, and `Verification` are Better Auth persistence tables. They are mapped to lowercase table names and maintain tokens, provider accounts, password credentials, and verification flows.
 
-## 4. Core Business Logic Flows
+### Push Notifications
+
+`PushSubscription` stores browser push endpoints scoped by `userId` and `studyhallId`. Each endpoint is unique so the same device can be reassigned when a user re-subscribes.
+
+`RenewalReminder` records which renewal/expiry reminders were already sent for a subscription on a given day, preventing duplicate daily notifications.
+
+A secured cron route (`/api/cron/renewal-reminders`) scans active subscriptions entering the 3-day renewal window or already past `endDate`, then sends push notifications to admin/staff devices with stored subscriptions for that study hall.
+
 
 Primary business logic lives in `app/actions/actions.ts` as Next.js Server Actions. These actions are the authoritative mutation layer and must remain server-side.
 
@@ -277,7 +284,7 @@ Future hardening:
 
 1. **Active-seat uniqueness is not yet enforced by a partial unique index.** PostgreSQL transactions reduce risk, but a database-level active-seat invariant should still be added.
 2. **Some Server Actions still throw for expected failures.** New or touched actions should continue migrating to structured `{ success, error?, message? }` result objects.
-3. **Push subscriptions are in-memory.** They disappear on restart and are not user- or venue-scoped.
+3. **Renewal reminder timing is fixed at 3 days.** Push subscriptions are persisted per user/study hall, but owners cannot yet configure reminder lead time or notification preferences in the UI.
 4. **Payment status is modeled but not integrated.** `paymentStatus` exists without invoices, receipts, or payment-provider webhooks.
 5. **Role values are strings.** A Prisma enum and permission helpers would reduce accidental authorization drift.
 

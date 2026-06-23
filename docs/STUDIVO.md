@@ -62,7 +62,7 @@ Main implemented features
 - PWA & Push Notifications
   - Service worker registration (components/PWARegister.tsx)
   - Push subscription UI and client-side manager (PushNotificationManager.tsx)
-  - Server helper app/actions/pwa.ts uses web-push and in-memory subscription (demo-style) to send notifications.
+  - Server helper `app/actions/pwa.ts` persists push subscriptions in PostgreSQL and sends test notifications via `web-push`.
 - UI/UX
   - RTL localization (fa locale) and Persian copy in UI.
   - Theme provider, tooltips, toasts.
@@ -143,7 +143,7 @@ Notable internal endpoints / server handlers
   - releaseSeat(subscriptionId)
   - swapSeat(subscriptionId, newSeatNumber)
   - updateProfileDetails, updateStudyHallSettings
-- app/actions/pwa.ts — subscribeUser/unsubscribeUser/sendNotification (demo: stores subscription in-memory)
+- app/actions/pwa.ts — subscribeUser/unsubscribeUser/sendNotification (persisted per user/study hall)
 
 6. Current State & Potential Bottlenecks
 -----------------------------------------
@@ -188,7 +188,7 @@ Potential bottlenecks & issues (immediate / medium-term)
 
 7. Recommended Next Steps (short prioritized list)
 --------------------------------------------------
-1. Persist push subscriptions to DB and wire sendNotification to stored subscriptions (per studyhall/user).
+1. Add owner-configurable renewal reminder timing and notification preferences.
 2. Replace SQLite with Postgres for multi-user/production readiness; reconfigure prisma datasource.
 3. Integrate a payments provider (Stripe) and connect paymentStatus workflow.
 4. Add unit & integration tests for core server actions; add CI (GitHub Actions).

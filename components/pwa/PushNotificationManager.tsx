@@ -1,77 +1,102 @@
 'use client'
+
 import { useEffect, useState } from "react"
-import { sendNotification, subscribeUser, unsubscribeUser } from "@/app/actions/pwa"
 import { Bell, BellOff, Send } from "lucide-react"
+import { toast } from "sonner"
+
+import {
+  sendNotification,
+  subscribeUser,
+  unsubscribeUser,
+} from "@/app/actions/pwa"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 function urlBase64ToUint8Array(base64String: string): BufferSource {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
 
   const base64 = (base64String + padding)
     .replace(/-/g, "+")
-    .replace(/_/g, "/");
+    .replace(/_/g, "/")
 
-  const rawData = window.atob(base64);
-
-  const outputArray = new Uint8Array(rawData.length);
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
 
   for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+    outputArray[i] = rawData.charCodeAt(i)
   }
 
-  return outputArray;
+  return outputArray
 }
 
 async function registerServiceWorker(
   setSubscription: (sub: PushSubscription | null) => void,
-  setError: (err: string) => void
+  setError: (err: string) => void,
 ) {
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-      updateViaCache: 'none',
+    const registration = await navigator.serviceWorker.register("/sw.js", {
+      scope: "/",
+      updateViaCache: "none",
     })
     const sub = await registration.pushManager.getSubscription()
     setSubscription(sub)
   } catch (err) {
-    setError('Failed to register service worker')
+    setError("ثبت Service Worker ناموفق بود.")
     console.error(err)
   }
 }
 
-export default function PushNotificationManager() {
-  const [subscription, setSubscription] = useState<PushSubscription | null>(null)
-  const [message, setMessage] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+type PushNotificationManagerProps = {
+  userRole: string
+}
 
-  const isSupported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window
+export default function PushNotificationManager({
+  userRole,
+}: PushNotificationManagerProps) {
+  const [subscription, setSubscription] = useState<PushSubscription | null>(null)
+  const [message, setMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const isSupported =
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window
+
+  const isOperator = userRole === "admin" || userRole === "staff"
 
   useEffect(() => {
     if (isSupported) {
-
       registerServiceWorker(setSubscription, setError)
     }
   }, [isSupported])
 
-
   async function subscribeToPush() {
     try {
       setIsLoading(true)
-      setError('')
-      
+      setError("")
+
       const registration = await navigator.serviceWorker.ready
       const sub = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
         ),
       })
-      
+
       setSubscription(sub)
       const serializedSub = JSON.parse(JSON.stringify(sub))
-      await subscribeUser(serializedSub)
+      const result = await subscribeUser(serializedSub)
+
+      if (!result.success) {
+        setError(result.error ?? "فعال‌سازی اعلان‌ها ناموفق بود.")
+        return
+      }
+
+      toast.success(result.message ?? "اعلان‌ها فعال شد.")
     } catch (err) {
-      setError('Failed to subscribe to notifications')
+      setError("فعال‌سازی اعلان‌های فشاری ناموفق بود.")
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -81,13 +106,21 @@ export default function PushNotificationManager() {
   async function unsubscribeFromPush() {
     try {
       setIsLoading(true)
-      setError('')
-      
+      setError("")
+
+      const endpoint = subscription?.endpoint
       await subscription?.unsubscribe()
       setSubscription(null)
-      await unsubscribeUser()
+
+      const result = await unsubscribeUser(endpoint)
+      if (!result.success) {
+        setError(result.error ?? "غیرفعال‌سازی اعلان‌ها ناموفق بود.")
+        return
+      }
+
+      toast.success(result.message ?? "اعلان‌ها غیرفعال شد.")
     } catch (err) {
-      setError('Failed to unsubscribe')
+      setError("غیرفعال‌سازی اعلان‌ها ناموفق بود.")
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -96,15 +129,21 @@ export default function PushNotificationManager() {
 
   async function sendTestNotification() {
     if (!subscription || !message.trim()) return
-    
+
     try {
       setIsLoading(true)
-      setError('')
-      
-      await sendNotification(message)
-      setMessage('')
+      setError("")
+
+      const result = await sendNotification(message)
+      if (!result.success) {
+        setError(result.error ?? "ارسال اعلان آزمایشی ناموفق بود.")
+        return
+      }
+
+      toast.success(result.message ?? "اعلان آزمایشی ارسال شد.")
+      setMessage("")
     } catch (err) {
-      setError('Failed to send notification')
+      setError("ارسال اعلان آزمایشی ناموفق بود.")
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -112,64 +151,88 @@ export default function PushNotificationManager() {
   }
 
   if (!isSupported) {
-    return null
+    return (
+      <Alert>
+        <AlertDescription>
+          این مرورگر از اعلان‌های فشاری پشتیبانی نمی‌کند.
+        </AlertDescription>
+      </Alert>
+    )
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-center gap-2">
         {subscription ? (
-          <Bell className="w-5 h-5 text-green-600" />
+          <Bell className="size-5 text-emerald-600" />
         ) : (
-          <BellOff className="w-5 h-5 text-muted-foreground" />
+          <BellOff className="size-5 text-muted-foreground" />
         )}
-        <h3 className="font-semibold">Push Notifications</h3>
+        <div>
+          <h3 className="font-bold">اعلان‌های فشاری</h3>
+          <p className="text-sm text-muted-foreground">
+            {isOperator
+              ? "یادآوری تمدید و انقضای اشتراک‌ها را روی این دستگاه دریافت کنید."
+              : "اعلان‌های عملیاتی سالن را روی این دستگاه دریافت کنید."}
+          </p>
+        </div>
       </div>
 
-      {error && (
-        <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>
-      )}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {subscription ? (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">✓ Notifications enabled</p>
-          
-          <div className="flex gap-2">
-            <input
+          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+            اعلان‌ها برای این دستگاه فعال است.
+          </p>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
               type="text"
-              placeholder="Test message..."
+              placeholder="متن اعلان آزمایشی..."
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendTestNotification()}
-              className="flex-1 px-3 py-2 border rounded-md text-sm bg-background"
+              onChange={(event) => setMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  void sendTestNotification()
+                }
+              }}
               disabled={isLoading}
             />
-            <button
+            <Button
+              type="button"
               onClick={sendTestNotification}
               disabled={isLoading || !message.trim()}
-              className="px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2"
+              className="sm:min-w-36"
             >
-              <Send className="w-4 h-4" />
-              Send
-            </button>
+              <Send className="size-4" />
+              ارسال آزمایشی
+            </Button>
           </div>
 
-          <button
+          <Button
+            type="button"
+            variant="outline"
             onClick={unsubscribeFromPush}
             disabled={isLoading}
-            className="w-full px-3 py-2 border border-red-300 text-red-600 rounded-md text-sm font-medium hover:bg-red-50 disabled:opacity-50"
+            className="w-full border-destructive/30 text-destructive hover:bg-destructive/5"
           >
-            Disable Notifications
-          </button>
+            غیرفعال‌سازی اعلان‌ها
+          </Button>
         </div>
       ) : (
-        <button
+        <Button
+          type="button"
           onClick={subscribeToPush}
           disabled={isLoading}
-          className="w-full px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+          className="w-full sm:w-auto"
         >
-          {isLoading ? 'Enabling...' : 'Enable Notifications'}
-        </button>
+          {isLoading ? "در حال فعال‌سازی..." : "فعال‌سازی اعلان‌ها"}
+        </Button>
       )}
     </div>
   )

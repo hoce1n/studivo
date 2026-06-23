@@ -5,6 +5,7 @@ import Hero from "./_components/hero";
 import Pricing from "./_components/pricing";
 import { StackedCircularFooter } from "@/app/(marketing)/_components/stacked-circular-footer";
 import CTA from "./_components/cta";
+import Testimonial from "./_components/testimonial";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
       <Hero />
       <Features />
       <FAQ />
+      {/* <Testimonial /> */}
       <Pricing />
       <CTA />
       <StackedCircularFooter />

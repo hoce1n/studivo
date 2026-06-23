@@ -22,10 +22,12 @@
     createdAt  DateTime @default(now())
     updatedAt  DateTime @updatedAt
 
-    users         User[]
-    seats         Seat[]
-    subscriptions Subscription[]
-    auditLogs     AuditLog[]
+    users              User[]
+    seats              Seat[]
+    subscriptions      Subscription[]
+    auditLogs          AuditLog[]
+    pushSubscriptions  PushSubscription[]
+    renewalReminders   RenewalReminder[]
 
     @@map("studyhall")
   }
@@ -43,8 +45,9 @@
     
     phoneNumber   String?        
     role          String         @default("member") 
-    subscriptions Subscription[]
-    auditLogs     AuditLog[]
+    subscriptions     Subscription[]
+    auditLogs         AuditLog[]
+    pushSubscriptions PushSubscription[]
 
     studyhallId   String?
     studyhall     StudyHall?     @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
@@ -130,13 +133,48 @@
     user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     seat          Seat     @relation(fields: [seatId], references: [id], onDelete: Cascade)
 
-    studyhallId   String
-    studyhall     StudyHall    @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+    studyhallId      String
+    studyhall        StudyHall         @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+    renewalReminders RenewalReminder[]
 
     @@index([userId])
     @@index([seatId])
     @@index([studyhallId])
     @@map("subscription")
+  }
+
+  model PushSubscription {
+    id          String   @id @default(cuid())
+    userId      String
+    studyhallId String
+    endpoint    String   @unique
+    p256dh      String
+    auth        String
+    userAgent   String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    studyhall StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@index([studyhallId])
+    @@map("pushsubscription")
+  }
+
+  model RenewalReminder {
+    id             String   @id @default(cuid())
+    subscriptionId String
+    studyhallId    String
+    reminderKey    String
+    sentAt         DateTime @default(now())
+
+    subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+    studyhall    StudyHall    @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+
+    @@unique([subscriptionId, reminderKey])
+    @@index([studyhallId])
+    @@map("renewalreminder")
   }
 
   model AuditLog {

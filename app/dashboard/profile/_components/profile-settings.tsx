@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { KeyRound, Loader2, ShieldAlert, User } from "lucide-react";
+import { KeyRound, Loader2, ShieldAlert, User, Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { updateProfileDetails } from "@/app/actions/actions";
@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient } from "@/lib/auth-client";
+import PushNotificationManager from "@/components/pwa/PushNotificationManager";
 
 type ProfileSettingsProps = {
   user: {
@@ -137,6 +138,10 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
         <TabsTrigger value="security">
           <KeyRound />
           امنیت و رمز عبور
+        </TabsTrigger>
+        <TabsTrigger value="notifications">
+          <Bell />
+          اعلان‌ها
         </TabsTrigger>
       </TabsList>
 
@@ -288,6 +293,27 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                 {isLoading ? <Loader2 className="animate-spin" /> : "تغییر رمز عبور"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="notifications">
+        <Card className="shadow-sm">
+          <CardHeader className="border-b bg-muted/20">
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                <Bell className="size-5" />
+              </span>
+              <div>
+                <CardTitle className="text-xl font-black">اعلان‌های عملیاتی</CardTitle>
+                <CardDescription className="mt-1 leading-6">
+                  اعلان‌های یادآوری تمدید و انقضا را روی موبایل یا دسکتاپ دریافت کنید.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <PushNotificationManager userRole={user.role} />
           </CardContent>
         </Card>
       </TabsContent>

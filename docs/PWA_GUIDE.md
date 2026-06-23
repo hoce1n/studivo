@@ -120,6 +120,7 @@ Add to `.env.local`:
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_public_key
 VAPID_PRIVATE_KEY=your_private_key
 VAPID_SUBJECT=mailto:your-email@example.com
+CRON_SECRET=your_random_secret_for_renewal_cron
 ```
 
 ### 3. Create Push API Endpoints

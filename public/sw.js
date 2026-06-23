@@ -72,6 +72,9 @@ self.addEventListener("push", (event) => {
       body: data.body,
       icon: "/web-app-manifest-192x192.png",
       badge: "/web-app-manifest-192x192.png",
+      data: {
+        url: data.url ?? "/dashboard",
+      },
     }),
   );
 });
@@ -80,5 +83,17 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  event.waitUntil(clients.openWindow("https://studivo.ir"));
+  const targetUrl = event.notification.data?.url ?? "/dashboard";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(targetUrl) && "focus" in client) {
+          return client.focus();
+        }
+      }
+
+      return clients.openWindow(targetUrl);
+    }),
+  );
 });

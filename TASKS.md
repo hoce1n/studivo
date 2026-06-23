@@ -24,9 +24,10 @@ This board reflects the current repository state after reviewing the Prisma sche
   - Current state: `admin`, `staff`, and `member` roles are string fields; admin-only checks exist for staff creation and venue settings.
   - Next step: introduce central permission helpers and eventually a Prisma enum.
 
-- [ ] Convert PWA push notification demo into production-ready notification infrastructure.
-  - Current state: service worker, manifest, push UI, and in-memory server subscription exist.
-  - Next step: persist subscriptions by user/study hall and trigger renewal reminders.
+- [x] Convert PWA push notification demo into production-ready notification infrastructure.
+  - Push subscriptions persist in PostgreSQL by `userId` and `studyhallId`.
+  - Daily cron route sends renewal/expiry reminders to admin/staff devices.
+  - Remaining: owner-configurable reminder timing and notification preferences UI.
 
 ## Planned Features (Short-term)
 
@@ -64,9 +65,8 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [ ] CI checks.
   - Run lint, type/build checks, Prisma validation, and test suite on pull requests.
 
-- [ ] Persisted push subscriptions and notification preferences.
-  - Store browser push subscriptions in the database.
-  - Allow owners to configure renewal reminder timing.
+- [ ] Notification preferences for renewal reminders.
+  - Allow owners to configure renewal reminder lead time and delivery rules.
 
 - [ ] Production security hardening.
   - Rate-limit auth routes.

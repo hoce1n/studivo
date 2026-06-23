@@ -71,8 +71,9 @@ This file records architectural and product decisions whose reasoning is not ful
 **Consequences:**
 
 - The app includes a manifest, service-worker registration, and push-notification scaffolding.
-- Push subscriptions must be persisted in the database before production use.
-- Notification UX must be permission-aware and respectful; operators should control reminder behavior.
+- Push subscriptions are persisted in PostgreSQL and scoped by `userId` and `studyhallId`.
+- A daily cron route (`/api/cron/renewal-reminders`) sends renewal/expiry reminders to admin/staff devices with active push subscriptions.
+- Notification UX must remain permission-aware and respectful; owners should eventually control reminder behavior in settings.
 
 ## ADR-006: Server Actions as the Mutation Boundary
 
