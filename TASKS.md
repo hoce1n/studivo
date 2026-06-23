@@ -27,7 +27,7 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Convert PWA push notification demo into production-ready notification infrastructure.
   - Push subscriptions persist in PostgreSQL by `userId` and `studyhallId`.
   - Daily cron route sends renewal/expiry reminders to admin/staff devices.
-  - Remaining: owner-configurable reminder timing and notification preferences UI.
+  - Owner-configurable reminder timing and notification preferences UI are complete.
 
 ## Planned Features (Short-term)
 
@@ -65,8 +65,6 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [ ] CI checks.
   - Run lint, type/build checks, Prisma validation, and test suite on pull requests.
 
-- [ ] Notification preferences for renewal reminders.
-  - Allow owners to configure renewal reminder lead time and delivery rules.
 
 - [ ] Production security hardening.
   - Rate-limit auth routes.
@@ -107,4 +105,6 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Add a member archive/profile view for active and inactive members with historical subscription/payment timelines.
 - [x] Add one-click archived-member reactivation through pre-filled dashboard reservations.
 - [x] Add venue-scoped `AuditLog` persistence for reservation, renewal, release, and seat swap operations.
+- [x] Notification preferences for renewal reminders.
+  - Owners can configure renewal lead time, renewal reminders, and expiry reminders from `/dashboard/settings`.
 - [x] Add an admin-only `/dashboard/logs` digital event notebook.

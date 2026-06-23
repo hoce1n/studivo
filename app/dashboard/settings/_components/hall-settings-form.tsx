@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Loader2, MapPin } from "lucide-react";
+import { Bell, Building2, Loader2, MapPin } from "lucide-react";
 import { z } from "zod";
 
-import { updateStudyHallSettings } from "@/app/actions/actions";
+import { updateNotificationPreferences, updateStudyHallSettings } from "@/app/actions/actions";
 import { ActionForm } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 export type StudyHallSettingsData = {
   name: string;
@@ -24,7 +25,20 @@ export type StudyHallSettingsData = {
   monthlyFee: number;
   gender: string;
   address: string;
+  reminderDaysBefore: number;
+  renewalRemindersEnabled: boolean;
+  expiryRemindersEnabled: boolean;
 };
+
+const notificationPreferencesClientSchema = z.object({
+  renewalRemindersEnabled: z.coerce.boolean(),
+  expiryRemindersEnabled: z.coerce.boolean(),
+  reminderDaysBefore: z.coerce
+    .number()
+    .int("بازه یادآوری باید عدد صحیح باشد.")
+    .min(1, "یادآوری باید حداقل ۱ روز قبل ارسال شود.")
+    .max(14, "یادآوری نمی‌تواند بیشتر از ۱۴ روز قبل ارسال شود."),
+});
 
 const studyHallSettingsClientSchema = z.object({
   name: z.string().trim().min(2, "نام سالن باید حداقل ۲ کاراکتر باشد."),
@@ -52,6 +66,23 @@ function genderLabel(gender?: string) {
 
 export function HallSettingsForm({ studyHall }: { studyHall: StudyHallSettingsData }) {
   const router = useRouter();
+
+  async function validateNotificationPreferences(formData: FormData) {
+    const parsed = notificationPreferencesClientSchema.safeParse({
+      renewalRemindersEnabled: formData.get("renewalRemindersEnabled") === "on",
+      expiryRemindersEnabled: formData.get("expiryRemindersEnabled") === "on",
+      reminderDaysBefore: formData.get("reminderDaysBefore"),
+    });
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? "تنظیمات اعلان‌ها معتبر نیست.",
+      };
+    }
+
+    return updateNotificationPreferences(formData);
+  }
 
   async function validateStudyHallSettings(formData: FormData) {
     const parsed = studyHallSettingsClientSchema.safeParse({
@@ -191,6 +222,74 @@ export function HallSettingsForm({ studyHall }: { studyHall: StudyHallSettingsDa
               <div className="flex justify-end">
                 <Button type="submit" disabled={pending} className="min-w-40">
                   {pending ? <Loader2 className="animate-spin" /> : "ذخیره تنظیمات سالن"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </ActionForm>
+
+        <ActionForm
+          id="notification-preferences"
+          action={validateNotificationPreferences}
+          successMessage="تنظیمات اعلان‌ها با موفقیت ذخیره شد."
+          onSuccess={() => router.refresh()}
+          className="rounded-3xl border bg-background p-4"
+        >
+          {(pending) => (
+            <div className="grid gap-5">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Bell className="size-5" />
+                </span>
+                <div>
+                  <h3 className="font-black">Notification Preferences</h3>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    زمان‌بندی اعلان‌های تمدید و انقضای اشتراک را برای کارکنان سالن تنظیم کنید.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="flex items-center justify-between gap-4 rounded-2xl border bg-muted/20 p-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="renewal-reminders">Renewal Reminders</Label>
+                    <p className="text-xs leading-5 text-muted-foreground">اعلان برای اشتراک‌های نزدیک به پایان.</p>
+                  </div>
+                  <Switch
+                    id="renewal-reminders"
+                    name="renewalRemindersEnabled"
+                    defaultChecked={studyHall.renewalRemindersEnabled}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4 rounded-2xl border bg-muted/20 p-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="expiry-reminders">Expiry Reminders</Label>
+                    <p className="text-xs leading-5 text-muted-foreground">اعلان برای اشتراک‌هایی که منقضی شده‌اند.</p>
+                  </div>
+                  <Switch
+                    id="expiry-reminders"
+                    name="expiryRemindersEnabled"
+                    defaultChecked={studyHall.expiryRemindersEnabled}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 md:max-w-xs">
+                <Label htmlFor="reminder-days-before">Send reminder X days before expiry</Label>
+                <Input
+                  id="reminder-days-before"
+                  name="reminderDaysBefore"
+                  type="number"
+                  min={1}
+                  max={14}
+                  defaultValue={studyHall.reminderDaysBefore}
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Button type="submit" disabled={pending} className="min-w-40">
+                  {pending ? <Loader2 className="animate-spin" /> : "ذخیره تنظیمات اعلان‌ها"}
                 </Button>
               </div>
             </div>

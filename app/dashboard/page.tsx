@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
 import {
-  Bell,
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
@@ -39,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { StudyHallSeatsMap } from "@/app/dashboard/_components/study-hall-seats-map";
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
 import ThemeToggle from "../(marketing)/_components/theme-toggle";
-import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/notification-bell";
 
 const dayInMs = 24 * 60 * 60 * 1000;
 
@@ -281,12 +280,7 @@ export default async function Page({ searchParams }: PageProps) {
               </Breadcrumb>
             </div>
             <div className="flex items-center gap-2 px-4">
-              <Button
-                size={"icon"}
-                variant={'ghost'}
-              >
-                <Bell />
-              </Button>
+              <NotificationBell />
               <ThemeToggle />
             </div>
           </div>
