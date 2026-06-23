@@ -25,6 +25,7 @@
     users         User[]
     seats         Seat[]
     subscriptions Subscription[]
+    auditLogs     AuditLog[]
 
     @@map("studyhall")
   }
@@ -43,6 +44,7 @@
     phoneNumber   String?        
     role          String         @default("member") 
     subscriptions Subscription[]
+    auditLogs     AuditLog[]
 
     studyhallId   String?
     studyhall     StudyHall?     @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
@@ -135,4 +137,20 @@
     @@index([seatId])
     @@index([studyhallId])
     @@map("subscription")
+  }
+
+  model AuditLog {
+    id          String    @id @default(cuid())
+    studyhallId String
+    userId      String
+    action      String
+    details     Json
+    createdAt   DateTime  @default(now())
+
+    studyhall   StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+    user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([studyhallId, createdAt])
+    @@index([userId])
+    @@map("auditlog")
   }

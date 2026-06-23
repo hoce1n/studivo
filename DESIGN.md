@@ -280,3 +280,13 @@ Future hardening:
 3. **Push subscriptions are in-memory.** They disappear on restart and are not user- or venue-scoped.
 4. **Payment status is modeled but not integrated.** `paymentStatus` exists without invoices, receipts, or payment-provider webhooks.
 5. **Role values are strings.** A Prisma enum and permission helpers would reduce accidental authorization drift.
+
+## Data Preservation & Trust Features
+
+Studivo now exposes preserved operational history as first-class product value instead of hidden backend rows:
+
+- **Seat History Log:** the dashboard seat sheet receives the latest subscription history for each physical seat, scoped to the authenticated `studyhallId`, and renders a Persian timeline of current and past occupants.
+- **Member Archive:** `/dashboard/members` separates active members from archived members with no active subscription. Member profiles retain all subscription/payment periods and include a one-click “رزرو مجدد” path that pre-fills the reservation sheet from archived identity data.
+- **Audit Logs:** `AuditLog` records staff/admin operations (`RESERVE_SEAT`, `SWAP_SEAT`, `RENEW_SUBSCRIPTION`, `RELEASE_SEAT`) in the same transaction as the operational mutation. `/dashboard/logs` is admin-only and shows the venue-scoped digital event notebook.
+
+These flows reinforce ADR-007-style history preservation: expired/cancelled subscriptions and member identities remain available for trust, dispute resolution, revenue checks, and rapid reactivation.

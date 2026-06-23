@@ -112,9 +112,12 @@ function formatNumber(value: number) {
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined}>;
 }
+
+type ReturningMember = { id: string; name: string; phoneNumber: string } | null;
 export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const sortBy = resolvedSearchParams?.sortBy;
+  const returningMemberId = typeof resolvedSearchParams?.memberId === "string" ? resolvedSearchParams.memberId : undefined;
 
   const session = await getSession();
   if (!session?.user?.id) {
@@ -147,15 +150,13 @@ export default async function Page({ searchParams }: PageProps) {
     redirect("/onboarding");
   }
 
-  const [seats, staff, membersCount] = await Promise.all([
+  const [seats, staff, membersCount, returningMember] = await Promise.all([
     prisma.seat.findMany({
       where: { studyhallId: user.studyhallId },
       orderBy: { seatNumber: "asc" },
       include: {
         subscriptions: {
-          where: { status: "active" },
           orderBy: { createdAt: "desc" },
-          take: 1,
           include: {
             user: {
               select: {
@@ -175,10 +176,16 @@ export default async function Page({ searchParams }: PageProps) {
     prisma.user.count({
       where: { studyhallId: user.studyhallId, role: "member" },
     }),
+    returningMemberId
+      ? prisma.user.findFirst({
+          where: { id: returningMemberId, studyhallId: user.studyhallId, role: "member" },
+          select: { id: true, name: true, phoneNumber: true },
+        })
+      : Promise.resolve(null satisfies ReturningMember),
   ]);
 
   const initialSeatView = seats.map((seat) => {
-    const subscription = seat.subscriptions[0];
+    const subscription = seat.subscriptions.find((item) => item.status === "active");
     return {
       ...seat,
       subscription,
@@ -342,10 +349,20 @@ export default async function Page({ searchParams }: PageProps) {
                       endDateISO: seat.subscription.endDate.toISOString(),
                     }
                   : undefined,
+                history: seat.subscriptions.slice(0, 8).map((item) => ({
+                  id: item.id,
+                  memberName: item.user.name ?? "بدون نام",
+                  phoneNumber: item.user.phoneNumber ?? "—",
+                  startDate: formatDate(item.startDate),
+                  endDate: formatDate(item.endDate),
+                  status: item.status,
+                  paymentStatus: item.paymentStatus,
+                })),
               }))}
               shouldSortByRenewal={shouldSortByRenewal}
               statusCopy={statusCopy}
               studyHallName={user.studyhall.name}
+              returningMember={returningMember}
               stats={{
                 available: formatNumber(stats.available),
                 reserved: formatNumber(stats.reserved),

@@ -6,6 +6,7 @@ import {
   LayoutDashboardIcon,
   Settings2Icon,
   UserCircleIcon,
+  ScrollTextIcon,
   UsersRoundIcon,
   WalletCardsIcon,
 } from "lucide-react";
@@ -44,6 +45,13 @@ function adminOnlyItems(activePath?: string) {
       ],
     },
     {
+      title: "دفترچه وقایع",
+      url: "/dashboard/logs",
+      icon: <ScrollTextIcon />,
+      isActive: activePath === "/dashboard/logs",
+      items: [{ title: "گزارش عملکرد روزانه", url: "/dashboard/logs" }],
+    },
+    {
       title: "کارکنان",
       url: "#",
       icon: <UsersRoundIcon />,
@@ -70,6 +78,16 @@ function sidebarData(userRole?: string, studyhallName?: string, activePath = "/d
         items: [
           { title: "نقشه صندلی‌ها", url: "/dashboard#map" },
           { title: "پذیرش", url: "/dashboard#reserve" },
+        ],
+      },
+      {
+        title: "اعضا",
+        url: "/dashboard/members",
+        icon: <UsersRoundIcon />,
+        isActive: activePath === "/dashboard/members",
+        items: [
+          { title: "اعضای فعال", url: "/dashboard/members?status=active" },
+          { title: "آرشیو اعضا", url: "/dashboard/members?status=inactive" },
         ],
       },
       {
