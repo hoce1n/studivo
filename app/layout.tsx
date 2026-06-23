@@ -51,6 +51,7 @@ export default async function RootLayout({
       className={cn("antialiased", estedaad.variable, "font-sans")}
     >
       <head>
+        <meta name="enamad" content="55116299" />
         <meta name="apple-mobile-web-app-title" content="Studivo" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
