@@ -33,12 +33,27 @@ export function CreateStaffForm({ createStaff }: CreateStaffFormProps) {
             />
           </Field>
           <Field>
+            <FieldLabel htmlFor="staffPhone">شماره تماس</FieldLabel>
+            <Input
+              id="staffPhone"
+              name="phoneNumber"
+              type="tel"
+              placeholder="۰۹xxxxxxxxx"
+              required
+              pattern="^09\d{9}$"
+              maxLength={11}
+            />
+            <FieldDescription>
+              شماره موبایل برای ورود، بازیابی رمز و اعلان‌ها
+            </FieldDescription>
+          </Field>
+          <Field>
             <FieldLabel htmlFor="staffEmail">ایمیل همکار</FieldLabel>
             <Input
               id="staffEmail"
               name="email"
               type="email"
-              placeholder="staff@example.com"
+              placeholder="staff@studivo.ir"
               required
             />
             <FieldDescription>
@@ -46,7 +61,7 @@ export function CreateStaffForm({ createStaff }: CreateStaffFormProps) {
             </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel>رمز عبور</FieldLabel>
+            <FieldLabel>رمز عبور اولیه</FieldLabel>
             <Input
               id="staffPassword"
               name="password"

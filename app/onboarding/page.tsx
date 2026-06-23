@@ -46,8 +46,12 @@ export default async function OnboardingPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session?.user.id },
-    select: { studyhallId: true },
+    select: { studyhallId: true, phoneNumber: true },
   });
+
+  if (!user?.phoneNumber) {
+    redirect("/verify-phone");
+  }
 
   if (user?.studyhallId) {
     redirect("/dashboard");

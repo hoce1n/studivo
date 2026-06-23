@@ -82,8 +82,8 @@ export function SignupForm({
             
           },
           onSuccess: () => {
-            router.push("/dashboard");
-            
+            toast.success("حساب شما ساخته شد. لطفاً شماره موبایل را تایید کنید.");
+            router.push("/verify-phone");
           },
           onError: (ctx) => {
             toast.error(ctx.error.message);

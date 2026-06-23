@@ -14,6 +14,7 @@ import { Eye, EyeClosed, Loader } from "lucide-react"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
+import { ForgotPasswordPopover } from "./forgot-password-popover"
 
 export function LoginForm({
   className,
@@ -81,12 +82,7 @@ export function LoginForm({
         <Field>
           <div className="flex items-center">
             <FieldLabel htmlFor="password">پسورد</FieldLabel>
-            <a
-              href="#"
-              className="ms-auto text-sm underline-offset-4 hover:underline"
-            >
-              پسوردت رو فراموش کردی؟
-            </a>
+            <ForgotPasswordPopover email={email} />
           </div>
           <div className="relative">
             <Input

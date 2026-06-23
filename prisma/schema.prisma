@@ -195,3 +195,15 @@
     @@index([userId])
     @@map("auditlog")
   }
+
+  model OtpVerification {
+    id          String   @id @default(cuid())
+    phoneNumber String
+    code        String
+    purpose     String
+    expiresAt   DateTime
+    createdAt   DateTime @default(now())
+
+    @@index([phoneNumber, purpose])
+    @@map("otpverification")
+  }

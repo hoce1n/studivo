@@ -234,9 +234,14 @@ export async function completeOnboarding(formData: FormData) {
 }
 
 const staffSchema = z.object({
-  name: z.string().trim().min(2),
-  email: z.string().trim().email(),
-  password: z.string().min(8)
+  name: z.string().trim().min(2, "نام باید حداقل ۲ حرف باشد"),
+  email: z.string().trim().email("ایمیل معتبر وارد کنید"),
+  phoneNumber: z
+    .string()
+    .trim()
+    .regex(/^09\d{9}$/, "شماره موبایل باید به فرمت ۰۹xxxxxxxxx باشد")
+    .length(11, "شماره موبایل باید ۱۱ رقم باشد"),
+  password: z.string().min(8, "رمز عبور باید حداقل ۸ کاراکتر باشد"),
 });
 
 export async function createStaff(formData: FormData) {
@@ -249,21 +254,27 @@ export async function createStaff(formData: FormData) {
   const parsed = staffSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
+    phoneNumber: formData.get("phoneNumber"),
     password: formData.get("password"),
   });
 
   if (!parsed.success) {
-    throw new Error("نام و ایمیل همکار را درست وارد کنید.");
+    throw new Error(
+      "اطلاعات وارد شده صحیح نیست."
+    );
   }
 
   await prisma.$transaction(async (tx) => {
+    // Create user via Better Auth
     await auth.api.signUpEmail({
       body: {
         email: parsed.data.email,
         password: parsed.data.password,
         name: parsed.data.name,
-      }
+      },
     });
+
+    // Update user with role, studyhall, and phoneNumber
     await tx.user.update({
       where: {
         email: parsed.data.email,
@@ -271,9 +282,10 @@ export async function createStaff(formData: FormData) {
       data: {
         role: "staff",
         studyhallId: user.studyhallId,
+        phoneNumber: parsed.data.phoneNumber,
       },
     });
-  })
+  });
 
   revalidatePath("/dashboard");
 }
