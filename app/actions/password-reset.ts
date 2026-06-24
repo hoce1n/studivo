@@ -9,6 +9,7 @@ import {
   createOtpVerification,
   verifyOtp,
 } from "@/lib/otp";
+import { SMS_SEND_FAILURE_MESSAGE } from "@/lib/sms";
 
 const emailSchema = z
   .string()
@@ -77,10 +78,22 @@ export async function requestPasswordResetOTP(input: {
   }
 
   if (parsed.data.sendOtp) {
-    await createOtpVerification({
-      phoneNumber: user.phoneNumber,
-      purpose: OTP_PURPOSE.PASSWORD_RESET,
-    });
+    try {
+      await createOtpVerification({
+        phoneNumber: user.phoneNumber,
+        purpose: OTP_PURPOSE.PASSWORD_RESET,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === SMS_SEND_FAILURE_MESSAGE) {
+        return { ok: false, error: error.message };
+      }
+
+      console.error(
+        "[password-reset] Failed to send password reset OTP:",
+        error instanceof Error ? error.message : "Unknown error",
+      );
+      return { ok: false, error: "خطایی رخ داد. لطفاً دوباره تلاش کنید." };
+    }
   }
 
   return {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { sendVerificationCode } from "@/lib/sms";
 
 export const OTP_PURPOSE = {
   PASSWORD_RESET: "password_reset",
@@ -16,11 +17,9 @@ export function generateOtpCode(): string {
 export async function createOtpVerification({
   phoneNumber,
   purpose,
-  logLabel,
 }: {
   phoneNumber: string;
   purpose: OtpPurpose;
-  logLabel?: string;
 }) {
   const code = generateOtpCode();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
@@ -38,8 +37,7 @@ export async function createOtpVerification({
     },
   });
 
-  const label = logLabel ?? "OTP";
-  console.log(`🔑 ${label} for ${phoneNumber} : ${code}`);
+  await sendVerificationCode(phoneNumber, code);
 
   return { code, expiresAt };
 }

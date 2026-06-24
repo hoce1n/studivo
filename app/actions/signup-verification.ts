@@ -9,6 +9,7 @@ import {
   createOtpVerification,
   verifyOtp,
 } from "@/lib/otp";
+import { SMS_SEND_FAILURE_MESSAGE } from "@/lib/sms";
 import { getSession } from "@/lib/server";
 
 const phoneSchema = z
@@ -81,11 +82,22 @@ export async function requestSignupPhoneOTP(
     return { ok: false, error: "این شماره موبایل قبلاً ثبت شده است." };
   }
 
-  await createOtpVerification({
-    phoneNumber: parsed.data,
-    purpose: OTP_PURPOSE.SIGNUP,
-    logLabel: "Signup OTP",
-  });
+  try {
+    await createOtpVerification({
+      phoneNumber: parsed.data,
+      purpose: OTP_PURPOSE.SIGNUP,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === SMS_SEND_FAILURE_MESSAGE) {
+      return { ok: false, error: error.message };
+    }
+
+    console.error(
+      "[signup-verification] Failed to send signup OTP:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
+    return { ok: false, error: "خطایی رخ داد. لطفاً دوباره تلاش کنید." };
+  }
 
   return { ok: true, message: "کد تایید ارسال شد." };
 }

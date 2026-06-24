@@ -30,6 +30,7 @@ function InputOTP({
 function InputOTPGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
+      dir="ltr"
       data-slot="input-otp-group"
       className={cn(
         "flex items-center rounded-2xl has-aria-invalid:border-destructive has-aria-invalid:ring-3 has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40",

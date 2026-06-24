@@ -7,7 +7,7 @@ import { CircleCheck } from "lucide-react";
 const plans = [
   {
     name: "پایه",
-    price: 0,
+    price: "۸۹۰٬۰۰۰",
     description:
       "برای سالن‌های کوچک و شروع کار.",
     features: [
@@ -20,7 +20,7 @@ const plans = [
   },
   {
     name: "حرفه‌ای",
-    price: "۸۹۰٬۰۰۰",
+    price: "۱٬۴۹۹٬۰۰۰",
     isRecommended: true,
     description:
       "برای سالن‌های فعال با چند همکار.",
