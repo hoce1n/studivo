@@ -20,15 +20,15 @@ const plans = [
   },
   {
     name: "حرفه‌ای",
-    price: 890,
+    price: "۸۹۰٬۰۰۰",
     isRecommended: true,
     description:
       "برای سالن‌های فعال با چند همکار.",
     features: [
-      "صندلی نامحدود",
+      "صندلی نامحدود بدون افزایش هزینه به ازای هر صندلی",
       "مدیریت کارکنان و سطح دسترسی",
       "گزارش مالی و درآمد",
-      "ارسال پیامک یادآوری",
+      "آماده اتصال به پیامک یادآوری تمدید",
       "پشتیبانی اولویت‌دار",
     ],
     buttonText: "انتخاب پلن حرفه‌ای",
@@ -56,8 +56,9 @@ const Pricing = () => {
       className="max-w-(--breakpoint-lg) mx-auto py-12 xs:py-20 px-6"
     >
       <h1 className="text-4xl xs:text-5xl font-semibold text-center tracking-tight">
-        تعرفه‌ای ساده و شفاف
+        تعرفه شفاف برای شروع مطمئن
       </h1>
+      <p className="mx-auto mt-4 max-w-2xl text-center leading-8 text-muted-foreground">پلن پایه برای سالن‌های کوچک تا ۱۵ صندلی رایگان است. پلن حرفه‌ای با مبلغ ۸۹۰٬۰۰۰ تومان به‌صورت ماهانه فعال می‌شود و برای سالن‌های دارای ظرفیت بالا یا چند شیفت مناسب است.</p>
       <div className="mt-8 xs:mt-14 grid grid-cols-1 lg:grid-cols-3 items-center gap-8 lg:gap-0">
         {plans.map((plan) => (
           <div
@@ -79,7 +80,7 @@ const Pricing = () => {
             <p className="mt-2 text-4xl font-bold">
               {plan.price} 
               <span className="text-xs  font-light mr-1">
-                {plan.name === "پایه" ? "همیشه رایگان" : plan.name === "ویژه" ? "متناسب با نیاز شما" : "هزار تومان ماهانه"}
+                {plan.name === "پایه" ? "همیشه رایگان تا ۱۵ صندلی" : plan.name === "ویژه" ? "متناسب با نیاز شما" : "تومان / ماه"}
               </span>
             </p>
             <p className="mt-4 font-medium text-muted-foreground">
