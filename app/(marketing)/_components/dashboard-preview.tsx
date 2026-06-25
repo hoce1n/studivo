@@ -1,170 +1,251 @@
+"use client";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
-  Armchair,
-  CalendarClock,
   CheckCircle2,
   CircleDollarSign,
-  LayoutDashboard,
-  Settings2,
+  Map,
   UsersRound,
+  Armchair,
+  BookOpenCheck,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-type SeatStatus = "available" | "reserved" | "renewal" | "expired";
+// Mock seat data for the preview
+const mockSeats = Array.from({ length: 24 }).map((_, i) => ({
+  id: `seat-${i + 1}`,
+  seatNumber: i + 1,
+  status: (() => {
+    const mod = i % 7;
+    if (mod === 0) return "renewal";
+    if (mod === 1) return "expired";
+    if (mod === 2 || mod === 3) return "reserved";
+    return "available";
+  })() as "available" | "reserved" | "renewal" | "expired",
+  memberName: ["علی محمدی", "فاطمه رضایی", "محمد حسینی", "زهرا کریمی"][i % 4],
+  endDate: "۱۴۰۵/۰۴/۱۵",
+}));
 
-const statusStyles: Record<SeatStatus, { label: string; className: string }> = {
+const statusConfig = {
   available: {
     label: "خالی",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    className:
+      "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
+    dot: "bg-emerald-500",
   },
   reserved: {
     label: "رزرو فعال",
-    className: "border-red-200 bg-red-50 text-red-900",
+    className:
+      "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100",
+    dot: "bg-red-500",
   },
   renewal: {
     label: "نیازمند تمدید",
-    className: "border-amber-200 bg-amber-50 text-amber-900",
+    className:
+      "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100",
+    dot: "bg-amber-500",
   },
   expired: {
     label: "منقضی",
-    className: "border-slate-200 bg-slate-100 text-slate-600",
+    className:
+      "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300",
+    dot: "bg-slate-400",
   },
 };
 
-// چیدمان نمونه ۲۴ صندلی برای پیش‌نمایش
-const seatLayout: { n: number; status: SeatStatus; name?: string }[] = [
-  { n: 1, status: "reserved", name: "علی محمدی" },
-  { n: 2, status: "available" },
-  { n: 3, status: "reserved", name: "نگار رضایی" },
-  { n: 4, status: "renewal", name: "رضا احمدی" },
-  { n: 5, status: "reserved", name: "مهسا کریمی" },
-  { n: 6, status: "available" },
-  { n: 7, status: "expired", name: "حسین قاسمی" },
-  { n: 8, status: "reserved", name: "زهرا یوسفی" },
-  { n: 9, status: "reserved", name: "امیر حسینی" },
-  { n: 10, status: "available" },
-  { n: 11, status: "renewal", name: "سارا اکبری" },
-  { n: 12, status: "reserved", name: "پارسا نوری" },
-];
+const stats = {
+  available: mockSeats.filter((s) => s.status === "available").length,
+  reserved: mockSeats.filter((s) => s.status === "reserved").length,
+  renewal: mockSeats.filter((s) => s.status === "renewal").length,
+  expired: mockSeats.filter((s) => s.status === "expired").length,
+};
 
-const stats = [
-  { label: "کل صندلی‌ها", value: "۴۵", icon: Armchair, tone: "text-muted-foreground" },
-  { label: "خالی", value: "۱۳", icon: CheckCircle2, tone: "text-emerald-600" },
-  { label: "هشدار تمدید", value: "۴", icon: CalendarClock, tone: "text-amber-600" },
-  { label: "اعضا", value: "۸۶", icon: UsersRound, tone: "text-muted-foreground" },
-];
+const occupancyRate = Math.round(
+  ((stats.reserved + stats.renewal) / mockSeats.length) * 100
+);
 
-const renewals = [
-  { name: "علی محمدی", seat: "۲۴", due: "فردا" },
-  { name: "رضا احمدی", seat: "۰۵", due: "۳ روز بعد" },
-  { name: "سارا اکبری", seat: "۴۱", due: "پایان هفته" },
-];
+const monthlyFee = 890000;
+const occupied = stats.reserved + stats.renewal;
+const monthlyRevenue = occupied * monthlyFee;
+const activeRevenue = stats.reserved * monthlyFee;
+const atRiskRevenue = stats.renewal * monthlyFee;
 
-const sidebarItems = [
-  { label: "داشبورد", icon: LayoutDashboard, active: true },
-  { label: "اعضا", icon: UsersRound, active: false },
-  { label: "مالی", icon: CircleDollarSign, active: false },
-  { label: "تنظیمات", icon: Settings2, active: false },
-];
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("fa-IR").format(value);
+}
 
 export function DashboardPreview() {
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card shadow-2xl shadow-foreground/5">
-      <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-3">
-        <div className="flex gap-1.5">
-          <span className="size-3 rounded-full bg-red-400" />
-          <span className="size-3 rounded-full bg-amber-400" />
-          <span className="size-3 rounded-full bg-emerald-400" />
-        </div>
-        <div className="mx-auto flex items-center gap-2 rounded-lg bg-background px-3 py-1 text-xs text-muted-foreground">
-          studivo.ir/dashboard
-        </div>
-      </div>
+    <div className="relative w-full rounded-[2rem] border bg-card p-5 shadow-lg overflow-hidden">
+      {/* Subtle background glow */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
 
-      <div className="flex" dir="rtl">
-        <aside className="hidden w-44 shrink-0 flex-col gap-1 border-l bg-muted/30 p-3 sm:flex">
-          <p className="px-2 pb-2 text-xs font-semibold text-muted-foreground">سالن مطالعه ققنوس</p>
-          {sidebarItems.map((item) => (
-            <div
-              key={item.label}
-              className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm ${
-                item.active ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-              }`}
-            >
-              <item.icon className="size-4" />
-              {item.label}
-            </div>
-          ))}
-        </aside>
-
-        {/* محتوای اصلی */}
-        <div className="flex-1 space-y-4 p-4">
-          {/* کارت‌های آماری */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {stats.map((stat) => (
-              <div key={stat.label} className="rounded-xl border bg-background p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{stat.label}</span>
-                  <stat.icon className={`size-4 ${stat.tone}`} />
-                </div>
-                <p className="mt-2 text-2xl font-black">{stat.value}</p>
+      {/* Main container with sidebar-like frame */}
+      <div className="rounded-[1.5rem] border bg-background overflow-hidden">
+        {/* Header */}
+        <div className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background/50 backdrop-blur-sm">
+          <div className="flex w-full justify-between items-center">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center size-8 rounded-lg bg-primary text-primary-foreground">
+                <BookOpenCheck className="size-4" />
               </div>
+              <div className="text-sm font-medium">سالن مطالعه گام</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="gap-1.5 text-xs">
+                <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
+                اشغال {formatNumber(occupancyRate)}٪
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        {/* Main content area */}
+        <div className="p-4 space-y-4">
+          {/* Summary cards row */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              {
+                title: "کل صندلی‌ها",
+                value: formatNumber(mockSeats.length),
+                hint: `${formatNumber(occupied)} اشغال شده`,
+                icon: Map,
+                iconClass: "text-muted-foreground",
+              },
+              {
+                title: "صندلی خالی",
+                value: formatNumber(stats.available),
+                hint: "آماده پذیرش",
+                icon: CheckCircle2,
+                iconClass: "text-emerald-600",
+              },
+              {
+                title: "هشدار تمدید",
+                value: formatNumber(stats.renewal + stats.expired),
+                hint: "نیاز به اقدام",
+                icon: Map,
+                iconClass: "text-amber-600",
+              },
+              {
+                title: "اعضا",
+                value: formatNumber(28),
+                hint: "۲ همکار فعال",
+                icon: UsersRound,
+                iconClass: "text-muted-foreground",
+              },
+            ].map((card) => (
+              <Card key={card.title} className="gap-2">
+                <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
+                  <CardTitle className="text-xs font-medium text-muted-foreground">
+                    {card.title}
+                  </CardTitle>
+                  <card.icon className={cn("size-3.5", card.iconClass)} />
+                </CardHeader>
+                <CardContent className="space-y-0.5">
+                  <div className="text-lg font-bold tracking-tight">
+                    {card.value}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{card.hint}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-            <div className="rounded-xl border bg-background p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-bold">نقشه زنده صندلی‌ها</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {(Object.keys(statusStyles) as SeatStatus[]).map((key) => (
-                    <span
-                      key={key}
-                      className={`rounded-full border px-2 py-0.5 text-[10px] ${statusStyles[key].className}`}
-                    >
-                      {statusStyles[key].label}
-                    </span>
-                  ))}
+          {/* Seat map and revenue section */}
+          <div className="grid gap-4 lg:grid-cols-[1fr_0.5fr]">
+            {/* Seat map */}
+            <Card className="gap-4">
+              <CardHeader className="pb-3">
+                <div className="space-y-1">
+                  <CardTitle className="text-sm">نقشه زنده صندلی‌ها</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    وضعیت هر صندلی بر اساس تاریخ پایان اشتراک
+                  </p>
                 </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {seatLayout.map((seat) => (
-                  <div
-                    key={seat.n}
-                    className={`rounded-xl border p-2 text-center ${statusStyles[seat.status].className}`}
-                  >
-                    <p className="text-xs font-bold">صندلی {seat.n}</p>
-                    <p className="mt-1 truncate text-[10px] opacity-80">{seat.name ?? "آزاد"}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-6 gap-2">
+                  {mockSeats.map((seat) => {
+                    const config = statusConfig[seat.status];
+                    return (
+                      <div
+                        key={seat.id}
+                        className={cn(
+                          "flex flex-col rounded-xl border p-2 text-right transition-shadow hover:shadow-md text-[10px]",
+                          config.className
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="inline-flex items-center gap-0.5 font-bold">
+                            <Armchair className="size-2.5 opacity-70" />
+                            {seat.seatNumber}
+                          </span>
+                          <span className={cn("size-1 rounded-full", config.dot)} />
+                        </div>
+                        {seat.status !== "available" && (
+                          <p className="mt-1 truncate font-medium opacity-90">
+                            {seat.memberName}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* هشدار تمدید */}
-            <div className="rounded-xl border bg-background p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <CalendarClock className="size-4 text-amber-600" />
-                <h3 className="text-sm font-bold">تمدیدهای پیش‌رو</h3>
-              </div>
-              <div className="space-y-2">
-                {renewals.map((r) => (
-                  <div
-                    key={r.name}
-                    className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2"
-                  >
-                    <div>
-                      <p className="text-xs font-medium">{r.name}</p>
-                      <p className="text-[10px] text-muted-foreground">صندلی {r.seat}</p>
-                    </div>
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
-                      {r.due}
-                    </span>
+            {/* Revenue card */}
+            <Card className="gap-2 bg-primary text-primary-foreground relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
+
+              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-medium text-primary-foreground/80">
+                  درآمد ماهانه تخمینی
+                </CardTitle>
+                <CircleDollarSign className="size-3.5 text-primary-foreground/70" />
+              </CardHeader>
+
+              <CardContent className="space-y-2">
+                <div className="text-xl font-bold tracking-tight">
+                  {formatNumber(monthlyRevenue)}{" "}
+                  <span className="text-xs font-normal text-primary-foreground/70">
+                    تومان
+                  </span>
+                </div>
+
+                <p className="text-[10px] text-primary-foreground/70 border-b border-primary-foreground/10 pb-2">
+                  بر اساس {formatNumber(occupied)} صندلی اشغال‌شده
+                </p>
+
+                <div className="pt-1 grid grid-cols-2 gap-x-1 gap-y-1 text-[9px] text-primary-foreground/60">
+                  <div className="flex items-center gap-1">
+                    <span className="size-1 rounded-full bg-emerald-400" />
+                    <span>وصول: {formatNumber(activeRevenue)}</span>
                   </div>
-                ))}
-              </div>
-              <div className="mt-3 rounded-lg border border-dashed p-3 text-center">
-                <p className="text-xs font-medium">درآمد این ماه</p>
-                <p className="mt-1 text-xl font-black text-emerald-600">۲۴٬۵۰۰٬۰۰۰ ﷼</p>
-              </div>
-            </div>
+                  <div className="flex items-center gap-1 justify-end">
+                    <span className="size-1 rounded-full bg-amber-400" />
+                    <span>در آستانه: {formatNumber(atRiskRevenue)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Status legend */}
+          <div className="flex flex-wrap gap-2 text-xs">
+            {Object.entries(statusConfig).map(([key, config]) => (
+              <span
+                key={key}
+                className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2 py-1"
+              >
+                <span className={cn("size-1.5 rounded-full", config.dot)} />
+                {config.label}
+                <span className="font-semibold">
+                  {formatNumber(stats[key as keyof typeof stats])}
+                </span>
+              </span>
+            ))}
           </div>
         </div>
       </div>

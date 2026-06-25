@@ -1,10 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, CirclePlay, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { DashboardPreview } from "./dashboard-preview";
 
 const Hero = () => {
   return (
-    <section className="min-h-[calc(100vh-4rem)] w-full overflow-hidden border-b border-accent bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--primary),transparent_82%),transparent_34rem)]">
+    <section className="relative min-h-[calc(100vh-4rem)] w-full overflow-hidden border-b border-accent bg-background">
+      {/* Background gradient orbs */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-br from-primary/10 via-transparent to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-tl from-primary/5 via-transparent to-transparent rounded-full blur-3xl" />
+      </div>
       <div className="mx-auto flex w-full max-w-(--breakpoint-xl) flex-col items-center justify-between gap-x-10 gap-y-14 px-6 py-12 lg:min-h-[calc(100vh-4rem)] lg:flex-row lg:py-0">
         <div className="max-w-xl text-right">
           <div className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-sm text-muted-foreground">
@@ -36,26 +42,10 @@ const Hero = () => {
             </Button>
           </div>
         </div>
-        <div className="relative w-full rounded-[2rem] border bg-card p-5 shadow-sm lg:max-w-lg xl:max-w-xl">
-          <div className="rounded-[1.5rem] border bg-background p-4">
-            <div className="mb-4 flex items-center justify-between border-b pb-3 text-sm text-muted-foreground">
-              <span>نمای زنده سالن</span>
-              <span>ظرفیت نمونه: ۴۸ صندلی</span>
-            </div>
-            <div className="grid grid-cols-6 gap-3">
-              {Array.from({ length: 30 }).map((_, index) => {
-                const state = index % 7 === 0 ? "bg-amber-500/80" : index % 5 === 0 ? "bg-destructive/80" : index % 3 === 0 ? "bg-primary/80" : "bg-emerald-500/80";
-                return (
-                  <div key={index} className={`flex aspect-square items-center justify-center rounded-2xl text-xs font-semibold text-white ${state}`}>
-                    {new Intl.NumberFormat("fa-IR").format(index + 1)}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 text-xs text-muted-foreground sm:grid-cols-4">
-              <span>سبز: آزاد</span><span>آبی: فعال</span><span>زرد: نیازمند تمدید</span><span>قرمز: منقضی</span>
-            </div>
-          </div>
+        <div className="relative w-full lg:max-w-2xl">
+          {/* Subtle depth effect */}
+          <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/5 to-transparent rounded-[2rem] blur-2xl" />
+          <DashboardPreview />
         </div>
       </div>
     </section>
