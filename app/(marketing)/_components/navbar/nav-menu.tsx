@@ -8,7 +8,6 @@ import { NavigationMenuProps } from "@radix-ui/react-navigation-menu";
 import Link from "next/link";
 
 const links = [
-  { href: "/", label: "خانه" },
   { href: "/#features", label: "ویژگی‌ها" },
   { href: "/#pricing", label: "قیمت" },
   { href: "/about", label: "درباره ما" },
