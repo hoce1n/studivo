@@ -56,9 +56,11 @@ const Pricing = () => {
       className="max-w-(--breakpoint-lg) mx-auto py-12 xs:py-20 px-6"
     >
       <h1 className="text-4xl xs:text-5xl font-semibold text-center tracking-tight">
-        تعرفه شفاف برای شروع مطمئن
+        تعرفه شفاف برای رشد پایدار سالن شما
       </h1>
-      <p className="mx-auto mt-4 max-w-2xl text-center leading-8 text-muted-foreground">پلن پایه برای سالن‌های کوچک تا ۱۵ صندلی رایگان است. پلن حرفه‌ای با مبلغ ۸۹۰٬۰۰۰ تومان به‌صورت ماهانه فعال می‌شود و برای سالن‌های دارای ظرفیت بالا یا چند شیفت مناسب است.</p>
+      <p className="mx-auto mt-4 max-w-2xl text-center leading-8 text-muted-foreground">
+        از سالن‌های نوپا تا مجموعه‌های بزرگ؛ پلن پایه برای شروع همیشه رایگان است و پلن حرفه‌ای تمام ابزارهای لازم برای مدیریت بدون نقص را در اختیار شما می‌گذارد.
+      </p>
       <div className="mt-8 xs:mt-14 grid grid-cols-1 lg:grid-cols-3 items-center gap-8 lg:gap-0">
         {plans.map((plan) => (
           <div

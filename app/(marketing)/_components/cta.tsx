@@ -1,6 +1,10 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, CheckCircle2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+import { ActionForm } from "@/components/action-form";
+import { submitLead } from "@/app/actions/marketing";
 
 const trustPoints = [
   "راه‌اندازی سریع برای سالن‌های کوچک و بزرگ",
@@ -43,37 +47,51 @@ const CTA = () => {
           </ul>
         </div>
 
-        {/* The form is presentation-ready and can be wired to a Server Action or CRM endpoint. */}
-        <form className="rounded-3xl border bg-background/90 p-4 shadow-sm sm:p-5">
-          <label
-            htmlFor="cta-contact"
-            className="mb-3 block text-right text-sm font-medium text-foreground"
-          >
-            ایمیل یا شماره موبایل
-          </label>
-          <div className="flex flex-col gap-3 sm:flex-row-reverse">
-            <Input
-              id="cta-contact"
-              name="contact"
-              type="text"
-              inputMode="email"
-              placeholder="مثلاً 0912... یا info@example.com"
-              className="h-12 rounded-2xl border-border bg-muted/40 px-4 text-right transition-all duration-300 placeholder:text-right focus-visible:bg-background"
-              aria-label="ایمیل یا شماره موبایل برای شروع رایگان"
-            />
-            <Button
-              type="submit"
-              size="lg"
-              className="h-12 rounded-2xl px-6 text-base transition-transform duration-300 hover:-translate-y-0.5"
-            >
-              شروع رایگان
-              <ArrowLeft className="size-5" aria-hidden="true" />
-            </Button>
-          </div>
-          <p className="mt-3 text-right text-xs leading-6 text-muted-foreground">
-            بدون تعهد پرداخت؛ ابتدا دمو و مسیر راه‌اندازی را شفاف می‌بینید.
-          </p>
-        </form>
+        <ActionForm 
+          action={submitLead}
+          resetOnSuccess
+          className="rounded-3xl border bg-background/90 p-4 shadow-sm sm:p-5 space-y-0"
+        >
+          {(pending) => (
+            <>
+              <label
+                htmlFor="cta-contact"
+                className="mb-3 block text-right text-sm font-medium text-foreground"
+              >
+                ایمیل یا شماره موبایل
+              </label>
+              <div className="flex flex-col gap-3 sm:flex-row-reverse">
+                <Input
+                  id="cta-contact"
+                  name="contact"
+                  type="text"
+                  required
+                  placeholder="مثلاً 0912... یا info@example.com"
+                  className="h-12 rounded-2xl border-border bg-muted/40 px-4 text-right transition-all duration-300 placeholder:text-right focus-visible:bg-background"
+                  aria-label="ایمیل یا شماره موبایل برای شروع رایگان"
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={pending}
+                  className="h-12 rounded-2xl px-6 text-base transition-transform duration-300 hover:-translate-y-0.5"
+                >
+                  {pending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      شروع رایگان
+                      <ArrowLeft className="size-5" aria-hidden="true" />
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="mt-3 text-right text-xs leading-6 text-muted-foreground">
+                بدون تعهد پرداخت؛ ابتدا دمو و مسیر راه‌اندازی را شفاف می‌بینید.
+              </p>
+            </>
+          )}
+        </ActionForm>
       </div>
     </section>
   );

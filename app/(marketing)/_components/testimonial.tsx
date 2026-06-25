@@ -15,65 +15,30 @@ import { useEffect, useState } from "react";
 const testimonials = [
   {
     id: 1,
-    name: "John Doe",
-    designation: "Software Engineer",
-    company: "TechCorp",
+    name: "علیرضا محمدی",
+    designation: "مدیر سالن مطالعه گام",
+    company: "تهران",
     testimonial:
-      "This product has completely transformed the way we work. The efficiency and ease of use are unmatched! " +
-      "We were struggling with productivity before, but this tool has streamlined our entire process. ",
+      "استادیو دقیقاً همان چیزی بود که برای نظم دادن به سالن نیاز داشتیم. قبلاً تداخل صندلی‌ها و پیگیری تمدیدها وقت زیادی از ما می‌گرفت، اما الان همه چیز شفاف و سیستمی شده است.",
     avatar: "https://randomuser.me/api/portraits/men/1.jpg",
   },
   {
     id: 2,
-    name: "Jane Smith",
-    designation: "Product Manager",
-    company: "InnovateX",
+    name: "مریم رضایی",
+    designation: "مؤسس پانسیون مطالعاتی هدف",
+    company: "اصفهان",
     testimonial:
-      "An amazing tool that simplifies complex tasks. Highly recommended for professionals in the industry. " +
-      "The intuitive interface makes it easy to onboard new team members, and the automation features save us countless hours every week. ",
+      "رابط کاربری فارسی و ساده استادیو باعث شد پرسنل ما در کمتر از یک روز کار با آن را یاد بگیرند. نقشه زنده صندلی‌ها بهترین ویژگی برای مدیریت ظرفیت در روزهای شلوغ است.",
     avatar: "https://randomuser.me/api/portraits/women/2.jpg",
   },
   {
     id: 3,
-    name: "Michael Johnson",
-    designation: "UX Designer",
-    company: "DesignPro",
+    name: "سعید حسینی",
+    designation: "مدیر کتابخانه خصوصی فرهنگ",
+    company: "شیراز",
     testimonial:
-      "The user experience is top-notch! The interface is clean, intuitive, and easy to navigate. " +
-      "As a designer, I appreciate the attention to detail and well-thought-out UI components. " +
-      "It makes designing and prototyping so much more efficient.",
+      "از وقتی از استادیو استفاده می‌کنیم، هیچ تمدیدی را فراموش نکردیم. گزارش‌های مالی و آمار اشغال صندلی‌ها دید خیلی خوبی برای برنامه‌ریزی بهتر به ما داده است.",
     avatar: "https://randomuser.me/api/portraits/men/3.jpg",
-  },
-  {
-    id: 4,
-    name: "Emily Davis",
-    designation: "Marketing Specialist",
-    company: "BrandBoost",
-    testimonial:
-      "I've seen a significant improvement in our team's productivity since we started using this service. " +
-      "The ability to track performance, analyze data, and collaborate across teams has been a game-changer.",
-    avatar: "https://randomuser.me/api/portraits/women/4.jpg",
-  },
-  {
-    id: 5,
-    name: "Daniel Martinez",
-    designation: "Full-Stack Developer",
-    company: "CodeCrafters",
-    testimonial:
-      "The best investment we've made! The support team is also super responsive and helpful. " +
-      "As a developer, I appreciate the well-documented API, the flexibility of integrations, and the robust security features.",
-    avatar: "https://randomuser.me/api/portraits/men/5.jpg",
-  },
-  {
-    id: 6,
-    name: "Sophia Lee",
-    designation: "Data Analyst",
-    company: "InsightTech",
-    testimonial:
-      "This tool has saved me hours of work! The analytics and reporting features are incredibly powerful. " +
-      "I can now generate detailed reports in minutes, which previously took days to compile. " +
-      "helping us make smarter, data-backed decisions.",
-    avatar: "https://randomuser.me/api/portraits/women/6.jpg",
   },
 ];
 const Testimonial = () => {
@@ -139,12 +104,9 @@ const TestimonialCard = ({
   <div className="mb-8 bg-accent rounded-xl py-8 px-6 sm:py-6">
     <div className="flex items-center justify-between gap-20">
       <div className="hidden lg:block relative shrink-0 aspect-3/4 max-w-[18rem] w-full bg-muted-foreground/20 rounded-xl">
-        <Image
-          src="/placeholder.svg"
-          fill
-          alt=""
-          className="object-cover rounded-xl"
-        />
+        <div className="absolute inset-0 flex items-center justify-center bg-primary/5 text-primary">
+          <StarIcon className="w-12 h-12 fill-current" />
+        </div>
 
         <div className="absolute top-1/4 right-0 translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center">
           <svg

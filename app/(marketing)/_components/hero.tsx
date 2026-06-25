@@ -13,10 +13,10 @@ const Hero = () => {
           </div>
 
           <h1 className="mt-6 max-w-[22ch] text-3xl font-semibold leading-[1.2]! tracking-tight xs:text-4xl sm:text-5xl lg:text-[2.75rem] xl:text-5xl">
-            صندلی‌های سالن مطالعه را بدون تداخل، فراموشی تمدید و اختلاف حساب مدیریت کنید
+            مدیریت سالن مطالعه، بدون تداخل صندلی و پیگیری‌های فرساینده
           </h1>
           <p className="mt-6 max-w-[64ch] text-base leading-8 text-muted-foreground xs:text-lg">
-            استادیو برای مدیران سالن‌های مطالعه در ایران ساخته شده است: نقشه زنده اشغال صندلی‌ها، کنترل خودکار دوباره‌فروشی یک صندلی، پیگیری اشتراک‌های ماهانه و ثبت تاریخچه عملیات، همگی در یک داشبورد فارسی و سریع.
+            ثبت‌نام، رزرو صندلی، تمدید اشتراک و وضعیت اعضا را در یک داشبورد ساده و قابل اعتماد مدیریت کنید؛ تا هر روز با آرامش بیشتری سالن را اداره کنید.
           </p>
           <div className="mt-10 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
             <span className="rounded-2xl border bg-background/70 px-4 py-3">حذف دوباره‌رزروی صندلی</span>

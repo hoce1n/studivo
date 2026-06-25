@@ -98,6 +98,11 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Push notification proof-of-concept exists with VAPID/web-push scaffolding.
 - [x] Product positioning and marketing docs exist under `docs/`.
 - [x] Strategic root documentation files populated: `AGENT.md`, `DESIGN.md`, `DECISIONS.md`, and `TASKS.md`.
+- [x] Transition (marketing) routes to professional production-ready state.
+  - Replaced placeholders with high-quality Persian copy from marketing blueprint.
+  - Integrated real Contact/Lead server actions with `ActionForm` and descriptive success states.
+  - Verified and enriched legal/compliance pages (Privacy, Terms, Refund) with SMS consent.
+  - Polished UI/UX and verified successful local build.
 
 ## Completed — Data Preservation & Trust
 
