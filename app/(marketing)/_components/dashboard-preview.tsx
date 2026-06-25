@@ -79,7 +79,7 @@ export function DashboardPreview() {
   return (
     <div className="relative w-full rounded-[2rem] border bg-card p-5 shadow-lg overflow-hidden">
       {/* Subtle background glow */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 -z-10 bg-linear-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
 
       {/* Main container with sidebar-like frame */}
       <div className="rounded-[1.5rem] border bg-background overflow-hidden">
@@ -196,7 +196,7 @@ export function DashboardPreview() {
             </Card>
 
             {/* Revenue card */}
-            <Card className="gap-2 bg-primary text-primary-foreground relative overflow-hidden group">
+            <Card className="gap-2 bg-primary text-primary-foreground relative overflow-hidden h-fit group">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
 
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
