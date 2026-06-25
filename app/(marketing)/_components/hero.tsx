@@ -19,14 +19,14 @@ const Hero = () => {
             ثبت‌نام، رزرو صندلی، تمدید اشتراک و وضعیت اعضا را در یک داشبورد ساده و قابل اعتماد مدیریت کنید؛ تا هر روز با آرامش بیشتری سالن را اداره کنید.
           </p>
           <div className="mt-10 grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-            <span className="rounded-2xl border bg-background/70 px-4 py-3">حذف دوباره‌رزروی صندلی</span>
-            <span className="rounded-2xl border bg-background/70 px-4 py-3">هشدار تمدید و انقضا</span>
-            <span className="rounded-2xl border bg-background/70 px-4 py-3">نقشه تصویری ظرفیت سالن</span>
+            <span className="rounded-2xl border bg-background/70 px-4 py-3 text-xs">حذف دوباره‌رزروی صندلی</span>
+            <span className="rounded-2xl border bg-background/70 px-4 py-3 text-xs">هشدار تمدید و انقضا</span>
+            <span className="rounded-2xl border bg-background/70 px-4 py-3 text-xs">نقشه تصویری ظرفیت سالن</span>
           </div>
           <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row">
             <Button asChild size="lg" className="w-full rounded-full text-base sm:w-auto">
               <Link href="/signup">
-                شروع رایگان تا ۱۵ صندلی <ArrowUpRight className="h-5! w-5!" />
+                شروع <ArrowUpRight className="h-5! w-5!" />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="w-full rounded-full text-base shadow-none sm:w-auto">

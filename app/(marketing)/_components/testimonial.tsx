@@ -71,6 +71,11 @@ const Testimonial = () => {
       </h2>
       <div className="container w-full mx-auto">
         <Carousel
+          dir="rtl"
+          opts={{
+            direction: "rtl"
+          }}
+          
           setApi={setApi}>
           <CarouselContent>
             {testimonials.map((testimonial) => (

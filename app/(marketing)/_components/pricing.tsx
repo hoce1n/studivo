@@ -20,7 +20,7 @@ const plans = [
   },
   {
     name: "حرفه‌ای",
-    price: "۱٬۴۹۹٬۰۰۰",
+    price: "۱٬۴۹۰٬۰۰۰",
     isRecommended: true,
     description:
       "برای سالن‌های فعال با چند همکار.",
