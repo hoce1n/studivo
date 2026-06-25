@@ -21,9 +21,18 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
             cd /home/hocein/projects/minimal-saas
 
+            node -v
+            pnpm -v
+            pm2 -v
+
             git pull origin main
+
+            pnpm install --frozen-lockfile
 
             pnpm build
 
