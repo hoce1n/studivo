@@ -89,7 +89,7 @@ export default async function Layout({
             </div>
           </div>
         </header>
-        <main className="flex flex-1 flex-col gap-6 p-4 md:p-6 mt-16">
+        <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
             {children}
         </main>
       </SidebarInset>
