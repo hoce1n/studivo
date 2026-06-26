@@ -77,9 +77,8 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
     return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات رزرو صندلی کامل یا معتبر نیست." };
   }
 
-  const currentDate = new Date();
-  if (parsed.data.endDate <= currentDate) {
-    return { success: false, error: "تاریخ پایان باید بعد از امروز باشد." };
+  if (parsed.data.endDate <= parsed.data.startDate) {
+    return { success: false, error: "تاریخ پایان باید بعد از تاریخ شروع باشد." };
   }
 
   try {
@@ -157,6 +156,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
             memberName: member.name,
             phoneNumber: member.phoneNumber,
             seatNumber: createdSubscription.seat.seatNumber,
+            startDate: parsed.data.startDate.toISOString(),
             endDate: parsed.data.endDate.toISOString(),
             message: `${user.name} صندلی ${createdSubscription.seat.seatNumber} را برای ${member.name} رزرو کرد.`,
           },

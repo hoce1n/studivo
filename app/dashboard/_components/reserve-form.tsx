@@ -81,10 +81,28 @@ export type ReserveFormSeat = {
   }[];
 };
 
+const START_DATE_MAX_PAST_DAYS = 30;
+
+function startOfDay(date: Date) {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
+
+function getDefaultStartDate() {
+  return startOfDay(new Date());
+}
+
 function getDefaultEndDate() {
   const date = new Date();
   date.setDate(date.getDate() + 30);
   date.setHours(23, 59, 59, 999);
+  return date;
+}
+
+function getEarliestAllowedStartDate() {
+  const date = startOfDay(new Date());
+  date.setDate(date.getDate() - START_DATE_MAX_PAST_DAYS);
   return date;
 }
 
@@ -199,6 +217,9 @@ export function ReserveForm({
   returningMember?: { id: string; name: string; phoneNumber: string | null } | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [startDate, setStartDate] = React.useState<Date | undefined>(
+    getDefaultStartDate,
+  );
   const [date, setDate] = React.useState<Date | undefined>(getDefaultEndDate);
   const [renewDate, setRenewDate] = React.useState<Date | undefined>(
     getDefaultEndDate,
@@ -223,6 +244,22 @@ export function ReserveForm({
     [subscription, renewDate],
   );
 
+  const handleStartDateChange = (selectedDate: Date | undefined) => {
+    if (selectedDate) {
+      const adjustedDate = new Date(selectedDate);
+      adjustedDate.setHours(0, 0, 0, 0);
+      setStartDate(adjustedDate);
+      if (date && adjustedDate > date) {
+        const nextEndDate = new Date(adjustedDate);
+        nextEndDate.setDate(nextEndDate.getDate() + 30);
+        nextEndDate.setHours(23, 59, 59, 999);
+        setDate(nextEndDate);
+      }
+    } else {
+      setStartDate(undefined);
+    }
+  };
+
   const handleDateChange = (selectedDate: Date | undefined) => {
     if (selectedDate) {
       const adjustedDate = new Date(selectedDate);
@@ -234,6 +271,7 @@ export function ReserveForm({
   };
 
   const handleSuccess = () => {
+    setStartDate(getDefaultStartDate());
     setDate(getDefaultEndDate());
     onOpenChange(false);
   };
@@ -351,7 +389,7 @@ export function ReserveForm({
         <div className="px-6 pb-6">
           {isAvailable && returningMember ? (
             <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-right text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
-              اطلاعات {returningMember.name} از آرشیو اعضا آماده شده؛ فقط صندلی و تاریخ پایان را تأیید کنید.
+              اطلاعات {returningMember.name} از آرشیو اعضا آماده شده؛ فقط صندلی و تاریخ‌های اشتراک را تأیید کنید.
             </div>
           ) : null}
           {isAvailable ? (
@@ -400,6 +438,49 @@ export function ReserveForm({
                     />
                   </Field>
                   <Field>
+                    <FieldLabel htmlFor="startDate">
+                      تاریخ شروع اشتراک
+                    </FieldLabel>
+                    <input
+                      id="startDate"
+                      type="hidden"
+                      name="startDate"
+                      value={startDate ? startDate.toISOString() : ""}
+                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-right font-normal",
+                            !startDate && "text-muted-foreground",
+                          )}
+                        >
+                          <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                          {startDate ? (
+                            format(startDate, "yyyy/MM/dd")
+                          ) : (
+                            <span>انتخاب تاریخ شروع</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent>
+                        <Calendar
+                          className="w-full"
+                          mode="single"
+                          selected={startDate}
+                          onSelect={handleStartDateChange}
+                          disabled={(day) => {
+                            const normalized = new Date(day);
+                            normalized.setHours(0, 0, 0, 0);
+                            return normalized < getEarliestAllowedStartDate();
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </Field>
+                  <Field>
                     <FieldLabel htmlFor="endDate">
                       تاریخ پایان اشتراک
                     </FieldLabel>
@@ -423,7 +504,7 @@ export function ReserveForm({
                           {date ? (
                             format(date, "yyyy/MM/dd")
                           ) : (
-                            <span>انتخاب تاریخ تمدید</span>
+                            <span>انتخاب تاریخ پایان</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -433,14 +514,22 @@ export function ReserveForm({
                           mode="single"
                           selected={date}
                           onSelect={handleDateChange}
-                          disabled={(date) => date < new Date()}
+                          disabled={(day) => {
+                            const normalized = new Date(day);
+                            normalized.setHours(0, 0, 0, 0);
+                            const minEndDate = startDate
+                              ? new Date(startDate)
+                              : getDefaultStartDate();
+                            minEndDate.setHours(0, 0, 0, 0);
+                            return normalized <= minEndDate;
+                          }}
                         />
                       </PopoverContent>
                     </Popover>
                   </Field>
                   <Button
                     type="submit"
-                    disabled={pending || !reservationSeatNumber}
+                    disabled={pending || !reservationSeatNumber || !startDate || !date}
                   >
                     {pending ? <Loader className="animate-spin" /> : "رزرو"}
                   </Button>

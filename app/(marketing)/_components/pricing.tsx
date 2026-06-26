@@ -82,7 +82,7 @@ const Pricing = () => {
             <p className="mt-2 text-4xl font-bold">
               {plan.price} 
               <span className="text-xs  font-light mr-1">
-                {plan.name === "پایه" ? "همیشه رایگان تا ۱۵ صندلی" : plan.name === "ویژه" ? "متناسب با نیاز شما" : "تومان / ماه"}
+                {plan.name === "ویژه" ? "متناسب با نیاز شما" : "تومان / ماه"}
               </span>
             </p>
             <p className="mt-4 font-medium text-muted-foreground">

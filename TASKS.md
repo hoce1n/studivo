@@ -87,6 +87,7 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Live seat map implemented with visual statuses for available, reserved, renewal-needed, and expired seats.
 - [x] Quick reserve/manage Sheet implemented from the seat map.
 - [x] Reserve seat server action validates input, scopes by study hall, checks active seat conflicts, upserts member, and creates subscription in a transaction.
+- [x] Custom subscription start date supported in reserve flow: `ReserveForm` exposes «تاریخ شروع اشتراک» (defaults to today) and `reserveSeat` persists the operator-selected `startDate` with audit metadata.
 - [x] Renew subscription server action uses smart renewal logic: real renewals preserve history by expiring the current row and creating a new active row, while small date corrections update the active row.
 - [x] Release seat server action cancels active subscriptions.
 - [x] Swap seat server action validates destination seats and blocks occupied targets inside a transaction.

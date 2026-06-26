@@ -139,8 +139,8 @@ This transaction ensures the venue, owner role, and generated seat inventory are
 Flow:
 
 1. Require an authenticated, scoped user via `requireScopedUser`.
-2. Validate `seatNumber`, `memberName`, `phoneNumber`, and `endDate`.
-3. Reject an end date that is not in the future.
+2. Validate `seatNumber`, `memberName`, `phoneNumber`, `startDate`, and `endDate`.
+3. Reject a start date more than 30 days in the past or an end date that is not after the start date.
 4. Open a Prisma transaction.
 5. Find the requested seat by `(studyhallId, seatNumber)`.
 6. Reject if the seat does not belong to the current venue.
@@ -151,8 +151,9 @@ Flow:
 11. Upsert the member user by `(studyhallId, phoneNumber)`:
     - Update existing internal member name/role if found.
     - Create a member with a deterministic local Studivo email if not found.
-12. Create the active subscription for that member and seat.
-13. Revalidate `/dashboard`.
+12. Create the active subscription for that member and seat, persisting the operator-supplied `startDate` and `endDate`.
+13. Write an `AuditLog` entry in the same transaction with member, seat, start/end dates, and a Persian operator-readable message.
+14. Revalidate `/dashboard`.
 
 This protects the core promise: a staff member cannot intentionally reserve a seat that the app already knows is active.
 
