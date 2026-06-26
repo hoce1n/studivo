@@ -21,7 +21,7 @@ import {
   renewSubscription,
   reserveSeat,
   swapSeat,
-} from "@/app/actions/actions";
+} from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
 import { SubscriptionProgress } from "@/app/dashboard/_components/subscription-progress";
 import {
@@ -150,6 +150,34 @@ function SeatHistoryTimeline({ history }: { history: NonNullable<ReserveFormSeat
   );
 }
 
+function getSmartRenewalPreview(currentEndDateISO: string, selectedDate: Date | undefined) {
+  if (!selectedDate) {
+    return {
+      daysDifference: null,
+      isRealRenewal: false,
+      buttonText: "انتخاب تاریخ تمدید",
+      helpText: "تاریخ جدید را انتخاب کنید تا نوع عملیات مشخص شود.",
+    };
+  }
+
+  const currentEndDate = new Date(currentEndDateISO);
+  const adjustedDate = new Date(selectedDate);
+  adjustedDate.setHours(23, 59, 59, 999);
+  const daysDifference = Math.ceil(
+    (adjustedDate.getTime() - currentEndDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  const isRealRenewal = daysDifference > 7;
+
+  return {
+    daysDifference,
+    isRealRenewal,
+    buttonText: isRealRenewal ? "ثبت تمدید واقعی" : "اصلاح تاریخ پایان",
+    helpText: isRealRenewal
+      ? `بیش از ۷ روز اختلاف دارد؛ سابقه فعلی بسته می‌شود و اشتراک جدید ساخته می‌شود (${daysDifference > 0 ? "+" : ""}${daysDifference} روز).`
+      : `اختلاف ۷ روز یا کمتر است؛ فقط تاریخ پایان همین اشتراک اصلاح می‌شود (${daysDifference > 0 ? "+" : ""}${daysDifference} روز).`,
+  };
+}
+
 const statusLabels: Record<string, string> = {
   active: "فعال",
   expired: "منقضی",
@@ -187,6 +215,13 @@ export function ReserveForm({
   );
   const isAvailable = seat?.status === "available";
   const subscription = seat?.subscription;
+  const smartRenewalPreview = React.useMemo(
+    () =>
+      subscription
+        ? getSmartRenewalPreview(subscription.endDateISO, renewDate)
+        : null,
+    [subscription, renewDate],
+  );
 
   const handleDateChange = (selectedDate: Date | undefined) => {
     if (selectedDate) {
@@ -435,7 +470,7 @@ export function ReserveForm({
                 </div>
                 <div className="flex items-center gap-2">
                   <CalendarClock className="size-4 text-muted-foreground" />
-                  <span>پایان اشتراک: {subscription.endDate}</span>
+                  <span>پایان فعلی اشتراک: {subscription.endDate}</span>
                 </div>
                 <Button
                   type="button"
@@ -475,6 +510,12 @@ export function ReserveForm({
                     />
                   </PopoverContent>
                 </Popover>
+                <div className="rounded-2xl border bg-muted/40 p-3 text-xs leading-6 text-muted-foreground">
+                  <div className="font-medium text-foreground">
+                    پایان فعلی: {subscription.endDate}
+                  </div>
+                  <div>{smartRenewalPreview?.helpText}</div>
+                </div>
                 {renewError ? (
                   <p className="text-xs text-destructive">{renewError}</p>
                 ) : null}
@@ -487,7 +528,7 @@ export function ReserveForm({
                   ) : (
                     <CalendarPlus />
                   )}
-                  تمدید اشتراک
+                  {smartRenewalPreview?.buttonText ?? "تمدید اشتراک"}
                 </Button>
 
                 <div className="flex gap-2">

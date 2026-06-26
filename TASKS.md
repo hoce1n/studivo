@@ -8,17 +8,15 @@ This board reflects the current repository state after reviewing the Prisma sche
   - Current state: clickable visual seat map and `ReserveForm` Sheet exist.
   - Next step: reduce form friction with phone-first lookup, clearer conflict states, and one primary CTA.
 
-- [ ] Standardize all Server Action results.
-  - Current state: actions validate and throw errors; `ActionForm` converts thrown errors into UI feedback.
-  - Next step: migrate expected failures to a unified `{ ok, data?, error? }` action-state contract.
+- [x] Standardize core Server Action results.
+  - Core auth/settings, seat, subscription, and PWA actions now return a unified `{ success, error?, message?, data? }` result for expected failures and user feedback.
 
 - [ ] Harden transactional seat collision prevention.
   - Current state: `reserveSeat` and `swapSeat` check active subscriptions inside Prisma transactions backed by PostgreSQL.
   - Next step: add database-level active-seat protection with a PostgreSQL partial unique index or equivalent invariant.
 
-- [ ] Improve renewal visibility and operator workflow.
-  - Current state: dashboard marks seats as available, reserved, renewal-needed, or expired based on active subscription end date.
-  - Next step: add focused renewal queue, reminder actions, and payment follow-up states.
+- [x] Improve renewal visibility and operator workflow.
+  - Smart renewal/date-correction guidance is shown in the seat management sheet, and renewal actions preserve history only when the new end date is more than seven days beyond the current end date.
 
 - [ ] Normalize RBAC and permission helpers.
   - Current state: `admin`, `staff`, and `member` roles are string fields; admin-only checks exist for staff creation and venue settings.
@@ -74,6 +72,7 @@ This board reflects the current repository state after reviewing the Prisma sche
 
 ## Completed
 
+- [x] Refactor server actions into domain modules with a main barrel export.
 - [x] PostgreSQL production migration completed.
 - [x] SQLite-specific adapter cleanup completed from Prisma client wiring.
 - [x] Next.js 16 App Router project initialized.
@@ -88,7 +87,7 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Live seat map implemented with visual statuses for available, reserved, renewal-needed, and expired seats.
 - [x] Quick reserve/manage Sheet implemented from the seat map.
 - [x] Reserve seat server action validates input, scopes by study hall, checks active seat conflicts, upserts member, and creates subscription in a transaction.
-- [x] Renew subscription server action preserves history by expiring the current row and creating a new active row.
+- [x] Renew subscription server action uses smart renewal logic: real renewals preserve history by expiring the current row and creating a new active row, while small date corrections update the active row.
 - [x] Release seat server action cancels active subscriptions.
 - [x] Swap seat server action validates destination seats and blocks occupied targets inside a transaction.
 - [x] Admin-only staff creation server action exists.
@@ -109,7 +108,7 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Expose seat-level subscription history in the seat management sheet.
 - [x] Add a member archive/profile view for active and inactive members with historical subscription/payment timelines.
 - [x] Add one-click archived-member reactivation through pre-filled dashboard reservations.
-- [x] Add venue-scoped `AuditLog` persistence for reservation, renewal, release, and seat swap operations.
+- [x] Add venue-scoped `AuditLog` persistence for reservation, smart renewal/date correction, release, and seat swap operations.
 - [x] Notification preferences for renewal reminders.
   - Owners can configure renewal lead time, renewal reminders, and expiry reminders from `/dashboard/settings`.
 - [x] Add an admin-only `/dashboard/logs` digital event notebook.

@@ -118,3 +118,9 @@ This file records architectural and product decisions whose reasoning is not ful
 - Better Auth uses the PostgreSQL Prisma adapter provider.
 - Server-side concurrency logic is backed by PostgreSQL isolation and locking instead of file-level database locking.
 - Future schema hardening should add a partial unique index or equivalent invariant for active seat occupancy.
+
+## Server action module organization
+
+- Server actions are organized by domain under `app/actions/`: authentication and venue setup in `auth.ts`, seat operations in `seat.ts`, subscription renewals in `subscription.ts`, audit/action-result helpers in `audit.ts`, and PWA notification actions in `pwa.ts`.
+- `app/actions/index.ts` is the main barrel export so dashboard components import from one stable entry point while each mutation stays small, scoped, and easier to audit for RBAC, tenant checks, transactions, and revalidation.
+- `renewSubscription` uses smart renewal semantics: changes more than seven days from the current end date preserve history by expiring the old row and creating a new active subscription; changes of seven days or less are treated as date corrections on the current active subscription.

@@ -117,7 +117,7 @@ Integrity notes:
 A secured cron route (`/api/cron/renewal-reminders`) scans active subscriptions entering the 3-day renewal window or already past `endDate`, then sends push notifications to admin/staff devices with stored subscriptions for that study hall.
 
 
-Primary business logic lives in `app/actions/actions.ts` as Next.js Server Actions. These actions are the authoritative mutation layer and must remain server-side.
+Primary business logic lives in domain-focused Next.js Server Action modules under `app/actions/`, with `app/actions/index.ts` as the main barrel export. `auth.ts` owns staff creation, onboarding, profile, and venue settings; `seat.ts` owns reservation, release, and swapping; `subscription.ts` owns renewal behavior; `pwa.ts` owns push-notification actions; and `audit.ts` centralizes shared action-result and operational revalidation helpers. These actions are the authoritative mutation layer and must remain server-side.
 
 ### Onboarding Flow
 
@@ -194,12 +194,14 @@ The subscription history remains attached to the same subscription row for a mov
 
 ### Renewing a Subscription
 
-`renewSubscription` validates a future end date and runs a transaction that:
+`renewSubscription` validates a future end date and runs smart renewal logic inside a Prisma transaction:
 
 1. Finds the current active subscription by id and current `studyhallId`.
-2. Marks the existing row as `expired` to preserve history.
-3. Creates a new active subscription for the same member and seat.
-4. Revalidates `/dashboard`.
+2. Calculates the day difference between the new end date and the current `endDate`.
+3. If the difference is more than seven days, treats the change as a real renewal: expires the existing row and creates a new active subscription for the same member and seat, preserving history.
+4. If the difference is seven days or less, treats the change as a date correction and updates `endDate` on the current active row.
+5. Writes a rich `AuditLog` entry with old/new end dates, day difference, renewal mode, and a Persian operator-readable message.
+6. Revalidates `/dashboard`, `/dashboard/members`, and `/dashboard/logs`.
 
 ### Releasing a Seat
 
