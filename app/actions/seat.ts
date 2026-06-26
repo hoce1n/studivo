@@ -11,12 +11,42 @@ import { requireScopedUser } from "@/app/actions/auth";
 
 type TransactionClient = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$use" | "$extends">;
 
-const subscriptionSchema = z.object({
-  seatNumber: z.coerce.number().int().min(1),
-  memberName: z.string().trim().min(2),
-  phoneNumber: z.string().trim().min(7).max(32),
-  endDate: z.coerce.date(),
-});
+const START_DATE_MAX_PAST_DAYS = 30;
+
+function startOfDay(date: Date) {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
+
+const subscriptionSchema = z
+  .object({
+    seatNumber: z.coerce.number().int().min(1),
+    memberName: z.string().trim().min(2),
+    phoneNumber: z.string().trim().min(7).max(32),
+    startDate: z.coerce.date("تاریخ شروع معتبر نیست."),
+    endDate: z.coerce.date("تاریخ پایان معتبر نیست."),
+  })
+  .superRefine((data, ctx) => {
+    if (data.startDate > data.endDate) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["startDate"],
+        message: "تاریخ شروع باید قبل از تاریخ پایان یا برابر با آن باشد.",
+      });
+    }
+
+    const oldestAllowedStartDate = startOfDay(new Date());
+    oldestAllowedStartDate.setDate(oldestAllowedStartDate.getDate() - START_DATE_MAX_PAST_DAYS);
+
+    if (startOfDay(data.startDate) < oldestAllowedStartDate) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["startDate"],
+        message: `تاریخ شروع نمی‌تواند بیشتر از ${START_DATE_MAX_PAST_DAYS} روز در گذشته باشد.`,
+      });
+    }
+  });
 
 const releaseSeatSchema = z.object({
   subscriptionId: z.string().min(1, "شناسه اشتراک معتبر نیست."),
@@ -39,15 +69,16 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
     seatNumber: formData.get("seatNumber"),
     memberName: formData.get("memberName"),
     phoneNumber: formData.get("phoneNumber"),
+    startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
   });
 
   if (!parsed.success) {
-    return { success: false, error: "اطلاعات رزرو صندلی کامل یا معتبر نیست." };
+    return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات رزرو صندلی کامل یا معتبر نیست." };
   }
 
-  const now = new Date();
-  if (parsed.data.endDate <= now) {
+  const currentDate = new Date();
+  if (parsed.data.endDate <= currentDate) {
     return { success: false, error: "تاریخ پایان باید بعد از امروز باشد." };
   }
 
@@ -109,7 +140,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
           userId: member.id,
           seatId: seat.id,
           studyhallId: user.studyhallId,
-          startDate: now,
+          startDate: parsed.data.startDate,
           endDate: parsed.data.endDate,
           status: "active",
         },
