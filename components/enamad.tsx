@@ -1,6 +1,7 @@
 export default function Enamad() {
   return (
     <a
+      className="mt-4"
       referrerPolicy="origin"
       target="_blank"
       rel="noopener noreferrer"

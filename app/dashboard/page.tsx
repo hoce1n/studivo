@@ -10,15 +10,8 @@ import {
 
 import { createStaff } from "@/app/actions/actions";
 
-import { AppSidebar } from "@/components/app-sidebar";
 import { Badge } from "@/components/ui/badge";
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
 import {
   Card,
   CardContent,
@@ -27,18 +20,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
 import { StudyHallSeatsMap } from "@/app/dashboard/_components/study-hall-seats-map";
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
-import ThemeToggle from "../(marketing)/_components/theme-toggle";
-import { NotificationBell } from "@/components/notification-bell";
 
 const dayInMs = 24 * 60 * 60 * 1000;
 
@@ -255,233 +241,201 @@ export default async function Page({ searchParams }: PageProps) {
   ];
 
   return (
-    <SidebarProvider>
-      <AppSidebar
-        side="right"
-        userRole={user.role}
-        studyhallName={user.studyhall.name}
-        activePath="/dashboard"
-      />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex w-full justify-between">
-            <div className="flex items-center gap-2 px-4">
-              <SidebarTrigger className="-ms-1" />
-              <Separator
-                orientation="vertical"
-                className="me-2 data-vertical:h-4 data-vertical:self-auto"
-              />
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>{user.studyhall.name}</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            </div>
-            <div className="flex items-center gap-2 px-4">
-              <NotificationBell />
-              <ThemeToggle />
-            </div>
-          </div>
-        </header>
-        <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="space-y-1">
-              <h1 className="text-xl font-bold md:text-2xl">
-                سلام {user.name}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                نمای کلی سالن مطالعه و وضعیت لحظه‌ای صندلی‌ها
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="muted">{roleLabel}</Badge>
-              <Badge variant="outline" className="gap-1.5">
-                <span
-                  className="inline-block size-1.5 rounded-full bg-emerald-500"
-                  aria-hidden
-                />
-                اشغال {formatNumber(occupancyRate)}٪
-              </Badge>
-            </div>
-          </div>
-
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {summaryCards.map((card) => (
-              <Card key={card.title} className="gap-2">
-                <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {card.title}
-                  </CardTitle>
-                  <card.icon className={cn("size-4", card.iconClass)} />
-                </CardHeader>
-                <CardContent className="space-y-1">
-                  <div className="text-2xl font-bold tracking-tight">
-                    {card.value}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{card.hint}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </section>
-
-          <section id="map" className="grid gap-6 xl:grid-cols-[1.6fr_0.9fr]">
-            <StudyHallSeatsMap
-              seats={seatView.map((seat) => ({
-                id: seat.id,
-                seatNumber: formatNumber(seat.seatNumber),
-                reserveSeatNumber: seat.seatNumber,
-                status: seat.status,
-                subscription: seat.subscription
-                  ? {
-                      id: seat.subscription.id,
-                      memberName: seat.subscription.user.name ?? "بدون نام",
-                      phoneNumber: seat.subscription.user.phoneNumber ?? "—",
-                      endDate: formatDate(seat.subscription.endDate),
-                      startDateISO: seat.subscription.startDate.toISOString(),
-                      endDateISO: seat.subscription.endDate.toISOString(),
-                    }
-                  : undefined,
-                history: seat.subscriptions.slice(0, 8).map((item) => ({
-                  id: item.id,
-                  memberName: item.user.name ?? "بدون نام",
-                  phoneNumber: item.user.phoneNumber ?? "—",
-                  startDate: formatDate(item.startDate),
-                  endDate: formatDate(item.endDate),
-                  status: item.status,
-                  paymentStatus: item.paymentStatus,
-                })),
-              }))}
-              shouldSortByRenewal={shouldSortByRenewal}
-              statusCopy={statusCopy}
-              studyHallName={user.studyhall.name}
-              returningMember={returningMember}
-              stats={{
-                available: formatNumber(stats.available),
-                reserved: formatNumber(stats.reserved),
-                renewal: formatNumber(stats.renewal),
-                expired: formatNumber(stats.expired),
-              }}
+    <>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-xl font-bold md:text-2xl">
+            سلام {user.name}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            نمای کلی سالن مطالعه و وضعیت لحظه‌ای صندلی‌ها
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="muted">{roleLabel}</Badge>
+          <Badge variant="outline" className="gap-1.5">
+            <span
+              className="inline-block size-1.5 rounded-full bg-emerald-500"
+              aria-hidden
             />
+            اشغال {formatNumber(occupancyRate)}٪
+          </Badge>
+        </div>
+      </div>
 
-            <div className="space-y-6">
-              {isAdmin && (
-                <Card className="gap-2 bg-primary text-primary-foreground relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
-                  
-                  <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
-                    <CardTitle className="text-sm font-medium text-primary-foreground/80">
-                      درآمد ماهانه تخمینی
-                    </CardTitle>
-                    <CircleDollarSign className="size-4 text-primary-foreground/70" />
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-2">
-                    <div className="text-2xl font-bold tracking-tight">
-                      {formatNumber(monthlyRevenue)}{" "}
-                      <span className="text-base font-normal text-primary-foreground/70">
-                        تومان
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {summaryCards.map((card) => (
+          <Card key={card.title} className="gap-2">
+            <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {card.title}
+              </CardTitle>
+              <card.icon className={cn("size-4", card.iconClass)} />
+            </CardHeader>
+            <CardContent className="space-y-1">
+              <div className="text-2xl font-bold tracking-tight">
+                {card.value}
+              </div>
+              <p className="text-xs text-muted-foreground">{card.hint}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+
+      <section id="map" className="grid gap-6 xl:grid-cols-[1.6fr_0.9fr]">
+        <StudyHallSeatsMap
+          seats={seatView.map((seat) => ({
+            id: seat.id,
+            seatNumber: formatNumber(seat.seatNumber),
+            reserveSeatNumber: seat.seatNumber,
+            status: seat.status,
+            subscription: seat.subscription
+              ? {
+                  id: seat.subscription.id,
+                  memberName: seat.subscription.user.name ?? "بدون نام",
+                  phoneNumber: seat.subscription.user.phoneNumber ?? "—",
+                  endDate: formatDate(seat.subscription.endDate),
+                  startDateISO: seat.subscription.startDate.toISOString(),
+                  endDateISO: seat.subscription.endDate.toISOString(),
+                }
+              : undefined,
+            history: seat.subscriptions.slice(0, 8).map((item) => ({
+              id: item.id,
+              memberName: item.user.name ?? "بدون نام",
+              phoneNumber: item.user.phoneNumber ?? "—",
+              startDate: formatDate(item.startDate),
+              endDate: formatDate(item.endDate),
+              status: item.status,
+              paymentStatus: item.paymentStatus,
+            })),
+          }))}
+          shouldSortByRenewal={shouldSortByRenewal}
+          statusCopy={statusCopy}
+          studyHallName={user.studyhall.name}
+          returningMember={returningMember}
+          stats={{
+            available: formatNumber(stats.available),
+            reserved: formatNumber(stats.reserved),
+            renewal: formatNumber(stats.renewal),
+            expired: formatNumber(stats.expired),
+          }}
+        />
+
+        <div className="space-y-6">
+          {isAdmin && (
+            <Card className="gap-2 bg-primary text-primary-foreground relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
+              
+              <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
+                <CardTitle className="text-sm font-medium text-primary-foreground/80">
+                  درآمد ماهانه تخمینی
+                </CardTitle>
+                <CircleDollarSign className="size-4 text-primary-foreground/70" />
+              </CardHeader>
+              
+              <CardContent className="space-y-2">
+                <div className="text-2xl font-bold tracking-tight">
+                  {formatNumber(monthlyRevenue)}{" "}
+                  <span className="text-base font-normal text-primary-foreground/70">
+                    تومان
+                  </span>
+                </div>
+                
+                <p className="text-xs text-primary-foreground/70 border-b border-primary-foreground/10 pb-2">
+                  بر اساس {formatNumber(occupied)} صندلی اشغال‌شده ×{" "}
+                  {formatNumber(user.studyhall.monthlyFee ?? 0)} تومان
+                </p>
+
+                <div className="pt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-primary-foreground/60">
+                  <div className="flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-emerald-400" />
+                    <span>وصول شده: {formatNumber(activeRevenue)}</span>
+                  </div>
+                  <div className="flex items-center gap-1 justify-end">
+                    <span className="size-1.5 rounded-full bg-amber-400" />
+                    <span>در آستانه انقضا: {formatNumber(atRiskRevenue)}</span>
+                  </div>
+                  {lostRevenue > 0 && (
+                    <div className="flex items-center gap-1 col-span-2 mt-0.5 text-primary-foreground/50 border-t border-dashed border-primary-foreground/5 pt-1">
+                      <span>ظرفیت درآمدی خالی سالن:</span>
+                      <span className="font-medium text-primary-foreground/70 dir-ltr inline-block">
+                        {formatNumber(lostRevenue)} - تومان
                       </span>
                     </div>
-                    
-                    <p className="text-xs text-primary-foreground/70 border-b border-primary-foreground/10 pb-2">
-                      بر اساس {formatNumber(occupied)} صندلی اشغال‌شده ×{" "}
-                      {formatNumber(user.studyhall.monthlyFee ?? 0)} تومان
-                    </p>
-
-                    <div className="pt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-primary-foreground/60">
-                      <div className="flex items-center gap-1">
-                        <span className="size-1.5 rounded-full bg-emerald-400" />
-                        <span>وصول شده: {formatNumber(activeRevenue)}</span>
-                      </div>
-                      <div className="flex items-center gap-1 justify-end">
-                        <span className="size-1.5 rounded-full bg-amber-400" />
-                        <span>در آستانه انقضا: {formatNumber(atRiskRevenue)}</span>
-                      </div>
-                      {lostRevenue > 0 && (
-                        <div className="flex items-center gap-1 col-span-2 mt-0.5 text-primary-foreground/50 border-t border-dashed border-primary-foreground/5 pt-1">
-                          <span>ظرفیت درآمدی خالی سالن:</span>
-                          <span className="font-medium text-primary-foreground/70 dir-ltr inline-block">
-                            {formatNumber(lostRevenue)} - تومان
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              {isAdmin ? (
-                <Card id="staff">
-                  <CardHeader>
-                    <CardTitle>مدیریت کارکنان</CardTitle>
-                    <CardDescription>
-                      همکار با role=staff و studyhallId همین سالن ساخته می‌شود.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <CreateStaffForm createStaff={createStaff} />
-                    <Separator />
-                    <div className="space-y-2">
-                      {staff.length ? (
-                        staff.map((member) => (
-                          <div
-                            key={member.id}
-                            className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 text-sm"
-                          >
-                            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background text-xs font-semibold">
-                              {member.name?.slice(0, 2) ?? "؟"}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="truncate font-medium">
-                                {member.name}
-                              </div>
-                              <div className="truncate text-muted-foreground">
-                                {member.email}
-                              </div>
-                            </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {isAdmin ? (
+            <Card id="staff">
+              <CardHeader>
+                <CardTitle>مدیریت کارکنان</CardTitle>
+                <CardDescription>
+                  همکار با role=staff و studyhallId همین سالن ساخته می‌شود.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <CreateStaffForm createStaff={createStaff} />
+                <Separator />
+                <div className="space-y-2">
+                  {staff.length ? (
+                    staff.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 text-sm"
+                      >
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background text-xs font-semibold">
+                          {member.name?.slice(0, 2) ?? "؟"}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">
+                            {member.name}
                           </div>
-                        ))
-                      ) : (
-                        <p className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-                          هنوز همکاری تعریف نشده است.
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>دسترسی همکار</CardTitle>
-                    <CardDescription>
-                      شما به عنوان مراقب سالن، دسترسی کامل به نقشه زنده، ثبت نام
-                      دانش‌آموز جدید و تمدید یا تخلیه صندلی‌ها را دارید.
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              )}
+                          <div className="truncate text-muted-foreground">
+                            {member.email}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+                      هنوز همکاری تعریف نشده است.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>دسترسی همکار</CardTitle>
+                <CardDescription>
+                  شما به عنوان مراقب سالن، دسترسی کامل به نقشه زنده، ثبت نام
+                  دانش‌آموز جدید و تمدید یا تخلیه صندلی‌ها را دارید.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CircleDollarSign className="size-4" /> مرزبندی داده
-                  </CardTitle>
-                  <CardDescription>
-                    شناسه سالن: {user.studyhall.id}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm leading-7 text-muted-foreground">
-                  تمام اطلاعات ثبت‌شده (شامل لیست همکاران، اعضا، صندلی‌ها و
-                  تاریخچه‌ی اشتراک‌ها) کاملاً رمزگذاری شده و منحصراً متعلق به
-                  این سالن مطالعه است. هیچ کاربر یا سالن دیگری به این داده‌ها
-                  دسترسی ندارد.
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CircleDollarSign className="size-4" /> مرزبندی داده
+              </CardTitle>
+              <CardDescription>
+                شناسه سالن: {user.studyhall.id}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm leading-7 text-muted-foreground">
+              تمام اطلاعات ثبت‌شده (شامل لیست همکاران، اعضا، صندلی‌ها و
+              تاریخچه‌ی اشتراک‌ها) کاملاً رمزگذاری شده و منحصراً متعلق به
+              این سالن مطالعه است. هیچ کاربر یا سالن دیگری به این داده‌ها
+              دسترسی ندارد.
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+    </>
   );
 }

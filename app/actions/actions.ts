@@ -448,45 +448,77 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
     return { success: false, error: "اطلاعات تمدید اشتراک معتبر نیست." };
   }
 
+  const newEndDate = parsed.data.endDate;
   const now = new Date();
-  if (parsed.data.endDate <= now) {
-    return { success: false, error: "تاریخ پایان جدید باید بعد از امروز باشد." };
+
+  if (newEndDate <= now) {
+    return { success: false, error: "تاریخ پایان اشتراک باید بعد از امروز باشد." };
   }
 
   try {
     await prisma.$transaction(async (tx) => {
-    const current = await tx.subscription.findFirst({
-      where: {
-        id: parsed.data.subscriptionId,
-        studyhallId: user.studyhallId,
-        status: "active",
-      },
-      select: { id: true, userId: true, seatId: true, user: { select: { name: true } }, seat: { select: { seatNumber: true } } },
-    });
+      const current = await tx.subscription.findFirst({
+        where: {
+          id: parsed.data.subscriptionId,
+          studyhallId: user.studyhallId,
+          status: "active",
+        },
+        select: { 
+          id: true, 
+          userId: true, 
+          seatId: true, 
+          endDate: true,
+          user: { select: { name: true } }, 
+          seat: { select: { seatNumber: true } } 
+        },
+      });
 
-    if (!current) {
-      throw new Error("اشتراک فعالی برای تمدید پیدا نشد.");
-    }
+      if (!current) {
+        throw new Error("اشتراک فعالی برای تمدید پیدا نشد.");
+      }
 
-    // Gracefully close the expiring contract while preserving its history.
-    await tx.subscription.update({
-      where: { id: current.id },
-      data: { status: "expired" },
-    });
+      const daysDifference = Math.ceil((newEndDate.getTime() - current.endDate.getTime()) / (1000 * 3600 * 24));
+      const isRealRenewal = daysDifference > 7;
 
-    // Create a fresh subscription for the same member and seat.
-    await tx.subscription.create({
-      data: {
-        userId: current.userId,
-        seatId: current.seatId,
-        studyhallId: user.studyhallId,
-        startDate: now,
-        endDate: parsed.data.endDate,
-        status: "active",
-      },
-    });
+      if (isRealRenewal) {
+        await tx.subscription.update({
+          where: { id: current.id },
+          data: { status: "expired" },
+        });
 
-    await tx.auditLog.create({ data: { studyhallId: user.studyhallId, userId: user.id, action: "RENEW_SUBSCRIPTION", details: { operatorName: user.name, memberName: current.user.name, seatNumber: current.seat.seatNumber, endDate: parsed.data.endDate.toISOString(), message: `${user.name} اشتراک صندلی ${current.seat.seatNumber} را برای ${current.user.name} تمدید کرد.` } } });
+        await tx.subscription.create({
+          data: {
+            userId: current.userId,
+            seatId: current.seatId,
+            studyhallId: user.studyhallId,
+            startDate: now,
+            endDate: newEndDate,
+            status: "active",
+          },
+        });
+      } else {
+        await tx.subscription.update({
+          where: { id: current.id },
+          data: { endDate: newEndDate },
+        });
+      }
+
+      await tx.auditLog.create({ 
+        data: { 
+          studyhallId: user.studyhallId, 
+          userId: user.id, 
+          action: "RENEW_SUBSCRIPTION", 
+          details: { 
+            operatorName: user.name, 
+            memberName: current.user.name, 
+            seatNumber: current.seat.seatNumber,
+            oldEndDate: current.endDate.toISOString(),
+            endDate: newEndDate.toISOString(), 
+            isRealRenewal,
+            message: `${user.name} ${isRealRenewal ? 'تمدید کرد' : 'تاریخ اشتراک را اصلاح کرد'} صندلی ${current.seat.seatNumber} برای ${current.user.name} (${daysDifference > 0 ? '+' : ''}${daysDifference} روز).`
+          } 
+        } 
+      });
     });
   } catch (error) {
     return actionError(error, "تمدید اشتراک ناموفق بود.");
