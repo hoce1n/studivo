@@ -4,10 +4,10 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
+import type { ActionResult } from "@/app/actions/audit";
 import { sendPushToMany } from "@/lib/push";
 import { getSession } from "@/lib/server";
 
-type ActionResult = { success: boolean; error?: string; message?: string };
 
 const pushSubscriptionSchema = z.object({
   endpoint: z.string().url(),

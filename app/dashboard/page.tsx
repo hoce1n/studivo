@@ -8,7 +8,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import { createStaff } from "@/app/actions/actions";
+import { createStaff } from "@/app/actions";
 
 import { Badge } from "@/components/ui/badge";
 

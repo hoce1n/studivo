@@ -1,7 +1,7 @@
 import { ShieldAlert, User } from "lucide-react";
 
 import { ProfileSettings } from "./_components/profile-settings";
-import { requireUser } from "@/app/actions/actions";
+import { requireUser } from "@/app/actions";
 
 export default async function ProfilePage() {
   const user = await requireUser();

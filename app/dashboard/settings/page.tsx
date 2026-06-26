@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Building2, Settings2 } from "lucide-react";
 
-import { requireUser } from "@/app/actions/actions";
+import { requireUser } from "@/app/actions";
 import { HallSettingsForm } from "@/app/dashboard/settings/_components/hall-settings-form";
 
 export default async function HallSettingsPage() {
