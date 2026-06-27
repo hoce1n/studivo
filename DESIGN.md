@@ -306,98 +306,95 @@ These flows reinforce ADR-007-style history preservation: expired/cancelled subs
 Studivo is now two products sharing one codebase and one database:
 
 1. **The Customer Product** — the operational study hall dashboard described in sections 1–7. It is multi-tenant and isolated by `studyhallId`. It serves the people who *run* a study hall.
-2. **The Sales Platform** — the business side of Studivo. It serves the people who *sell* Studivo: marketing, lead collection, an internal CRM, and (later) the sales pipeline and analytics. It is **platform-level**, not tenant-level, and is never scoped by `studyhallId`.
+2. **The Sales Platform** — the business side of Studivo. It serves the people who *sell* Studivo: a marketing website, demo requests, lead collection, and internal platform administration.
 
-Phase 1 builds the *foundation* for the Sales Platform: the data model, the platform role, and the documentation. It deliberately does **not** implement analytics dashboards or the full CRM/pipeline UI. The goal is an architecture those features can be added onto cleanly, without a destructive migration.
+Phase 1 is intentionally **minimal**. Its only goal is to acquire and track the first paying customers. The guiding rule is **YAGNI** (see ADR-013): we build the smallest foundation that lets real sales happen, and we defer the CRM, sales pipeline, and analytics to later phases. Every model added now must answer "yes" to the question *"Is this required to acquire the first 50 paying customers?"* — so this phase introduces only `Lead` and `DemoRequest` plus a platform role.
 
-### 8.1 The Two Worlds and the Single Bridge
+### 8.1 The Phase 1 Business Flow
 
-The operational world and the sales world are kept separate on purpose:
-
-- Operational models (`StudyHall`, `Seat`, `Subscription`, `AuditLog`, …) are tenant-scoped and read by the dashboard.
-- Sales models (`Lead`, `Company`, `DemoRequest`, `Interaction`, `Campaign`, `Referral`) are platform-scoped and read only by platform users.
-
-There is exactly **one** structural bridge between them: the nullable `StudyHall.companyId` relation. No operational table gains a sales column, and no sales table is scoped by `studyhallId`. This keeps tenant isolation and RBAC completely intact (a venue's `admin`/`staff` can never see another business's sales data, and they never see *any* sales data at all).
-
-### 8.2 The Business Entity Chain
-
-The core mental model of the Sales Platform is a funnel that flows from anonymous interest to a paying, operating customer:
+The funnel is intentionally short and linear:
 
 ```
-Visitor  →  Lead  →  Company  →  StudyHall  →  Customer
+Visitor
+  ↓
+Landing Website
+  ↓
+Request Demo
+  ↓
+Lead
+  ↓
+StudyHall  (after conversion)
 ```
 
 ```
- Visitor            Lead              Company            StudyHall          Customer
- (anonymous)        (interested)      (CRM account)      (tenant/venue)     (active company)
- ──────────         ──────────        ──────────         ──────────         ──────────
- browses the        submits a         qualified org      provisioned        Company.status
- marketing site,    contact/demo      that may run       operational        = ACTIVE with
- tracked via        form; becomes     one or many        venue(s) the       >= 1 linked
- analytics only     a persisted       study halls        product runs       StudyHall
-                    Lead row                              on
+ Visitor          Landing Website   Request Demo      Lead              StudyHall
+ (anonymous)      (marketing site)  (form submit)     (sales record)    (tenant/venue)
+ ──────────       ──────────        ──────────        ──────────        ──────────
+ browses,         presents the      a DemoRequest +   a persisted row   the existing
+ not stored       product & CTA     Lead are created  a salesperson     operational tenant,
+                                                       works             created on conversion
 ```
 
-**Visitor.** An anonymous person browsing the marketing website. A Visitor is intentionally **not** a database row in Phase 1. Visitors are tracked through the analytics layer (PostHog is already a project dependency) where high-volume, anonymous, append-only event data belongs. A Visitor materializes into a real row only when they identify themselves by submitting a form — at which point a `Lead` is created.
+**Visitor.** An anonymous person browsing the marketing website. A Visitor is **not** a database row — there is no reason to persist anonymous traffic to acquire the first customers. Lightweight web analytics can be layered in later without any schema change.
 
-**Lead.** The first *persisted* sales entity. A Lead is the sales-world record of interest: a name/phone/email plus the venue they mentioned, the acquisition `source`, optional `campaign` attribution, and a pipeline `stage`. A Lead is pre-sale and may never convert. It is owned by a platform user (`ownerId`).
+**Landing Website.** The public marketing surface (`app/(marketing)`) that explains Studivo and drives the single primary call to action: request a demo.
 
-**Company.** The CRM account — the actual business/organization behind a prospect. A Company is created when a Lead is qualified. Crucially, **one Company can operate many StudyHalls** (multi-branch businesses), which is why Company is modeled separately rather than collapsing it into either Lead or StudyHall.
+**Request Demo.** The conversion event. Submitting the demo form creates a `Lead` (the interested person) and a `DemoRequest` (the specific ask) in one step.
 
-**StudyHall.** The existing operational tenant (unchanged). When a Company becomes a paying customer, one or more StudyHalls are provisioned and linked back via `StudyHall.companyId`. StudyHall continues to exist independently for day-to-day operations and is never required to have a Company.
+**Lead.** The one and only persisted sales entity. It holds the prospect's contact details, where they came from (`source`), and where they are in the funnel (`status`). A Lead is pre-sale and may never convert.
 
-**Customer.** A Customer is **not a separate table**. A Customer is the *state* of a Company: `status = ACTIVE` with at least one linked StudyHall. Representing "customer" as a Company lifecycle state (rather than a new entity) avoids duplicating the same organization across two tables and keeps a single source of truth for each business.
+**StudyHall.** The existing operational tenant (unchanged). When a Lead is won, the salesperson provisions a StudyHall and links the Lead to it via `Lead.studyhallId`. That single link is the entire bridge between the sales world and the tenant world.
 
-### 8.3 Why These Are Separate Business Entities
+### 8.2 Why Lead Is Separate From StudyHall
 
-- **Lead vs. StudyHall.** A Lead is an *intent to maybe buy*; a StudyHall is an *operational venue we are running*. Most Leads never become StudyHalls (they go LOST), and a StudyHall must keep working regardless of whatever sales noise produced it. Merging them would pollute tenant-scoped operational queries with pre-sale junk and would make tenant isolation leaky.
-- **Lead vs. Company.** A Lead is a single inbound contact; a Company is the organization. The same Company can generate several Leads over time (different branches, re-engagements, referrals). Keeping them separate lets us deduplicate organizations and attach multiple leads, demos, and venues to one account.
-- **Company vs. StudyHall.** A Company is a *commercial relationship*; a StudyHall is a *physical venue*. One company → many venues. Money, contracts, and CRM history belong to the Company; seats, members, and renewals belong to the StudyHall.
-- **DemoRequest vs. Lead.** A Lead can request multiple demos over its lifetime, and a demo has its own schedule and outcome (`SCHEDULED`, `COMPLETED`, `NO_SHOW`, …). It is its own lifecycle, so it is its own table.
-- **Interaction.** The CRM timeline (calls, emails, SMS, meetings, notes). It is to the sales relationship what `AuditLog` is to venue operations.
-- **Campaign / Source.** `LeadSource` (an enum) is the stable channel *category*; `Campaign` (a table) is the dynamic, named initiative with UTM metadata. Splitting them keeps the hot, finite category as a fast enum while allowing unlimited campaigns.
-- **Referral.** Word-of-mouth growth: an existing Company/customer introduces a new Lead. Modeled now so a future referral/reward program needs no schema rewrite.
+A Lead is an *intent to maybe buy*; a StudyHall is an *operational venue we are already running*. They have completely different lifecycles:
 
-### 8.4 Internal Admin Platform & SUPER_ADMIN
+- Most Leads never convert — they end up `LOST`. A StudyHall, by definition, only exists after a successful sale.
+- A StudyHall must keep operating regardless of any sales activity. Mixing pre-sale records into tenant-scoped operational tables would pollute every dashboard query and weaken tenant isolation.
+- Sales data is **platform-level** and read only by platform users; StudyHall data is **tenant-level** and isolated by `studyhallId`.
 
-The Sales Platform is operated by **platform users** who do not belong to any single study hall. This is modeled with a new, orthogonal `User.platformRole` enum (`SUPER_ADMIN`, `SALES`, `SUPPORT`) that is *separate* from the tenant `role` string (`admin`/`staff`/`member`):
+So the two stay separate, joined only by the nullable, unique `Lead.studyhallId`. No operational table gains a sales column, and the `Lead`/`DemoRequest` tables are never scoped by `studyhallId`. Tenant isolation and the existing RBAC are therefore completely untouched.
+
+### 8.3 SUPER_ADMIN and the Platform Role
+
+The Sales Platform is operated by **platform users** who do not belong to any single study hall. This is modeled with a new, orthogonal `User.platformRole` enum (`SUPER_ADMIN`, `SALES`) that is *separate* from the existing tenant `role` string (`admin`/`staff`/`member`):
 
 - A normal venue user has `platformRole = NULL` and a `studyhallId`.
 - A platform user (e.g. `SUPER_ADMIN`) has a `platformRole` and typically **no** `studyhallId`, because they manage Studivo itself rather than a venue.
 
-`SUPER_ADMIN` is the top platform role. It exists outside tenant scope and will eventually have read access across the whole business: Leads, Companies, Demo Requests, Customers (active companies and their venues), and analytics. Because `platformRole` is a brand-new nullable column, the existing tenant RBAC (`role === "admin"`, `role === "staff"`) is completely untouched and nothing in the current dashboard changes behavior.
+We deliberately did **not** add a `"super_admin"` value to the existing `role` string, because that string is compared in many tenant authorization checks and overloading it would risk widening tenant access. A new nullable column adds platform authority as a separate dimension and changes no existing behavior (every current user has `platformRole = NULL`). `SUPER_ADMIN` exists outside tenant scope and manages the platform; `SALES` owns and works leads. The future internal admin UI will live under a platform-only route segment guarded by a helper that checks `platformRole`, mirroring the existing `requireScopedUser` pattern. See ADR-010.
 
-The future internal admin UI will live under a dedicated, platform-only route segment (e.g. `app/(platform)/admin/...`) guarded by a `requirePlatformUser` / `requireSuperAdmin` helper, mirroring the existing `requireScopedUser` pattern but checking `platformRole` instead of `studyhallId`.
+### 8.4 Lead Lifecycle (Pipeline Designed, Not Built)
 
-### 8.5 The Sales Pipeline (Designed Now, Built Later)
-
-The pipeline itself is not implemented in Phase 1, but the data model already supports it without future refactoring. The `LeadStage` enum encodes the full funnel:
+The Sales Pipeline is **not** implemented in Phase 1. However, so that it can be added later without a destructive migration, the `LeadStatus` enum already declares the full set of future stages:
 
 ```
 NEW  →  CONTACTED  →  DEMO  →  TRIAL  →  CUSTOMER  →  LOST
 ```
 
-A Lead carries its current `stage`, a `convertedAt` timestamp (set when it reaches `CUSTOMER`), and a `lostReason`. Stage transitions will later be recorded as `Interaction` rows, giving a full historical audit of how each deal moved — the same history-preservation philosophy used for subscriptions (ADR-007). Because the stages are already enumerated and the supporting tables (Interaction, DemoRequest, Company) already exist, adding the pipeline later is additive UI work, not a schema migration.
+In Phase 1 these are simply the values a `Lead.status` can hold; a salesperson updates the status by hand. There is no Kanban board, no automation, and no stage-transition history table yet — those are future work. A `convertedAt` timestamp and a free-text `lostReason` are the only supporting fields, kept because they cost nothing and make basic outcome reporting possible later.
 
-### 8.6 Future Analytics (Not in Phase 1)
+### 8.5 What Is Intentionally NOT Built Yet
 
-Analytics is explicitly deferred but the foundation is laid:
+To stay honest about YAGNI, Phase 1 explicitly excludes:
 
-- **Anonymous funnel** (visits, page conversion, campaign performance) is owned by the analytics provider (PostHog), keeping high-volume event data out of the transactional database.
-- **Sales analytics** (lead volume by source/campaign, stage conversion rates, demo show-rate, win/loss, time-to-close) is derivable from the relational model: `Lead.source`, `Lead.campaignId`, `Lead.stage`, `Lead.convertedAt`, `DemoRequest.status`, and the `Interaction` timeline.
-- **Revenue/retention analytics** join the bridge: `Company → StudyHall → Subscription`, reusing the preserved subscription history already described in section 7.
+- **Company** — there is no multi-branch account concept yet. A Lead converts directly to one StudyHall. If/when a single business needs several venues, a `Company` model can be introduced as an additive change.
+- **Campaign / rich attribution** — `LeadSource` is a coarse enum; UTM/campaign tracking is deferred.
+- **Interaction / activity timeline, Notes, Tasks, Opportunities** — no CRM activity log yet.
+- **Referral** — no referral/reward program yet.
+- **Analytics tables** — reporting will be built later on top of the existing rows; no analytics schema is added now.
 
-No analytics tables are added now; they would be built as read-only aggregation/reporting later, on top of the entities created in this phase.
+Each of these can be added incrementally and additively. None is required to win the first customers, so none is built.
 
-### 8.7 Schema Summary (Phase 1 additions)
+### 8.6 Schema Summary (Phase 1 additions)
 
-New enums: `PlatformRole`, `LeadStage`, `LeadSource`, `InteractionType`, `DemoRequestStatus`, `CompanyStatus`, `ReferralStatus`.
+New enums: `PlatformRole`, `LeadStatus`, `LeadSource`.
 
-New models: `Company`, `Lead`, `DemoRequest`, `Interaction`, `Campaign`, `Referral`.
+New models: `Lead`, `DemoRequest`.
 
 Changed models:
 
-- `User` — added nullable `platformRole` plus `ownedLeads` / `loggedInteractions` relations. Tenant `role` is unchanged.
-- `StudyHall` — added nullable `companyId` + `company` relation (`onDelete: SetNull`). All other fields and behavior unchanged.
+- `User` — added nullable `platformRole` plus an `ownedLeads` relation. The tenant `role` string is unchanged.
+- `StudyHall` — added an optional `lead` back-relation only. No new columns on the table itself; the FK (`studyhallId`) lives on `Lead`. All existing fields and behavior are unchanged.
 
-Migration: the project manages schema with `npx prisma db push` (there is no `migrations/` folder). After setting `DATABASE_URL`, run `npx prisma db push` to apply these additions, then `npx prisma generate`. Every addition is nullable or a new table, so the change is **non-destructive and backwards compatible** with all existing data and queries.
+Migration: the project manages schema with `npx prisma db push` (there is no `migrations/` folder). After setting `DATABASE_URL`, run `npx prisma db push` to apply these additions, then `npx prisma generate`. Every addition is a new table, a new nullable column, or an optional relation, so the change is **non-destructive and backwards compatible** with all existing data and queries.

@@ -13,27 +13,28 @@ datasource db {
 }
 
 // ===========================================================================
-// Sales & Marketing Platform enums (Phase 1 foundation)
+// Sales & Marketing Platform enums (Phase 1 foundation — YAGNI scope)
 //
-// These enums power the platform-level (non-tenant) Sales Platform. They live
-// alongside the operational Study Hall domain but are NOT scoped by
-// `studyhallId`. They describe the business side of Studivo: marketing,
-// lead collection, the internal CRM, and the future sales pipeline.
+// Phase 1 builds ONLY the minimum needed to acquire the first paying
+// customers: a platform role, a Lead, and a DemoRequest. There is intentionally
+// NO Company / Campaign / Referral / Interaction model yet (see ADR-012).
+// These enums are platform-level and never scoped by `studyhallId`.
 // ===========================================================================
 
 // Platform-level roles that exist OUTSIDE any StudyHall tenant. A user with a
-// `platformRole` operates the Studivo platform itself (sales, support, ops)
-// and is intentionally distinct from the tenant `role` string
-// (admin/staff/member) used inside a venue. See ADR-011.
+// `platformRole` operates the Studivo platform itself rather than a single
+// venue. This is intentionally separate from the tenant `role` string
+// (admin/staff/member) so the existing RBAC is untouched. See ADR-010.
 enum PlatformRole {
   SUPER_ADMIN
   SALES
-  SUPPORT
 }
 
-// The sales pipeline stages a Lead moves through. Modeled now so the pipeline
-// can be implemented later without a destructive migration. See ADR-013.
-enum LeadStage {
+// The lifecycle of a Lead. The full set of future pipeline stages is declared
+// now so the Sales Pipeline (a future phase) can be built without a
+// destructive migration — but the pipeline itself is NOT implemented in
+// Phase 1. See ADR-011 and ADR-013.
+enum LeadStatus {
   NEW
   CONTACTED
   DEMO
@@ -42,54 +43,14 @@ enum LeadStage {
   LOST
 }
 
-// Acquisition channel category for a Lead/Campaign. Kept as an enum (not a
-// table) because channels are a small, stable, query-hot set. Specific
-// campaigns live in the `Campaign` table. See ADR-014.
+// Where a Lead came from. Kept as a small, stable enum (not a table) because
+// in Phase 1 we only need coarse attribution; richer campaign tracking is a
+// future concern and is deliberately not modeled yet (YAGNI). See ADR-013.
 enum LeadSource {
-  DIRECT
-  ORGANIC_SEARCH
-  PAID_SEARCH
-  SOCIAL
-  REFERRAL
   MARKETING_SITE
+  REFERRAL
+  DIRECT
   OTHER
-}
-
-// The kind of touchpoint recorded on a Lead/Company timeline.
-enum InteractionType {
-  NOTE
-  CALL
-  EMAIL
-  SMS
-  MEETING
-  DEMO
-}
-
-// Lifecycle of a demo request from creation to outcome.
-enum DemoRequestStatus {
-  REQUESTED
-  SCHEDULED
-  COMPLETED
-  NO_SHOW
-  CANCELLED
-}
-
-// Business lifecycle of a Company (CRM account). A "Customer" is not a
-// separate table: it is a Company in ACTIVE status with one or more linked
-// StudyHalls. See ADR-012.
-enum CompanyStatus {
-  PROSPECT
-  TRIAL
-  ACTIVE
-  CHURNED
-}
-
-// Lifecycle of a referral submitted by an existing customer/company.
-enum ReferralStatus {
-  PENDING
-  QUALIFIED
-  CONVERTED
-  REJECTED
 }
 
 model StudyHall {
@@ -112,15 +73,12 @@ model StudyHall {
   pushSubscriptions PushSubscription[]
   renewalReminders  RenewalReminder[]
 
-  // Optional link from the operational tenant to the CRM Company that owns it.
-  // Nullable + onDelete: SetNull so that:
-  //  - existing study halls keep working with no company (backwards compatible);
-  //  - deleting a CRM Company NEVER cascades into operational venue data.
-  // This is the single bridge between the sales world and the tenant world.
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  // Optional back-link to the Lead this study hall was converted from. This is
+  // the single bridge between the sales world and the tenant world: a won Lead
+  // points to the StudyHall it became. StudyHall itself stays unchanged for
+  // every existing tenant (the relation lives on Lead, not here).
+  lead Lead?
 
-  @@index([companyId])
   @@map("studyhall")
 }
 
@@ -143,14 +101,12 @@ model User {
 
   // Platform-level role, separate from the tenant `role` string above.
   // NULL for ordinary venue users (admin/staff/member). A SUPER_ADMIN / SALES
-  // / SUPPORT user has a platformRole and typically NO studyhallId, because
-  // they operate the Studivo platform itself rather than a single venue.
-  // See ADR-011.
+  // user has a platformRole and typically NO studyhallId, because they operate
+  // the Studivo platform itself rather than a single venue. See ADR-010.
   platformRole PlatformRole?
 
-  // Sales Platform ownership relations (platform users only).
-  ownedLeads         Lead[]        @relation("LeadOwner")
-  loggedInteractions Interaction[] @relation("InteractionAuthor")
+  // Leads owned by this platform user (SALES / SUPER_ADMIN). Empty for venue users.
+  ownedLeads Lead[] @relation("LeadOwner")
 
   studyhallId String?
   studyhall   StudyHall? @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
@@ -310,181 +266,79 @@ model OtpVerification {
 }
 
 // ===========================================================================
-// Sales & Marketing Platform models (Phase 1 foundation)
+// Sales & Marketing Platform models (Phase 1 foundation — YAGNI scope)
 //
 // These models are PLATFORM-LEVEL. They are intentionally NOT scoped by
 // `studyhallId` and are never read by tenant dashboard queries. They are
-// owned and operated by platform users (SUPER_ADMIN / SALES / SUPPORT).
+// owned and operated by platform users (SUPER_ADMIN / SALES).
 //
-// Business entity chain:
-//   Visitor → Lead → Company → StudyHall → Customer
-//   (anonymous) (interested) (CRM account) (tenant) (active company)
+// Phase 1 business flow:
+//   Visitor → Landing Website → Request Demo → Lead → StudyHall (after conversion)
 //
-// The bridge to the existing tenant world is the single nullable
-// `StudyHall.companyId` relation. No operational model gains a sales column.
+// Only Lead and DemoRequest exist. Company / Campaign / Referral / Interaction
+// and any other CRM concept are deliberately NOT modeled yet (ADR-012, ADR-013).
 // ===========================================================================
 
-// Company is the CRM account: the business/organization behind a prospect or
-// customer. One Company can eventually operate MANY StudyHalls (branches),
-// which is why it is modeled separately from the tenant StudyHall. A
-// "Customer" is simply a Company with status ACTIVE and >= 1 linked StudyHall;
-// there is deliberately no separate Customer table (avoids duplicate data).
-model Company {
-  id     String        @id @default(cuid())
-  name   String
-  status CompanyStatus @default(PROSPECT)
-
-  // Primary point-of-contact snapshot for the account.
-  contactName  String?
-  contactPhone String?
-  contactEmail String?
-  city         String?
-  notes        String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  leads             Lead[]
-  studyHalls        StudyHall[]
-  interactions      Interaction[]
-  demoRequests      DemoRequest[]
-  referralsReferred Referral[]    @relation("ReferringCompany")
-
-  @@index([status])
-  @@map("company")
-}
-
-// Lead is the sales-world record of interest. It is created the moment an
-// anonymous Visitor identifies themselves (a contact/demo form submission).
-// A Lead is pre-sale and may never become a customer, which is exactly why it
-// is separate from StudyHall (a post-sale operational tenant). See ADR-013.
+// Lead is the single sales-world record of an interested prospect. It is
+// created the moment an anonymous Visitor identifies themselves through the
+// marketing site (a demo request / contact form). A Lead is pre-sale and may
+// never convert — which is exactly why it is kept separate from StudyHall, a
+// post-sale operational tenant. See ADR-011.
 model Lead {
   id        String  @id @default(cuid())
   name      String?
   phone     String?
   email     String?
-  venueName String? // prospective study hall name the lead mentioned
-  city      String?
+  venueName String? // prospective study hall name the prospect mentioned
   message   String?
 
-  stage      LeadStage  @default(NEW)
+  status     LeadStatus @default(NEW)
   source     LeadSource @default(MARKETING_SITE)
-  lostReason String?
+  lostReason String? // free text, only meaningful when status = LOST
 
-  // Attribution + ownership (all nullable; a raw inbound lead has none).
-  campaignId String?
-  companyId  String? // set when the lead is qualified into a CRM account
-  ownerId    String? // platform user (SALES/SUPER_ADMIN) responsible
+  // Owner: the platform user (SALES / SUPER_ADMIN) responsible for this lead.
+  // Nullable because a brand-new inbound lead is unassigned.
+  ownerId String?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  convertedAt DateTime? // timestamp the lead reached CUSTOMER stage
+  // Conversion bridge: when a lead is won it is linked to the StudyHall it
+  // became. Nullable + unique (one lead → at most one study hall). This is the
+  // ONLY structural connection between the sales and tenant worlds.
+  studyhallId String?   @unique
+  convertedAt DateTime?
 
-  campaign     Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  company      Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   owner        User?         @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  interactions Interaction[]
+  studyhall    StudyHall?    @relation(fields: [studyhallId], references: [id], onDelete: SetNull)
   demoRequests DemoRequest[]
-  referral     Referral?
 
-  @@index([stage])
+  @@index([status])
   @@index([source])
-  @@index([companyId])
-  @@index([campaignId])
   @@index([ownerId])
   @@index([createdAt])
   @@map("lead")
 }
 
-// DemoRequest is a discrete, schedulable request for a product demo. Kept
-// separate from Lead because a single lead can request several demos over
-// time, and a demo carries its own scheduling/outcome lifecycle.
+// DemoRequest is a discrete request for a product demo, captured from the
+// marketing site. It belongs to a Lead. It is kept separate from Lead because
+// one prospect can request more than one demo, and a demo carries its own
+// scheduling info. Status is a simple string (not an enum) to stay minimal in
+// Phase 1; the lead's pipeline position is tracked by Lead.status. See ADR-013.
 model DemoRequest {
-  id          String            @id @default(cuid())
-  leadId      String?
-  companyId   String?
-  scheduledAt DateTime?
-  status      DemoRequestStatus @default(REQUESTED)
-  notes       String?
+  id            String    @id @default(cuid())
+  leadId        String
+  preferredTime String? // free-text preferred time from the prospect
+  scheduledAt   DateTime? // set once the demo is actually booked
+  status        String    @default("requested") // requested | scheduled | completed | cancelled
+  notes         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lead    Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
-  @@index([companyId])
   @@index([status])
-  @@index([scheduledAt])
   @@map("demorequest")
-}
-
-// Interaction is a single entry on a Lead/Company activity timeline (a call,
-// email, SMS, meeting, or free-form note). This is the CRM's audit trail for
-// the sales relationship, analogous to AuditLog for venue operations.
-model Interaction {
-  id         String          @id @default(cuid())
-  type       InteractionType @default(NOTE)
-  body       String
-  leadId     String?
-  companyId  String?
-  authorId   String? // platform user who logged the interaction
-  occurredAt DateTime        @default(now())
-  createdAt  DateTime        @default(now())
-
-  lead    Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  author  User?    @relation("InteractionAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-
-  @@index([leadId])
-  @@index([companyId])
-  @@index([authorId])
-  @@index([occurredAt])
-  @@map("interaction")
-}
-
-// Campaign is a specific, named marketing initiative leads can be attributed
-// to (e.g. an Instagram launch push). The reusable channel category lives on
-// `LeadSource`; Campaign holds the dynamic, per-initiative UTM metadata.
-model Campaign {
-  id          String     @id @default(cuid())
-  name        String
-  source      LeadSource @default(MARKETING_SITE)
-  utmSource   String?
-  utmMedium   String?
-  utmCampaign String?
-  startsAt    DateTime?
-  endsAt      DateTime?
-  isActive    Boolean    @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  leads Lead[]
-
-  @@index([isActive])
-  @@map("campaign")
-}
-
-// Referral tracks word-of-mouth growth: an existing company/customer (or a
-// named referrer) introduces a new lead. Modeled now so a future referral/
-// reward program has a home without a schema rewrite.
-model Referral {
-  id                String         @id @default(cuid())
-  referrerName      String?
-  referrerCompanyId String?
-  referredLeadId    String?        @unique
-  status            ReferralStatus @default(PENDING)
-  rewardNote        String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  referrerCompany Company? @relation("ReferringCompany", fields: [referrerCompanyId], references: [id], onDelete: SetNull)
-  referredLead    Lead?    @relation(fields: [referredLeadId], references: [id], onDelete: SetNull)
-
-  @@index([status])
-  @@index([referrerCompanyId])
-  @@map("referral")
 }
