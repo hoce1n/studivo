@@ -113,3 +113,61 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Notification preferences for renewal reminders.
   - Owners can configure renewal lead time, renewal reminders, and expiry reminders from `/dashboard/settings`.
 - [x] Add an admin-only `/dashboard/logs` digital event notebook.
+
+---
+
+# Sales & Marketing Platform Roadmap
+
+This roadmap covers the **business side** of Studivo — the internal Sales Platform — and is tracked separately from the customer product board above. It follows the architecture in `DESIGN.md` §8 and ADR-009 through ADR-013. The Phase 1 funnel it serves is: **Visitor → Landing Website → Request Demo → Lead → StudyHall**.
+
+The guiding principle is **YAGNI** (ADR-013): only the work needed to acquire the first paying customers is in scope now. Later milestones (CRM, Sales Pipeline, Analytics) are listed for direction but are intentionally **not** built in this phase.
+
+## Milestone 0 — Sales Architecture (Phase 1 foundation)
+
+- [x] Design the minimal platform-level sales data model: only `Lead` and `DemoRequest`, never scoped by `studyhallId`.
+- [x] Add the `LeadStatus` enum declaring the full future funnel (`NEW → CONTACTED → DEMO → TRIAL → CUSTOMER → LOST`) and the coarse `LeadSource` enum.
+- [x] Add the `PlatformRole` enum (`SUPER_ADMIN`, `SALES`) and a nullable `User.platformRole` without touching the tenant `role` string.
+- [x] Add the single sales↔tenant bridge: nullable, unique `Lead.studyhallId` (`onDelete: SetNull`); no new columns on `StudyHall`.
+- [x] Validate the schema and regenerate the Prisma client.
+- [x] Update `DESIGN.md`, `DECISIONS.md`, and `TASKS.md` for the Sales Platform.
+- [ ] Apply the schema with `npx prisma db push` against the live database, then `npx prisma generate` (requires `DATABASE_URL`).
+- [ ] Seed the first `SUPER_ADMIN` platform user (no `studyhallId`).
+
+## Milestone 1 — Marketing Foundation
+
+- [ ] Build the public marketing site under `app/(marketing)` explaining Studivo with a single clear CTA: request a demo.
+- [ ] Add landing copy, product highlights, and pricing/contact sections (Persian, RTL, consistent with existing design tokens).
+- [ ] Add SEO metadata and Open Graph tags.
+- [ ] Ensure the marketing pages are public (outside auth) and do not load tenant data.
+
+## Milestone 2 — Lead Management
+
+- [ ] Replace the console-log `submitLead` with a real server action that persists a `Lead` with its `source`.
+- [ ] Add a "Request a demo" form that creates a `Lead` plus a linked `DemoRequest` in one transaction.
+- [ ] Server-side validation and basic spam/rate-limit protection on the public form.
+- [ ] Set `LeadStatus = NEW` and `source = MARKETING_SITE` for inbound submissions; capture preferred demo time.
+- [ ] Notify platform users when a new lead arrives (reuse existing notification path or email).
+
+## Milestone 3 — Internal Admin
+
+- [ ] Add a platform-only route segment (e.g. `app/(platform)/admin`) separate from `/dashboard`.
+- [ ] Add `requirePlatformUser` / `requireSuperAdmin` guards that check `platformRole`, mirroring `requireScopedUser`.
+- [ ] Leads inbox: list and filter by `status` and `source`; assign an owner (`ownerId`).
+- [ ] Lead detail: view contact info and demo requests, update `status` by hand, set `lostReason`.
+- [ ] Demo request handling: mark scheduled/completed and record `scheduledAt`.
+- [ ] Conversion flow: provision a StudyHall and link it via `Lead.studyhallId`, set `convertedAt`.
+
+## Milestone 4 — Sales Pipeline (future, not in Phase 1)
+
+- [ ] Pipeline/Kanban board over `LeadStatus` (NEW → CONTACTED → DEMO → TRIAL → CUSTOMER → LOST).
+- [ ] Status-transition history / activity timeline (introduce an `Interaction` model when needed).
+- [ ] Owner assignment rules, follow-up reminders, and stale-lead surfacing.
+- [ ] Evaluate whether a `Company` account model is needed for multi-venue customers (additive change).
+
+## Milestone 5 — Analytics (future, not in Phase 1)
+
+- [ ] Funnel analytics: Visitor → Lead → Demo → Customer conversion rates.
+- [ ] Acquisition analytics by `source` (introduce richer campaign attribution only if justified).
+- [ ] Sales performance: status conversion, demo show-rate, win/loss, time-to-close.
+- [ ] Revenue/retention analytics by joining converted leads → `StudyHall → Subscription` history.
+- [ ] Build reporting on top of read-only aggregations; avoid new transactional tables where possible.

@@ -124,3 +124,75 @@ This file records architectural and product decisions whose reasoning is not ful
 - Server actions are organized by domain under `app/actions/`: authentication and venue setup in `auth.ts`, seat operations in `seat.ts`, subscription renewals in `subscription.ts`, audit/action-result helpers in `audit.ts`, and PWA notification actions in `pwa.ts`.
 - `app/actions/index.ts` is the main barrel export so dashboard components import from one stable entry point while each mutation stays small, scoped, and easier to audit for RBAC, tenant checks, transactions, and revalidation.
 - `renewSubscription` uses smart renewal semantics: changes more than seven days from the current end date preserve history by expiring the old row and creating a new active subscription; changes of seven days or less are treated as date corrections on the current active subscription.
+
+## ADR-009: Studivo Includes an Internal Sales Platform
+
+**Status:** Accepted
+
+**Decision:** Extend Studivo from a single customer-facing product into two products in one codebase: the operational study hall dashboard (tenant-facing) and an internal Sales Platform (business-facing). In Phase 1 the Sales Platform covers only a marketing website, demo requests, lead collection, and internal platform administration. A full CRM, sales pipeline, and analytics are explicitly out of scope for now.
+
+**Reasoning:** The customer product is production-ready, but the business that sells Studivo has no system of its own. Marketing leads were captured only as a console log (`app/actions/marketing.ts`), demo requests lived nowhere, and there was no record of who was interested or what stage they were at. To validate the business with real customers we need the smallest possible system: a way to capture a lead from the marketing site and track it until it converts into a StudyHall. Building this inside the same repository lets it reuse the existing stack (Next.js 16, Prisma, PostgreSQL, Better Auth).
+
+**Consequences:**
+
+- A new platform-level domain exists beside the tenant domain, consisting of just `Lead` and `DemoRequest`.
+- The existing `submitLead` marketing action becomes the entry point that persists a real `Lead` instead of logging to the console.
+- Phase 1 delivers only the minimum foundation (two models, a platform role, docs). The CRM, sales pipeline, and analytics are deferred to later phases (see ADR-012, ADR-013).
+
+## ADR-010: SUPER_ADMIN Lives Outside Tenant Scope via a Separate `platformRole`
+
+**Status:** Accepted
+
+**Decision:** Introduce a new nullable `User.platformRole` enum (`SUPER_ADMIN`, `SALES`) that is orthogonal to the existing tenant `role` string (`admin`/`staff`/`member`). Platform users have a `platformRole` and typically no `studyhallId`; venue users have `platformRole = NULL`. The existing tenant `role` field and its RBAC are left completely unchanged.
+
+**Reasoning:** A platform operator (especially `SUPER_ADMIN`) manages Studivo itself — leads and demo requests today, more later — and must not belong to any single study hall. Overloading the existing `role` string with a `"super_admin"` value was rejected because `role` is compared as a raw string in many places (`role === "admin"`, `role: { in: ["admin","staff"] }`, member upserts), and adding values there risks silently widening or breaking tenant authorization. A separate, additive, nullable enum models "platform authority" as a distinct dimension without touching tenant RBAC.
+
+**Consequences:**
+
+- `platformRole` is `NULL` for all existing users, so no current behavior changes and the customer dashboard keeps working untouched.
+- Tenant isolation and RBAC are fully preserved: sales data is gated by `platformRole`, never by `studyhallId`.
+- Platform routes will later be guarded by a `requirePlatformUser` / `requireSuperAdmin` helper that checks `platformRole`, mirroring the existing `requireScopedUser` pattern.
+- Only two platform roles exist now; more can be added to the enum later if a real need appears (YAGNI — ADR-013).
+
+## ADR-011: Lead Is Separate From StudyHall
+
+**Status:** Accepted
+
+**Decision:** Model the pre-sale prospect as a `Lead` and keep it entirely separate from the post-sale operational `StudyHall`. The two are joined only by a single nullable, unique `Lead.studyhallId` set at conversion. `Lead` and `DemoRequest` are platform-level and are never scoped by `studyhallId`.
+
+**Reasoning:** A Lead is an *intent to maybe buy* and most leads never convert (they end `LOST`); a StudyHall is a *running venue* that must keep operating no matter what produced it. Collapsing the two would force pre-sale noise into tenant-scoped operational tables, bloat every dashboard query, and weaken tenant isolation. Keeping `Lead` outside `studyhallId` means a venue's `admin`/`staff` can never see sales data, and deleting/converting a lead can never touch live operational data. The conversion link lives on `Lead` (not as a new column on `StudyHall`) so the StudyHall table is unchanged for every existing tenant.
+
+**Consequences:**
+
+- The funnel Visitor → Landing → Request Demo → Lead → StudyHall is enforced by a foreign key (`Lead.studyhallId`), not by convention.
+- A won lead points to exactly one StudyHall (`@unique`); StudyHall keeps a single optional `lead` back-relation and gains no new columns.
+- No `Company` entity is introduced: in Phase 1 a lead converts directly to one StudyHall (see ADR-012).
+
+## ADR-012: No CRM Entities Yet — Lead Converts Directly to StudyHall
+
+**Status:** Accepted
+
+**Decision:** Phase 1 introduces only `Lead` and `DemoRequest`. It deliberately does **not** introduce `Company`, `Campaign`, `Referral`, `Interaction`, sales notes, timelines, tasks, opportunities, activities, or any other CRM entity. A `Lead` converts directly to a `StudyHall`.
+
+**Reasoning:** None of those entities is required to acquire the first paying customers, which is the only goal of this phase. Each one adds schema surface, query complexity, and UI we would have to maintain before we have learned anything from real sales. In particular, a `Company` (multi-branch account) is unnecessary while a customer is a single venue; an `Interaction`/timeline is unnecessary while a salesperson can track status by hand; `Campaign`/rich attribution is unnecessary while `LeadSource` gives coarse origin. Every one of these can be added later as a purely additive change (new tables / new nullable columns) without refactoring `Lead` or `StudyHall`.
+
+**Consequences:**
+
+- The schema stays tiny and easy to reason about, with a single sales-to-tenant bridge.
+- If a single business later needs several venues, a `Company` model can be added and `Lead`/`StudyHall` pointed at it without data loss.
+- Reporting/analytics will be built later directly on top of existing rows; no analytics tables exist now.
+
+## ADR-013: YAGNI Is the Architectural Principle for This Phase
+
+**Status:** Accepted
+
+**Decision:** Adopt YAGNI ("You Aren't Gonna Need It") as the explicit governing principle for the Sales Platform foundation. Before any model, field, or abstraction is added, it must answer **yes** to: *"Is this required to acquire the first 50 paying customers?"* If the answer is no, it is not built. The only forward-looking concession is the `LeadStatus` enum, which declares the full future funnel (`NEW → CONTACTED → DEMO → TRIAL → CUSTOMER → LOST`) so the pipeline can be built later without a destructive migration — but no pipeline logic, board, or stage-history table is built now.
+
+**Reasoning:** Premature abstraction is the most expensive kind of complexity: it is hard to remove, constrains future learning, and slows the very validation it claims to enable. The fastest path to a validated business is the smallest system that lets real sales happen, then iterate based on what real usage teaches us. Declaring the `LeadStatus` values up front is cheap (an enum is just allowed strings) and avoids an awkward migration on a populated table, so it is the one place we look ahead. Everything else is deferred.
+
+**Consequences:**
+
+- Phase 1 ships only `PlatformRole`, `Lead`, `DemoRequest`, `LeadStatus`, and `LeadSource`.
+- `LeadStatus` already holds future stages; a salesperson updates `Lead.status` by hand, with no pipeline UI or automation.
+- Future capabilities (CRM, pipeline board, analytics, campaigns, referrals) are designed to arrive as additive, backward-compatible changes.
+- All schema changes in this phase are non-destructive: new tables, new nullable columns, and one optional relation.

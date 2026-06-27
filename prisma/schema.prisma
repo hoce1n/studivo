@@ -1,209 +1,344 @@
-  // This is your Prisma schema file,
-  // learn more about it in the docs: https://pris.ly/d/prisma-schema
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-  // Get a free hosted Postgres database in seconds: `npx create-db`
+// Get a free hosted Postgres database in seconds: `npx create-db`
 
-  generator client {
-    provider = "prisma-client"
-    output   = "../lib/generated/prisma"
-  }
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
 
-  datasource db {
-    provider = "postgresql"
-  }
+datasource db {
+  provider = "postgresql"
+}
 
-  model StudyHall {
-    id         String   @id @default(cuid())
-    name       String   @default("سالن مطالعه")
-    totalSeats Int      @default(0)
-    monthlyFee Float    @default(0)
-    gender String @default("unspecified")
-    address String @default("")
-    reminderDaysBefore Int @default(3)
-    renewalRemindersEnabled Boolean @default(true)
-    expiryRemindersEnabled Boolean @default(true)
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+// ===========================================================================
+// Sales & Marketing Platform enums (Phase 1 foundation — YAGNI scope)
+//
+// Phase 1 builds ONLY the minimum needed to acquire the first paying
+// customers: a platform role, a Lead, and a DemoRequest. There is intentionally
+// NO Company / Campaign / Referral / Interaction model yet (see ADR-012).
+// These enums are platform-level and never scoped by `studyhallId`.
+// ===========================================================================
 
-    users              User[]
-    seats              Seat[]
-    subscriptions      Subscription[]
-    auditLogs          AuditLog[]
-    pushSubscriptions  PushSubscription[]
-    renewalReminders   RenewalReminder[]
+// Platform-level roles that exist OUTSIDE any StudyHall tenant. A user with a
+// `platformRole` operates the Studivo platform itself rather than a single
+// venue. This is intentionally separate from the tenant `role` string
+// (admin/staff/member) so the existing RBAC is untouched. See ADR-010.
+enum PlatformRole {
+  SUPER_ADMIN
+  SALES
+}
 
-    @@map("studyhall")
-  }
+// The lifecycle of a Lead. The full set of future pipeline stages is declared
+// now so the Sales Pipeline (a future phase) can be built without a
+// destructive migration — but the pipeline itself is NOT implemented in
+// Phase 1. See ADR-011 and ADR-013.
+enum LeadStatus {
+  NEW
+  CONTACTED
+  DEMO
+  TRIAL
+  CUSTOMER
+  LOST
+}
 
-  model User {
-    id            String         @id 
-    name          String
-    email         String
-    emailVerified Boolean        @default(false)
-    image         String?
-    createdAt     DateTime       @default(now())
-    updatedAt     DateTime       @updatedAt
-    sessions      Session[]
-    accounts      Account[]
-    
-    phoneNumber   String?        
-    role          String         @default("member") 
-    subscriptions     Subscription[]
-    auditLogs         AuditLog[]
-    pushSubscriptions PushSubscription[]
+// Where a Lead came from. Kept as a small, stable enum (not a table) because
+// in Phase 1 we only need coarse attribution; richer campaign tracking is a
+// future concern and is deliberately not modeled yet (YAGNI). See ADR-013.
+enum LeadSource {
+  MARKETING_SITE
+  REFERRAL
+  DIRECT
+  OTHER
+}
 
-    studyhallId   String?
-    studyhall     StudyHall?     @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+model StudyHall {
+  id                      String   @id @default(cuid())
+  name                    String   @default("سالن مطالعه")
+  totalSeats              Int      @default(0)
+  monthlyFee              Float    @default(0)
+  gender                  String   @default("unspecified")
+  address                 String   @default("")
+  reminderDaysBefore      Int      @default(3)
+  renewalRemindersEnabled Boolean  @default(true)
+  expiryRemindersEnabled  Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
-    @@unique([email])
-    @@unique([studyhallId, phoneNumber])
-    @@index([studyhallId])
-    @@map("user")
-  }
+  users             User[]
+  seats             Seat[]
+  subscriptions     Subscription[]
+  auditLogs         AuditLog[]
+  pushSubscriptions PushSubscription[]
+  renewalReminders  RenewalReminder[]
 
-  model Session {
-    id        String   @id
-    expiresAt DateTime
-    token     String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    ipAddress String?
-    userAgent String?
-    userId    String
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Optional back-link to the Lead this study hall was converted from. This is
+  // the single bridge between the sales world and the tenant world: a won Lead
+  // points to the StudyHall it became. StudyHall itself stays unchanged for
+  // every existing tenant (the relation lives on Lead, not here).
+  lead Lead?
 
-    @@unique([token])
-    @@index([userId])
-    @@map("session")
-  }
+  @@map("studyhall")
+}
 
-  model Account {
-    id                    String    @id
-    accountId             String
-    providerId            String
-    userId                String
-    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-    accessToken           String?
-    refreshToken          String?
-    idToken               String?
-    accessTokenExpiresAt  DateTime?
-    refreshTokenExpiresAt DateTime?
-    scope                 String?
-    password              String?
-    createdAt             DateTime  @default(now())
-    updatedAt             DateTime  @updatedAt
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
 
-    @@index([userId])
-    @@map("account")
-  }
+  phoneNumber       String?
+  role              String             @default("member")
+  subscriptions     Subscription[]
+  auditLogs         AuditLog[]
+  pushSubscriptions PushSubscription[]
 
-  model Verification {
-    id         String   @id
-    identifier String
-    value      String
-    expiresAt  DateTime
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+  // Platform-level role, separate from the tenant `role` string above.
+  // NULL for ordinary venue users (admin/staff/member). A SUPER_ADMIN / SALES
+  // user has a platformRole and typically NO studyhallId, because they operate
+  // the Studivo platform itself rather than a single venue. See ADR-010.
+  platformRole PlatformRole?
 
-    @@index([identifier])
-    @@map("verification")
-  }
+  // Leads owned by this platform user (SALES / SUPER_ADMIN). Empty for venue users.
+  ownedLeads Lead[] @relation("LeadOwner")
 
-  model Seat {
-    id            String         @id @default(cuid())
-    seatNumber    Int
-    createdAt     DateTime       @default(now())
-    subscriptions Subscription[]
+  studyhallId String?
+  studyhall   StudyHall? @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
 
-    studyhallId   String
-    studyhall     StudyHall      @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+  @@unique([email])
+  @@unique([studyhallId, phoneNumber])
+  @@index([studyhallId])
+  @@index([platformRole])
+  @@map("user")
+}
 
-    @@unique([studyhallId, seatNumber])
-    @@map("seat")
-  }
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  model Subscription {
-    id            String   @id @default(cuid())
-    userId        String
-    seatId        String
-    startDate     DateTime @default(now())
-    endDate       DateTime
-    paymentStatus String   @default("unpaid") // paid, unpaid
-    status        String   @default("active") // active, expired, cancelled
-    createdAt     DateTime @default(now())
-    updatedAt     DateTime @updatedAt
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
 
-    user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    seat          Seat     @relation(fields: [seatId], references: [id], onDelete: Cascade)
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-    studyhallId      String
-    studyhall        StudyHall         @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
-    renewalReminders RenewalReminder[]
+  @@index([userId])
+  @@map("account")
+}
 
-    @@index([userId])
-    @@index([seatId])
-    @@index([studyhallId])
-    @@map("subscription")
-  }
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  model PushSubscription {
-    id          String   @id @default(cuid())
-    userId      String
-    studyhallId String
-    endpoint    String   @unique
-    p256dh      String
-    auth        String
-    userAgent   String?
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+  @@index([identifier])
+  @@map("verification")
+}
 
-    user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-    studyhall StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+model Seat {
+  id            String         @id @default(cuid())
+  seatNumber    Int
+  createdAt     DateTime       @default(now())
+  subscriptions Subscription[]
 
-    @@index([userId])
-    @@index([studyhallId])
-    @@map("pushsubscription")
-  }
+  studyhallId String
+  studyhall   StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
 
-  model RenewalReminder {
-    id             String   @id @default(cuid())
-    subscriptionId String
-    studyhallId    String
-    reminderKey    String
-    sentAt         DateTime @default(now())
+  @@unique([studyhallId, seatNumber])
+  @@map("seat")
+}
 
-    subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-    studyhall    StudyHall    @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+model Subscription {
+  id            String   @id @default(cuid())
+  userId        String
+  seatId        String
+  startDate     DateTime @default(now())
+  endDate       DateTime
+  paymentStatus String   @default("unpaid") // paid, unpaid
+  status        String   @default("active") // active, expired, cancelled
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-    @@unique([subscriptionId, reminderKey])
-    @@index([studyhallId])
-    @@map("renewalreminder")
-  }
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seat Seat @relation(fields: [seatId], references: [id], onDelete: Cascade)
 
-  model AuditLog {
-    id          String    @id @default(cuid())
-    studyhallId String
-    userId      String
-    action      String
-    details     Json
-    createdAt   DateTime  @default(now())
+  studyhallId      String
+  studyhall        StudyHall         @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+  renewalReminders RenewalReminder[]
 
-    studyhall   StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
-    user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([seatId])
+  @@index([studyhallId])
+  @@map("subscription")
+}
 
-    @@index([studyhallId, createdAt])
-    @@index([userId])
-    @@map("auditlog")
-  }
+model PushSubscription {
+  id          String   @id @default(cuid())
+  userId      String
+  studyhallId String
+  endpoint    String   @unique
+  p256dh      String
+  auth        String
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  model OtpVerification {
-    id          String   @id @default(cuid())
-    phoneNumber String
-    code        String
-    purpose     String
-    expiresAt   DateTime
-    createdAt   DateTime @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studyhall StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
 
-    @@index([phoneNumber, purpose])
-    @@map("otpverification")
-  }
+  @@index([userId])
+  @@index([studyhallId])
+  @@map("pushsubscription")
+}
+
+model RenewalReminder {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  studyhallId    String
+  reminderKey    String
+  sentAt         DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  studyhall    StudyHall    @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, reminderKey])
+  @@index([studyhallId])
+  @@map("renewalreminder")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  studyhallId String
+  userId      String
+  action      String
+  details     Json
+  createdAt   DateTime @default(now())
+
+  studyhall StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([studyhallId, createdAt])
+  @@index([userId])
+  @@map("auditlog")
+}
+
+model OtpVerification {
+  id          String   @id @default(cuid())
+  phoneNumber String
+  code        String
+  purpose     String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([phoneNumber, purpose])
+  @@map("otpverification")
+}
+
+// ===========================================================================
+// Sales & Marketing Platform models (Phase 1 foundation — YAGNI scope)
+//
+// These models are PLATFORM-LEVEL. They are intentionally NOT scoped by
+// `studyhallId` and are never read by tenant dashboard queries. They are
+// owned and operated by platform users (SUPER_ADMIN / SALES).
+//
+// Phase 1 business flow:
+//   Visitor → Landing Website → Request Demo → Lead → StudyHall (after conversion)
+//
+// Only Lead and DemoRequest exist. Company / Campaign / Referral / Interaction
+// and any other CRM concept are deliberately NOT modeled yet (ADR-012, ADR-013).
+// ===========================================================================
+
+// Lead is the single sales-world record of an interested prospect. It is
+// created the moment an anonymous Visitor identifies themselves through the
+// marketing site (a demo request / contact form). A Lead is pre-sale and may
+// never convert — which is exactly why it is kept separate from StudyHall, a
+// post-sale operational tenant. See ADR-011.
+model Lead {
+  id        String  @id @default(cuid())
+  name      String?
+  phone     String?
+  email     String?
+  venueName String? // prospective study hall name the prospect mentioned
+  message   String?
+
+  status     LeadStatus @default(NEW)
+  source     LeadSource @default(MARKETING_SITE)
+  lostReason String? // free text, only meaningful when status = LOST
+
+  // Owner: the platform user (SALES / SUPER_ADMIN) responsible for this lead.
+  // Nullable because a brand-new inbound lead is unassigned.
+  ownerId String?
+
+  // Conversion bridge: when a lead is won it is linked to the StudyHall it
+  // became. Nullable + unique (one lead → at most one study hall). This is the
+  // ONLY structural connection between the sales and tenant worlds.
+  studyhallId String?   @unique
+  convertedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner        User?         @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  studyhall    StudyHall?    @relation(fields: [studyhallId], references: [id], onDelete: SetNull)
+  demoRequests DemoRequest[]
+
+  @@index([status])
+  @@index([source])
+  @@index([ownerId])
+  @@index([createdAt])
+  @@map("lead")
+}
+
+// DemoRequest is a discrete request for a product demo, captured from the
+// marketing site. It belongs to a Lead. It is kept separate from Lead because
+// one prospect can request more than one demo, and a demo carries its own
+// scheduling info. Status is a simple string (not an enum) to stay minimal in
+// Phase 1; the lead's pipeline position is tracked by Lead.status. See ADR-013.
+model DemoRequest {
+  id            String    @id @default(cuid())
+  leadId        String
+  preferredTime String? // free-text preferred time from the prospect
+  scheduledAt   DateTime? // set once the demo is actually booked
+  status        String    @default("requested") // requested | scheduled | completed | cancelled
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([status])
+  @@map("demorequest")
+}

@@ -300,3 +300,101 @@ Studivo now exposes preserved operational history as first-class product value i
 - **Audit Logs:** `AuditLog` records staff/admin operations (`RESERVE_SEAT`, `SWAP_SEAT`, `RENEW_SUBSCRIPTION`, `RELEASE_SEAT`) in the same transaction as the operational mutation. `/dashboard/logs` is admin-only and shows the venue-scoped digital event notebook.
 
 These flows reinforce ADR-007-style history preservation: expired/cancelled subscriptions and member identities remain available for trust, dispute resolution, revenue checks, and rapid reactivation.
+
+## 8. Sales & Marketing Platform (Phase 1 Foundation)
+
+Studivo is now two products sharing one codebase and one database:
+
+1. **The Customer Product** — the operational study hall dashboard described in sections 1–7. It is multi-tenant and isolated by `studyhallId`. It serves the people who *run* a study hall.
+2. **The Sales Platform** — the business side of Studivo. It serves the people who *sell* Studivo: a marketing website, demo requests, lead collection, and internal platform administration.
+
+Phase 1 is intentionally **minimal**. Its only goal is to acquire and track the first paying customers. The guiding rule is **YAGNI** (see ADR-013): we build the smallest foundation that lets real sales happen, and we defer the CRM, sales pipeline, and analytics to later phases. Every model added now must answer "yes" to the question *"Is this required to acquire the first 50 paying customers?"* — so this phase introduces only `Lead` and `DemoRequest` plus a platform role.
+
+### 8.1 The Phase 1 Business Flow
+
+The funnel is intentionally short and linear:
+
+```
+Visitor
+  ↓
+Landing Website
+  ↓
+Request Demo
+  ↓
+Lead
+  ↓
+StudyHall  (after conversion)
+```
+
+```
+ Visitor          Landing Website   Request Demo      Lead              StudyHall
+ (anonymous)      (marketing site)  (form submit)     (sales record)    (tenant/venue)
+ ──────────       ──────────        ──────────        ──────────        ──────────
+ browses,         presents the      a DemoRequest +   a persisted row   the existing
+ not stored       product & CTA     Lead are created  a salesperson     operational tenant,
+                                                       works             created on conversion
+```
+
+**Visitor.** An anonymous person browsing the marketing website. A Visitor is **not** a database row — there is no reason to persist anonymous traffic to acquire the first customers. Lightweight web analytics can be layered in later without any schema change.
+
+**Landing Website.** The public marketing surface (`app/(marketing)`) that explains Studivo and drives the single primary call to action: request a demo.
+
+**Request Demo.** The conversion event. Submitting the demo form creates a `Lead` (the interested person) and a `DemoRequest` (the specific ask) in one step.
+
+**Lead.** The one and only persisted sales entity. It holds the prospect's contact details, where they came from (`source`), and where they are in the funnel (`status`). A Lead is pre-sale and may never convert.
+
+**StudyHall.** The existing operational tenant (unchanged). When a Lead is won, the salesperson provisions a StudyHall and links the Lead to it via `Lead.studyhallId`. That single link is the entire bridge between the sales world and the tenant world.
+
+### 8.2 Why Lead Is Separate From StudyHall
+
+A Lead is an *intent to maybe buy*; a StudyHall is an *operational venue we are already running*. They have completely different lifecycles:
+
+- Most Leads never convert — they end up `LOST`. A StudyHall, by definition, only exists after a successful sale.
+- A StudyHall must keep operating regardless of any sales activity. Mixing pre-sale records into tenant-scoped operational tables would pollute every dashboard query and weaken tenant isolation.
+- Sales data is **platform-level** and read only by platform users; StudyHall data is **tenant-level** and isolated by `studyhallId`.
+
+So the two stay separate, joined only by the nullable, unique `Lead.studyhallId`. No operational table gains a sales column, and the `Lead`/`DemoRequest` tables are never scoped by `studyhallId`. Tenant isolation and the existing RBAC are therefore completely untouched.
+
+### 8.3 SUPER_ADMIN and the Platform Role
+
+The Sales Platform is operated by **platform users** who do not belong to any single study hall. This is modeled with a new, orthogonal `User.platformRole` enum (`SUPER_ADMIN`, `SALES`) that is *separate* from the existing tenant `role` string (`admin`/`staff`/`member`):
+
+- A normal venue user has `platformRole = NULL` and a `studyhallId`.
+- A platform user (e.g. `SUPER_ADMIN`) has a `platformRole` and typically **no** `studyhallId`, because they manage Studivo itself rather than a venue.
+
+We deliberately did **not** add a `"super_admin"` value to the existing `role` string, because that string is compared in many tenant authorization checks and overloading it would risk widening tenant access. A new nullable column adds platform authority as a separate dimension and changes no existing behavior (every current user has `platformRole = NULL`). `SUPER_ADMIN` exists outside tenant scope and manages the platform; `SALES` owns and works leads. The future internal admin UI will live under a platform-only route segment guarded by a helper that checks `platformRole`, mirroring the existing `requireScopedUser` pattern. See ADR-010.
+
+### 8.4 Lead Lifecycle (Pipeline Designed, Not Built)
+
+The Sales Pipeline is **not** implemented in Phase 1. However, so that it can be added later without a destructive migration, the `LeadStatus` enum already declares the full set of future stages:
+
+```
+NEW  →  CONTACTED  →  DEMO  →  TRIAL  →  CUSTOMER  →  LOST
+```
+
+In Phase 1 these are simply the values a `Lead.status` can hold; a salesperson updates the status by hand. There is no Kanban board, no automation, and no stage-transition history table yet — those are future work. A `convertedAt` timestamp and a free-text `lostReason` are the only supporting fields, kept because they cost nothing and make basic outcome reporting possible later.
+
+### 8.5 What Is Intentionally NOT Built Yet
+
+To stay honest about YAGNI, Phase 1 explicitly excludes:
+
+- **Company** — there is no multi-branch account concept yet. A Lead converts directly to one StudyHall. If/when a single business needs several venues, a `Company` model can be introduced as an additive change.
+- **Campaign / rich attribution** — `LeadSource` is a coarse enum; UTM/campaign tracking is deferred.
+- **Interaction / activity timeline, Notes, Tasks, Opportunities** — no CRM activity log yet.
+- **Referral** — no referral/reward program yet.
+- **Analytics tables** — reporting will be built later on top of the existing rows; no analytics schema is added now.
+
+Each of these can be added incrementally and additively. None is required to win the first customers, so none is built.
+
+### 8.6 Schema Summary (Phase 1 additions)
+
+New enums: `PlatformRole`, `LeadStatus`, `LeadSource`.
+
+New models: `Lead`, `DemoRequest`.
+
+Changed models:
+
+- `User` — added nullable `platformRole` plus an `ownedLeads` relation. The tenant `role` string is unchanged.
+- `StudyHall` — added an optional `lead` back-relation only. No new columns on the table itself; the FK (`studyhallId`) lives on `Lead`. All existing fields and behavior are unchanged.
+
+Migration: the project manages schema with `npx prisma db push` (there is no `migrations/` folder). After setting `DATABASE_URL`, run `npx prisma db push` to apply these additions, then `npx prisma generate`. Every addition is a new table, a new nullable column, or an optional relation, so the change is **non-destructive and backwards compatible** with all existing data and queries.
