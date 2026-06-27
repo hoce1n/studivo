@@ -113,3 +113,67 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Notification preferences for renewal reminders.
   - Owners can configure renewal lead time, renewal reminders, and expiry reminders from `/dashboard/settings`.
 - [x] Add an admin-only `/dashboard/logs` digital event notebook.
+
+---
+
+# Sales & Marketing Platform Roadmap
+
+This roadmap covers the **business side** of Studivo — the internal Sales Platform — and is tracked separately from the customer product board above. It follows the architecture in `DESIGN.md` §8 and ADR-009 through ADR-015. The funnel it serves is: **Visitor → Lead → Company → StudyHall → Customer**.
+
+Phase 1 (this milestone set's foundation work) intentionally ships only the data model, the platform role, and documentation. Analytics and the full CRM/pipeline UI are deferred on purpose.
+
+## Milestone 0 — Phase 1 Foundation
+
+- [x] Design platform-level Sales data model (`Lead`, `Company`, `DemoRequest`, `Interaction`, `Campaign`, `Referral`) without scoping by `studyhallId`.
+- [x] Add sales pipeline enums (`LeadStage`, `LeadSource`, `InteractionType`, `DemoRequestStatus`, `CompanyStatus`, `ReferralStatus`).
+- [x] Add platform-level `PlatformRole` enum and nullable `User.platformRole` (SUPER_ADMIN outside tenant scope) without touching the tenant `role` string.
+- [x] Add the single tenant↔sales bridge: nullable `StudyHall.companyId` with `onDelete: SetNull`.
+- [x] Validate schema and regenerate the Prisma client.
+- [x] Update `DESIGN.md`, `DECISIONS.md`, and `TASKS.md` for the Sales Platform.
+- [ ] Apply the schema with `npx prisma db push` against the live database, then `npx prisma generate` (requires `DATABASE_URL`).
+- [ ] Seed a first `SUPER_ADMIN` platform user (no `studyhallId`).
+
+## Milestone 1 — Marketing Foundation
+
+- [ ] Treat `app/(marketing)` as instrumented product surface (ADR-015), not static pages.
+- [ ] Integrate PostHog (already a dependency) for anonymous Visitor + funnel tracking.
+- [ ] Capture UTM parameters on landing and pass `source`/`campaign` through to lead submission.
+- [ ] Add structured metadata/SEO and per-campaign landing variants.
+- [ ] Define conversion events (form view, form start, submit, demo request) in analytics.
+
+## Milestone 2 — Lead Management
+
+- [ ] Replace the console-log `submitLead` with a real action that persists a `Lead` (with `source`, optional `campaignId`).
+- [ ] Add a dedicated `app/actions/sales/` module with standardized `ActionResult` returns.
+- [ ] Add a "request a demo" form that creates a `Lead` (if new) plus a `DemoRequest`.
+- [ ] Server-side lead validation, dedup by phone/email, and spam/rate-limit protection.
+- [ ] Notify platform users of new leads (reuse push/notification or email).
+- [ ] Optional double opt-in / SMS consent capture for the Iranian market.
+
+## Milestone 3 — Internal Admin Platform
+
+- [ ] Add a platform-only route segment (e.g. `app/(platform)/admin`) separate from `/dashboard`.
+- [ ] Add `requirePlatformUser` / `requireSuperAdmin` guards that check `platformRole` (mirroring `requireScopedUser`).
+- [ ] Leads inbox: list, filter by `stage`/`source`/`campaign`, assign `ownerId`.
+- [ ] Lead detail with `Interaction` timeline (notes, calls, emails, SMS, meetings).
+- [ ] Company (account) view linking leads, demo requests, and provisioned StudyHalls.
+- [ ] Demo request scheduling and status management.
+- [ ] Customer view: ACTIVE companies and their linked study halls.
+
+## Milestone 4 — Sales Pipeline
+
+- [ ] Pipeline/Kanban board over `LeadStage` (NEW → CONTACTED → DEMO → TRIAL → CUSTOMER → LOST).
+- [ ] Stage transition action that records an `Interaction` and updates `convertedAt`/`lostReason`.
+- [ ] Lead → Company qualification flow (create/link `Company`, set `Lead.companyId`).
+- [ ] Customer provisioning flow: create/link `StudyHall.companyId` when a deal is won.
+- [ ] Referral capture and `ReferralStatus` lifecycle for word-of-mouth growth.
+- [ ] Owner assignment, follow-up reminders, and stale-lead surfacing.
+
+## Milestone 5 — Analytics
+
+- [ ] Funnel analytics: Visitor → Lead → Demo → Trial → Customer conversion rates.
+- [ ] Acquisition analytics by `source` and `Campaign` (volume, conversion, cost where available).
+- [ ] Sales performance: stage conversion, demo show-rate, win/loss, time-to-close per owner.
+- [ ] Revenue/retention analytics by joining `Company → StudyHall → Subscription` history.
+- [ ] SUPER_ADMIN executive dashboard combining marketing, sales, and revenue signals.
+- [ ] Scheduled/exportable reporting on top of read-only aggregations (no new transactional tables).
