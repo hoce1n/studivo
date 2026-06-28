@@ -222,18 +222,27 @@ The navbar and hero CTA buttons were updated from `/#demo` to `/demo` so visitor
 - The `SubmitDemoResult` discriminated union (`{ success: true; leadId } | { success: false; error }`) is exported so callers can type-safely branch on the result.
 - The `ActionForm` wrapper component is not used for these forms because the success-panel swap requires a local `submitted` state that `ActionForm` does not expose.
 
-## ADR-015: Platform Route Group and Post-Login Routing Branch
+## ADR-015: Platform Route and Post-Login Routing Branch
 
-**Status:** Accepted
+**Status:** Accepted (revised — see bug-fix below)
 
-**Decision:** Introduce a `(platform)` Next.js route group under `app/(platform)/` guarded by a new `requirePlatformUser` server-action helper. The routing branch is implemented as a single `if (user.platformRole) redirect("/platform")` guard in `dashboard/layout.tsx`, inserted before the existing `!studyhallId → /onboarding` check. The login form, callback URL, and the entire tenant dashboard remain completely unchanged.
+**Decision:** Introduce `app/platform/` (a real path segment, not a route group) guarded by a new `requirePlatformUser` server-action helper. The routing branch is a single `if (user.platformRole) redirect("/platform")` guard in `dashboard/layout.tsx`, inserted before the existing `!studyhallId → /onboarding` check. The login form, callback URL, and the entire tenant dashboard remain unchanged.
 
-**Reasoning:** A platform user (SALES / SUPER_ADMIN) has `platformRole !== NULL` and typically no `studyhallId`. Without the branch they would be redirected to `/onboarding` — the wrong destination — because the existing guard checks `studyhallId` to decide whether a user is "set up". The cleanest intercept point is `dashboard/layout.tsx`, which is the shared post-login entry point for every authenticated user (because `callbackURL: "/dashboard"` is hardcoded in the login form). Adding the check there costs no new routes or middleware, keeps the login experience to a single page, and preserves all existing tenant-dashboard RBAC untouched.
+**Reasoning:** A platform user (SALES / SUPER_ADMIN) has `platformRole !== NULL` and typically no `studyhallId`. Without the branch they would be redirected to `/onboarding` because the existing guard checks `studyhallId` to decide whether a user is "set up". The cleanest intercept point is `dashboard/layout.tsx`, which is the shared post-login entry point for every authenticated user (because `callbackURL: "/dashboard"` is hardcoded in the login form).
 
-**Consequences:**
+**Bug discovered and fixed after initial implementation:**
 
-- `app/dashboard/layout.tsx` now selects `platformRole` in its Prisma query and redirects platform users to `/platform` before the onboarding check runs.
-- `requirePlatformUser()` in `app/actions/auth.ts` mirrors the `requireScopedUser` pattern: calls `requireUser` (handles no-session → `/login`), then asserts `platformRole !== null`, redirecting to `/dashboard` otherwise.
-- `app/(platform)/layout.tsx` is a minimal auth-guarded shell: sticky header with the Studivo wordmark, an "internal platform" label, and the user name + role on the trailing side.
-- `app/(platform)/page.tsx` is a placeholder that greets the user by name and states that the sales dashboard is coming soon.
+Two architectural issues were found during manual testing and corrected in a follow-up change:
+
+1. **Redirect loop** — `requireUser()` did not select `platformRole` in its Prisma query, so the field arrived as `undefined` in every caller. `requirePlatformUser()` evaluated `if (!user.platformRole)` as `true` (undefined is falsy) and redirected to `/dashboard`, which redirected back to `/platform`, creating an infinite loop. **Fix:** `platformRole: true` was added to the `requireUser` Prisma select, making it available to every downstream helper without further changes.
+
+2. **Route ambiguity** — The platform route was originally placed under `app/(platform)/`, a Next.js route group. Route groups do not add a URL path segment, so `app/(platform)/page.tsx` resolved to `/`, conflicting with `app/(marketing)/page.tsx`. **Fix:** The directory was renamed from `app/(platform)/` to `app/platform/`, giving the platform a real, unambiguous URL segment.
+
+**Consequences (final, post-fix state):**
+
+- `requireUser()` selects `platformRole` so all helpers that call it receive the correct value.
+- `requirePlatformUser()` correctly redirects only users whose `platformRole` is `null` or `undefined`.
+- `app/dashboard/layout.tsx` remains the single source of truth for post-login routing: platform users → `/platform`, no studyhall → `/onboarding`, otherwise → tenant dashboard.
+- `app/platform/layout.tsx` is a minimal auth-guarded shell (sticky header, Studivo wordmark, role label).
+- `app/platform/page.tsx` is a placeholder that greets the user and states the sales dashboard is coming soon.
 - No login-page changes, no schema changes, no new migration.

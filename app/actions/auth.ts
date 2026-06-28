@@ -27,6 +27,7 @@ export async function requireUser() {
       email: true,
       phoneNumber: true,
       role: true,
+      platformRole: true,
       image: true,
       studyhallId: true,
       studyhall: {
