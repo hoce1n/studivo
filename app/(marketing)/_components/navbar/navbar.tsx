@@ -7,7 +7,7 @@ import Link from "next/link";
 
 const Navbar = () => {
   return (
-    <nav className="h-16 bg-background border-b border-accent">
+    <nav className="sticky top-0 z-50 h-16 border-b border-accent bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="h-full flex items-center justify-between max-w-(--breakpoint-xl) mx-auto px-4 sm:px-6">
         <Logo />
 
@@ -15,11 +15,11 @@ const Navbar = () => {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <Button variant="outline" className="hidden sm:inline-flex">
-            <Link href={'/dashboard'}>پنل کاربری</Link> 
+          <Button asChild variant="ghost" className="hidden sm:inline-flex">
+            <Link href="/dashboard">ورود</Link>
           </Button>
-          <Button className="hidden xs:inline-flex">
-            <Link href={'/dashboard'}>شروع کنید</Link>
+          <Button asChild className="inline-flex">
+            <Link href="/#demo">درخواست دمو</Link>
           </Button>
 
           {/* Mobile Menu */}

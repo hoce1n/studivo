@@ -58,7 +58,7 @@ const Features = () => {
   return (
     <div
       id="features"
-      className="max-w-(--breakpoint-xl) mx-auto w-full py-12 xs:py-20 px-6"
+      className="scroll-mt-20 max-w-(--breakpoint-xl) mx-auto w-full py-12 xs:py-20 px-6"
     >
       <h2 className="text-3xl xs:text-4xl md:text-5xl md:leading-14 font-semibold tracking-tight sm:max-w-xl sm:text-center sm:mx-auto">
         هر چیزی که برای آرامش خیال در مدیریت سالن نیاز دارید

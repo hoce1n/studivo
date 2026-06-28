@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { CircleCheck } from "lucide-react";
+import Link from "next/link";
 
 const plans = [
   {
@@ -53,7 +54,7 @@ const Pricing = () => {
   return (
     <div
       id="pricing"
-      className="max-w-(--breakpoint-lg) mx-auto py-12 xs:py-20 px-6"
+      className="scroll-mt-20 max-w-(--breakpoint-lg) mx-auto py-12 xs:py-20 px-6"
     >
       <h1 className="text-4xl xs:text-5xl font-semibold text-center tracking-tight">
         تعرفه شفاف برای رشد پایدار سالن شما
@@ -98,11 +99,12 @@ const Pricing = () => {
               ))}
             </ul>
             <Button
+              asChild
               variant={plan.isPopular ? "default" : "outline"}
               size="lg"
               className="w-full mt-6 rounded-full"
             >
-              {plan.buttonText}
+              <Link href="/#demo">{plan.buttonText}</Link>
             </Button>
           </div>
         ))}

@@ -64,7 +64,7 @@ const Testimonial = () => {
   return (
     <div
       id="testimonials"
-      className="w-full max-w-(--breakpoint-xl) mx-auto py-6 xs:py-12 px-6"
+      className="scroll-mt-20 w-full max-w-(--breakpoint-xl) mx-auto py-6 xs:py-12 px-6"
     >
       <h2 className="mb-8 xs:mb-14 text-4xl md:text-5xl font-semibold text-center tracking-tight">
         بشنو از کسانی که استفاده کردن

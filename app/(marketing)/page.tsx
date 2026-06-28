@@ -14,8 +14,8 @@ export default function Home() {
       <Hero />
       <Features />
       <Testimonial />
-      <FAQ />
       <Pricing />
+      <FAQ />
       <CTA />
       <StackedCircularFooter />
     </>

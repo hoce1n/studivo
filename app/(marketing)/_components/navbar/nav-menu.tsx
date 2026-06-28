@@ -9,9 +9,8 @@ import Link from "next/link";
 
 const links = [
   { href: "/#features", label: "ویژگی‌ها" },
-  { href: "/#pricing", label: "قیمت" },
-  { href: "/about", label: "درباره ما" },
-  { href: "/contact", label: "تماس با ما" },
+  { href: "/#testimonials", label: "نظر مشتریان" },
+  { href: "/#pricing", label: "تعرفه‌ها" },
   { href: "/#faq", label: "سوالات" },
 ];
 
