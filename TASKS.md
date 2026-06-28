@@ -155,7 +155,7 @@ The guiding principle is **YAGNI** (ADR-013): only the work needed to acquire th
 - [x] Leads inbox: list and filter by `status` and `source`; assign an owner (`ownerId`).
 - [x] Lead detail: view contact info and demo requests, update `status` by hand, set `lostReason`.
 - [ ] Demo request handling: mark scheduled/completed and record `scheduledAt`.
-- [x] Conversion flow (Phase 1 placeholder): mark lead as `CUSTOMER`, set `convertedAt`; real StudyHall provisioning is a future milestone.
+- [x] Conversion flow: create a real `StudyHall` record (name from `venueName` or lead name), link `Lead.studyhallId`, set `status: CUSTOMER` + `convertedAt` in a transaction. Optionally create a placeholder admin `User` from the lead email. Show success panel with link to Venues tab.
 - [x] Venues tab: list all StudyHalls with name, gender, total seats, active members, occupancy %, creation date, and linked lead.
 - [x] Venue detail sheet (read-only): address, seat count, user count, monthly fee, occupancy bar, linked lead with status badge.
 

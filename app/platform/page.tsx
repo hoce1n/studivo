@@ -14,9 +14,16 @@ export const metadata = {
   title: "پلتفرم داخلی | Studivo",
 };
 
-export default async function PlatformPage() {
+export default async function PlatformPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const user = await requirePlatformUser();
   const isSuperAdmin = user.platformRole === "SUPER_ADMIN";
+
+  const { tab } = await searchParams;
+  const activeTab = tab === "venues" ? "venues" : "leads";
 
   const [stats, leads, venues] = await Promise.all([
     getPlatformStats(),
@@ -40,7 +47,7 @@ export default async function PlatformPage() {
       <StatsHeader stats={stats} />
 
       {/* Tab navigation */}
-      <Tabs defaultValue="leads">
+      <Tabs defaultValue={activeTab}>
         <TabsList>
           <TabsTrigger value="leads">
             لیدها

@@ -4,6 +4,8 @@ import * as React from "react";
 import { toast } from "sonner";
 import { Phone, Mail, Building2, MessageSquare, CalendarDays } from "lucide-react";
 
+import Link from "next/link";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -145,6 +147,12 @@ export function LeadDetailSheet({
   const [lostReason, setLostReason] = React.useState<string>(
     lead?.lostReason ?? ""
   );
+  // Tracks the studyhallId after a successful conversion in this session.
+  // Distinct from lead.studyhallId so the success panel shows even before the
+  // sheet is closed and re-opened with fresh data.
+  const [convertedStudyhallId, setConvertedStudyhallId] = React.useState<
+    string | null
+  >(lead?.studyhallId ?? null);
   const [isPendingStatus, startStatusTransition] = React.useTransition();
   const [isPendingConvert, startConvertTransition] = React.useTransition();
 
@@ -153,6 +161,7 @@ export function LeadDetailSheet({
     if (lead) {
       setSelectedStatus(lead.status);
       setLostReason(lead.lostReason ?? "");
+      setConvertedStudyhallId(lead.studyhallId ?? null);
     }
   }, [lead]);
 
@@ -182,7 +191,9 @@ export function LeadDetailSheet({
       const result = await convertLeadToStudyHall(formData);
       if (result.success) {
         toast.success(result.message ?? "تبدیل انجام شد.");
-        onOpenChange(false);
+        if (result.data?.studyhallId) {
+          setConvertedStudyhallId(result.data.studyhallId);
+        }
       } else {
         toast.error(result.error ?? "خطا در تبدیل لید.");
       }
@@ -321,26 +332,52 @@ export function LeadDetailSheet({
               <DemoRequestList demos={lead.demoRequests} />
             </section>
 
-            {/* Convert button — SUPER_ADMIN only */}
-            {isSuperAdmin && lead.status !== "CUSTOMER" && !lead.studyhallId && (
+            {/* Convert section — SUPER_ADMIN only */}
+            {isSuperAdmin && (
               <>
                 <Separator />
-                <section className="flex flex-col gap-2">
+                <section className="flex flex-col gap-3">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     تبدیل به سالن مطالعه
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    این عملیات لید را به وضعیت «مشتری» تغییر می‌دهد. ایجاد سالن
-                    مطالعه در مرحله بعدی پیاده‌سازی خواهد شد.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleConvert}
-                    disabled={isPendingConvert}
-                  >
-                    {isPendingConvert ? "در حال پردازش..." : "تبدیل به سالن مطالعه"}
-                  </Button>
+
+                  {convertedStudyhallId ? (
+                    // Success state — shown immediately after conversion or if
+                    // the lead was already converted previously.
+                    <div className="flex flex-col gap-2 rounded-xl border border-dashed bg-muted/30 p-4">
+                      <p className="text-sm font-medium">
+                        سالن مطالعه با موفقیت ایجاد شد.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        سالن در تب «سالن‌ها» قابل مشاهده است. مدیر سالن
+                        می‌تواند پس از دریافت دعوت‌نامه وارد شود.
+                      </p>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href="/platform?tab=venues">
+                          مشاهده سالن در لیست
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    // Convert button — shown only when not yet converted.
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        یک سالن مطالعه جدید ایجاد می‌شود و لید به وضعیت «مشتری»
+                        تغییر می‌کند. در صورت وجود ایمیل، یک کاربر مدیر پیش‌نویس
+                        ساخته می‌شود.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleConvert}
+                        disabled={isPendingConvert || lead.status === "CUSTOMER"}
+                      >
+                        {isPendingConvert
+                          ? "در حال پردازش..."
+                          : "تبدیل به سالن مطالعه"}
+                      </Button>
+                    </>
+                  )}
                 </section>
               </>
             )}
