@@ -196,3 +196,28 @@ This file records architectural and product decisions whose reasoning is not ful
 - `LeadStatus` already holds future stages; a salesperson updates `Lead.status` by hand, with no pipeline UI or automation.
 - Future capabilities (CRM, pipeline board, analytics, campaigns, referrals) are designed to arrive as additive, backward-compatible changes.
 - All schema changes in this phase are non-destructive: new tables, new nullable columns, and one optional relation.
+
+## ADR-014: Demo Request Experience — Full Conversion Flow
+
+**Status:** Accepted
+
+**Decision:** Implement the end-to-end demo request experience across three surfaces:
+1. The `/#demo` CTA section on the homepage (inline form that swaps to a success panel on completion).
+2. The `/contact` page (two-column layout with the same form and success panel).
+3. A new dedicated `/demo` page (primary conversion destination, linked from the navbar and hero CTA).
+
+All three surfaces share the same `submitLead` server action and the same success state pattern.
+
+**Reasoning:** The homepage CTA section already existed with a non-persisting stub action. The task requires a real Lead to be created (per ADR-009) and the user to receive unambiguous confirmation with a "what happens next" explanation. Three surfaces are needed because:
+- The CTA section is the in-page anchor (`/#demo`) that most visitors reach from scroll.
+- The contact page already existed and also accepted lead data.
+- A dedicated `/demo` page gives the navbar button a clean full-page landing with full value proposition and form context, which converts better than a deep anchor link.
+
+The navbar and hero CTA buttons were updated from `/#demo` to `/demo` so visitors land on the dedicated page rather than being scrolled to the bottom of the home page.
+
+**Consequences:**
+- `submitLead` now persists a real `Lead` (source: `MARKETING_SITE`, status: `NEW`) and a linked `DemoRequest` in a single Prisma transaction.
+- The old simulated `setTimeout` + `console.log` implementation is replaced.
+- All three form surfaces manage their own `submitted` state and render a success panel containing the visitor's name, confirmation copy, and a 3-step "what happens next" list.
+- The `SubmitDemoResult` discriminated union (`{ success: true; leadId } | { success: false; error }`) is exported so callers can type-safely branch on the result.
+- The `ActionForm` wrapper component is not used for these forms because the success-panel swap requires a local `submitted` state that `ActionForm` does not expose.

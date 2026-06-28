@@ -1,25 +1,59 @@
 "use server";
 
 import { z } from "zod";
+import { prisma } from "@/lib/db";
 
-const leadSchema = z.object({
-  name: z.string().trim().min(2, "نام باید حداقل ۲ کاراکتر باشد.").optional(),
-  contact: z.string().trim().min(5, "لطفاً ایمیل یا شماره تماس معتبری وارد کنید."),
-  phone: z.string().trim().regex(/^09\d{9}$/, "شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود.").optional(),
-  venue: z.string().trim().min(2, "نام سالن را وارد کنید.").optional(),
-  message: z.string().trim().optional(),
+// ---------------------------------------------------------------------------
+// Validation schema
+//
+// The form is intentionally short (name, phone, venue name, optional message).
+// We require a phone number because it is the primary contact channel for
+// study-hall operators in the Iranian market.
+// ---------------------------------------------------------------------------
+
+const submitDemoSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "نام باید حداقل ۲ کاراکتر باشد.")
+    .max(120, "نام نمی‌تواند بیش از ۱۲۰ کاراکتر باشد."),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^09\d{9}$/, "شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود."),
+  venueName: z
+    .string()
+    .trim()
+    .min(2, "نام سالن باید حداقل ۲ کاراکتر باشد.")
+    .max(200, "نام سالن نمی‌تواند بیش از ۲۰۰ کاراکتر باشد."),
+  message: z.string().trim().max(1000).optional(),
 });
 
-export async function submitLead(formData: FormData) {
-  const data = {
-    name: formData.get("name")?.toString(),
-    contact: formData.get("contact")?.toString() || formData.get("phone")?.toString(),
-    phone: formData.get("phone")?.toString(),
-    venue: formData.get("venue")?.toString(),
-    message: formData.get("message")?.toString(),
+export type SubmitDemoResult =
+  | { success: true; leadId: string }
+  | { success: false; error: string };
+
+/**
+ * submitLead — the primary marketing-to-sales conversion action.
+ *
+ * Creates a Lead (source: MARKETING_SITE, status: NEW) and a linked
+ * DemoRequest in a single transaction. Both records are platform-level and
+ * never scoped to a studyhallId.
+ *
+ * Used by:
+ *   - The CTA section on the homepage (/#demo)
+ *   - The /contact page
+ *   - The dedicated /demo page
+ */
+export async function submitLead(formData: FormData): Promise<SubmitDemoResult> {
+  const raw = {
+    name: formData.get("name")?.toString() ?? "",
+    phone: formData.get("phone")?.toString() ?? "",
+    venueName: formData.get("venueName")?.toString() ?? formData.get("venue")?.toString() ?? "",
+    message: formData.get("message")?.toString() ?? undefined,
   };
 
-  const parsed = leadSchema.safeParse(data);
+  const parsed = submitDemoSchema.safeParse(raw);
 
   if (!parsed.success) {
     return {
@@ -28,15 +62,37 @@ export async function submitLead(formData: FormData) {
     };
   }
 
-  // In a real production app, we would save this to a 'Leads' table or send to a CRM/Email.
-  // For now, we simulate a successful submission as per the "highly descriptive client-side success states" requirement.
-  console.log("[Marketing Lead]:", parsed.data);
+  const { name, phone, venueName, message } = parsed.data;
 
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 800));
+  try {
+    const lead = await prisma.$transaction(async (tx) => {
+      const createdLead = await tx.lead.create({
+        data: {
+          name,
+          phone,
+          venueName,
+          message: message ?? null,
+          source: "MARKETING_SITE",
+          status: "NEW",
+        },
+      });
 
-  return {
-    success: true,
-    message: "درخواست شما با موفقیت ثبت شد. تیم استادیو به‌زودی با شما تماس می‌گیرد.",
-  };
+      await tx.demoRequest.create({
+        data: {
+          leadId: createdLead.id,
+          status: "requested",
+        },
+      });
+
+      return createdLead;
+    });
+
+    return { success: true, leadId: lead.id };
+  } catch (error) {
+    console.error("[submitLead] DB error:", error);
+    return {
+      success: false,
+      error: "مشکلی در ثبت درخواست پیش آمد. لطفاً دوباره تلاش کنید.",
+    };
+  }
 }
