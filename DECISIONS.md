@@ -264,3 +264,18 @@ Two architectural issues were found during manual testing and corrected in a fol
 - `shadcn/ui` `table` and `select` components were installed to support the table and filter dropdowns.
 - The `requireSuperAdmin` guard asserts `platformRole === "SUPER_ADMIN"` and redirects SALES users to `/platform` (read-only view). Only `convertLeadToStudyHall` requires SUPER_ADMIN; `updateLeadStatus` is available to all platform users.
 - No schema changes, no new migration. All queries are platform-level (no `studyhallId` scope).
+
+## ADR-017: Real Lead-to-StudyHall Conversion Flow
+
+**Status:** Accepted
+
+**Decision:** Replace the Phase 1 placeholder `convertLeadToStudyHall` (which only set `status: CUSTOMER` and `convertedAt`) with a real Prisma transaction that: (1) creates a `StudyHall` row (name derived from `lead.venueName`, or `"سالن {lead.name}"`, or the model default), (2) sets `Lead.studyhallId`, `Lead.status: CUSTOMER`, and `Lead.convertedAt` atomically, (3) optionally inserts a dormant admin `User` row if the lead has an email and no existing user account, linking it to the new StudyHall so a future invite flow can activate it.
+
+**Reasoning:** The schema already had the one-to-one `Lead → StudyHall` bridge (`Lead.studyhallId @unique`). Replicating the `$transaction` pattern from `completeOnboarding` in `auth.ts` was the natural path. Creating a `StudyHall` with `totalSeats: 0` and all defaults is deliberate — the venue admin configures their space after receiving the invite, not during conversion. The placeholder admin user is a stub (no password, `emailVerified: false`) that unblocks the invite-link flow in a future milestone without requiring it now (YAGNI).
+
+**Consequences:**
+- `convertLeadToStudyHall` now returns `ActionResult<{ studyhallId: string }>` so the UI can show a link to the new venue.
+- `LeadDetail` type gains `studyhallId` and `convertedAt` fields; `getLeadById` selects them.
+- `lead-detail-sheet.tsx` introduces `convertedStudyhallId` local state. It is initialised from `lead.studyhallId` so re-opening a previously converted lead immediately shows the success panel rather than the convert button.
+- `platform/page.tsx` reads the `tab` search param (`?tab=venues`) to set the `Tabs` `defaultValue`, so the "مشاهده سالن در لیست" link in the success panel opens the Venues tab automatically.
+- No schema migration required. All new columns (`studyhallId`, `convertedAt` on Lead) were already present from ADR-009.

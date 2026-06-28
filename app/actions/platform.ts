@@ -8,6 +8,11 @@ import { prisma } from "@/lib/db";
 import type { ActionResult } from "@/app/actions/audit";
 import { requirePlatformUser } from "@/app/actions/auth";
 
+type TransactionClient = Omit<
+  typeof prisma,
+  "$connect" | "$disconnect" | "$on" | "$use" | "$extends"
+>;
+
 // ---------------------------------------------------------------------------
 // Guards
 // ---------------------------------------------------------------------------
@@ -86,6 +91,8 @@ export type LeadDetail = {
   status: string;
   source: string;
   lostReason: string | null;
+  studyhallId: string | null;
+  convertedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   owner: { id: string; name: string } | null;
@@ -114,6 +121,8 @@ export async function getLeadById(id: string): Promise<LeadDetail | null> {
       status: true,
       source: true,
       lostReason: true,
+      studyhallId: true,
+      convertedAt: true,
       createdAt: true,
       updatedAt: true,
       owner: { select: { id: true, name: true } },
@@ -314,7 +323,7 @@ export async function updateLeadStatus(
 
 export async function convertLeadToStudyHall(
   formData: FormData
-): Promise<ActionResult> {
+): Promise<ActionResult<{ studyhallId: string }>> {
   // Only SUPER_ADMIN can convert a lead.
   await requireSuperAdmin();
 
@@ -325,31 +334,97 @@ export async function convertLeadToStudyHall(
 
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    select: { id: true, status: true, studyhallId: true, venueName: true },
+    select: {
+      id: true,
+      status: true,
+      studyhallId: true,
+      name: true,
+      venueName: true,
+      phone: true,
+      email: true,
+    },
   });
 
   if (!lead) {
     return { success: false, error: "لید یافت نشد." };
   }
   if (lead.studyhallId) {
-    return { success: false, error: "این لید قبلاً به سالن مطالعه تبدیل شده است." };
+    return {
+      success: false,
+      error: "این لید قبلاً به سالن مطالعه تبدیل شده است.",
+    };
   }
 
-  // Phase 1: placeholder — mark as CUSTOMER, set convertedAt.
-  // Real conversion (creating a StudyHall record + inviting the owner) is a
-  // future milestone and is deliberately NOT implemented here (YAGNI).
-  await prisma.lead.update({
-    where: { id: leadId },
-    data: {
-      status: "CUSTOMER",
-      convertedAt: new Date(),
-    },
+  // Derive a StudyHall name: prefer the prospect's stated venue name, fall back
+  // to the contact name, or use the generic default.
+  const hallName =
+    lead.venueName?.trim() ||
+    (lead.name ? `سالن ${lead.name}` : "سالن مطالعه");
+
+  const studyhallId = await prisma.$transaction(async (tx: TransactionClient) => {
+    // 1. Create the StudyHall with sensible defaults. totalSeats is 0 because
+    //    the venue hasn't configured their space yet — the admin can update it
+    //    after logging in. All other settings follow StudyHall model defaults.
+    const studyhall = await tx.studyHall.create({
+      data: { name: hallName },
+      select: { id: true },
+    });
+
+    // 2. Link the lead back to the new studyhall and mark it converted.
+    await tx.lead.update({
+      where: { id: leadId },
+      data: {
+        status: "CUSTOMER",
+        convertedAt: new Date(),
+        studyhallId: studyhall.id,
+      },
+    });
+
+    // 3. Placeholder admin user: if the lead has an email, create a dormant
+    //    User record scoped to the new StudyHall so they can be invited later.
+    //    We do NOT call auth.api.signUpEmail here because there is no password
+    //    yet — this stub just ensures the user row exists and is linked.
+    //    A real invite flow (password-reset link, OTP, etc.) is a future task.
+    if (lead.email) {
+      const existingUser = await tx.user.findUnique({
+        where: { email: lead.email },
+        select: { id: true, studyhallId: true },
+      });
+
+      if (!existingUser) {
+        // Insert a minimal user row. Better Auth will fill in the Account row
+        // when the venue owner actually signs up via the invite link.
+        const nanoid = () =>
+          Math.random().toString(36).slice(2) +
+          Math.random().toString(36).slice(2);
+        await tx.user.create({
+          data: {
+            id: nanoid(),
+            name: lead.name ?? lead.venueName ?? "مدیر سالن",
+            email: lead.email,
+            emailVerified: false,
+            role: "admin",
+            phoneNumber: lead.phone ?? null,
+            studyhallId: studyhall.id,
+          },
+        });
+      } else if (!existingUser.studyhallId) {
+        // User exists (e.g. tried to sign up before) but isn't linked yet.
+        await tx.user.update({
+          where: { id: existingUser.id },
+          data: { role: "admin", studyhallId: studyhall.id },
+        });
+      }
+      // If existingUser already has a studyhallId, leave them untouched.
+    }
+
+    return studyhall.id;
   });
 
   revalidatePath("/platform");
   return {
     success: true,
-    message:
-      "لید به مشتری تبدیل شد. (ایجاد سالن مطالعه در مرحله بعدی پیاده‌سازی خواهد شد.)",
+    message: `سالن مطالعه «${hallName}» با موفقیت ایجاد شد.`,
+    data: { studyhallId },
   };
 }
