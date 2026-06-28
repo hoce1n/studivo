@@ -38,6 +38,7 @@ export default async function Layout({
       id: true,
       name: true,
       role: true,
+      platformRole: true,
       studyhallId: true,
       studyhall: {
         select: {
@@ -52,6 +53,13 @@ export default async function Layout({
 
   if (!user) {
     redirect("/login");
+  }
+
+  // Platform users (SALES / SUPER_ADMIN) have no studyhallId and must not
+  // reach onboarding. Redirect them to their own route group before the
+  // studyhallId check runs. See ADR-010 and ADR-015.
+  if (user.platformRole) {
+    redirect("/platform");
   }
 
   if (!user.studyhallId || !user.studyhall) {

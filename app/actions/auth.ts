@@ -61,6 +61,20 @@ export async function requireScopedUser() {
   return { ...user, studyhallId: user.studyhallId };
 }
 
+// Asserts that the current session belongs to a platform user (SALES or
+// SUPER_ADMIN). Used by the (platform) route group layout to gate every page
+// under /platform. Mirrors the requireScopedUser pattern but checks
+// platformRole instead of studyhallId. See ADR-010 and ADR-015.
+export async function requirePlatformUser() {
+  const user = await requireUser();
+
+  if (!user.platformRole) {
+    redirect("/dashboard");
+  }
+
+  return { ...user, platformRole: user.platformRole };
+}
+
 const profileSchema = z.object({
   name: z.string().trim().min(2, "نام باید حداقل ۲ کاراکتر باشد.").max(80),
 });
