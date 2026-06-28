@@ -19,7 +19,7 @@ const Navbar = () => {
             <Link href="/dashboard">ورود</Link>
           </Button>
           <Button asChild className="inline-flex">
-            <Link href="/#demo">درخواست دمو</Link>
+            <Link href="/demo">درخواست دمو</Link>
           </Button>
 
           {/* Mobile Menu */}

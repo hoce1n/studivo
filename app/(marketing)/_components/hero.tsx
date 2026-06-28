@@ -31,7 +31,7 @@ const Hero = () => {
           </div>
           <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row">
             <Button asChild size="lg" className="w-full rounded-full text-base sm:w-auto">
-              <Link href="/#demo">
+              <Link href="/demo">
                 درخواست دمو رایگان <ArrowUpRight className="h-5! w-5!" />
               </Link>
             </Button>
