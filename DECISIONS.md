@@ -246,3 +246,21 @@ Two architectural issues were found during manual testing and corrected in a fol
 - `app/platform/layout.tsx` is a minimal auth-guarded shell (sticky header, Studivo wordmark, role label).
 - `app/platform/page.tsx` is a placeholder that greets the user and states the sales dashboard is coming soon.
 - No login-page changes, no schema changes, no new migration.
+
+## ADR-016: Platform Leads Inbox (Milestone 3, Phase 1)
+
+**Status:** Accepted
+
+**Decision:** Implement the minimum internal admin surface at `/platform` for managing Leads. The implementation consists of:
+- `app/actions/platform.ts` — `requireSuperAdmin`, read helpers (`getLeads`, `getLeadById`, `getPlatformStats`), and mutations (`updateLeadStatus`, `convertLeadToStudyHall`).
+- `app/platform/_components/stats-header.tsx` — 3 stat cards (total, new this week, in demo). Server Component.
+- `app/platform/_components/leads-table.tsx` — Table with client-side status/source filters and click-to-open-sheet. Client Component.
+- `app/platform/_components/lead-detail-sheet.tsx` — Side sheet with full contact info, demo request list, status updater (with `lostReason` field when LOST), and a SUPER_ADMIN-only "Convert" button. Client Component.
+- `app/platform/page.tsx` — Rewritten to fetch stats + leads in parallel, pass `isSuperAdmin` flag down.
+
+**Reasoning:** The data fetching (stats + lead list) happens on the server in a single RSC render; the `isSuperAdmin` flag flows as a prop so client components never need to call server helpers to determine role. Client-side filtering (vs server-side via URL search params) is acceptable here because the total lead count in Phase 1 is small and the YAGNI constraint discourages pagination infrastructure. `convertLeadToStudyHall` is a placeholder that sets `status: CUSTOMER` and `convertedAt` only — the actual StudyHall creation flow is a future milestone.
+
+**Consequences:**
+- `shadcn/ui` `table` and `select` components were installed to support the table and filter dropdowns.
+- The `requireSuperAdmin` guard asserts `platformRole === "SUPER_ADMIN"` and redirects SALES users to `/platform` (read-only view). Only `convertLeadToStudyHall` requires SUPER_ADMIN; `updateLeadStatus` is available to all platform users.
+- No schema changes, no new migration. All queries are platform-level (no `studyhallId` scope).
