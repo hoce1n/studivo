@@ -15,9 +15,10 @@ const trustPoints = [
 const CTA = () => {
   return (
     <section
+      id="demo"
       dir="rtl"
       aria-labelledby="studivo-cta-title"
-      className="relative overflow-hidden border-y bg-background px-6 py-16 sm:py-20"
+      className="relative scroll-mt-20 overflow-hidden border-y bg-background px-6 py-16 sm:py-20"
     >
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--primary),transparent_75%),transparent_34rem)]" />
       <div className="mx-auto grid w-full max-w-(--breakpoint-xl) items-center gap-8 rounded-[2rem] border bg-card/80 p-6 shadow-sm backdrop-blur sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:p-10">
@@ -55,8 +56,22 @@ const CTA = () => {
           {(pending) => (
             <>
               <label
+                htmlFor="cta-name"
+                className="mb-2 block text-right text-sm font-medium text-foreground"
+              >
+                نام شما
+              </label>
+              <Input
+                id="cta-name"
+                name="name"
+                type="text"
+                placeholder="مثلاً علی رضایی"
+                className="mb-4 h-12 rounded-2xl border-border bg-muted/40 px-4 text-right transition-all duration-300 placeholder:text-right focus-visible:bg-background"
+                aria-label="نام شما برای درخواست دمو"
+              />
+              <label
                 htmlFor="cta-contact"
-                className="mb-3 block text-right text-sm font-medium text-foreground"
+                className="mb-2 block text-right text-sm font-medium text-foreground"
               >
                 ایمیل یا شماره موبایل
               </label>
@@ -68,7 +83,7 @@ const CTA = () => {
                   required
                   placeholder="مثلاً 0912... یا info@example.com"
                   className="h-12 rounded-2xl border-border bg-muted/40 px-4 text-right transition-all duration-300 placeholder:text-right focus-visible:bg-background"
-                  aria-label="ایمیل یا شماره موبایل برای شروع رایگان"
+                  aria-label="ایمیل یا شماره موبایل برای درخواست دمو"
                 />
                 <Button
                   type="submit"
@@ -80,7 +95,7 @@ const CTA = () => {
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     <>
-                      شروع رایگان
+                      درخواست دمو
                       <ArrowLeft className="size-5" aria-hidden="true" />
                     </>
                   )}

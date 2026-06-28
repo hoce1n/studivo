@@ -31,13 +31,13 @@ const Hero = () => {
           </div>
           <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row">
             <Button asChild size="lg" className="w-full rounded-full text-base sm:w-auto">
-              <Link href="/signup">
-                شروع <ArrowUpRight className="h-5! w-5!" />
+              <Link href="/#demo">
+                درخواست دمو رایگان <ArrowUpRight className="h-5! w-5!" />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="w-full rounded-full text-base shadow-none sm:w-auto">
-              <Link href="/contact">
-                <CirclePlay className="h-5! w-5!" /> درخواست دمو و مشاوره
+              <Link href="/#features">
+                <CirclePlay className="h-5! w-5!" /> مشاهده امکانات
               </Link>
             </Button>
           </div>

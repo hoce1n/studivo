@@ -27,11 +27,11 @@ export const NavigationSheet = () => {
         <NavMenu orientation="vertical" className="mt-12" />
 
         <div className="mt-8 space-y-4">
-          <Button variant="outline" className="w-full sm:hidden">
-            <Link href={'/dashboard'}>پنل کاربری</Link>
+          <Button asChild className="w-full">
+            <Link href="/#demo">درخواست دمو</Link>
           </Button>
-          <Button className="w-full xs:hidden">
-            <Link href={'/dashboard'}>شروع کنید</Link>
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/dashboard">ورود به پنل</Link>
           </Button>
         </div>
       </SheetContent>

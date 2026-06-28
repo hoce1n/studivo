@@ -43,7 +43,7 @@ const FAQ = () => {
   return (
     <div
       id="faq"
-      className="w-full max-w-(--breakpoint-xl) mx-auto py-8 xs:py-16 px-6"
+      className="scroll-mt-20 w-full max-w-(--breakpoint-xl) mx-auto py-8 xs:py-16 px-6"
     >
       <h2 className="md:text-center text-3xl xs:text-4xl md:text-5xl leading-[1.15]! font-semibold tracking-tighter">
         سوالات پرتکرار
