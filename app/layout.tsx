@@ -48,7 +48,7 @@ export default async function RootLayout({
       suppressHydrationWarning
       lang="fa"
       dir="rtl"
-      className={cn("antialiased", estedaad.variable, "font-sans")}
+      className={cn("antialiased", estedaad.variable, "font-sans scroll-smooth")}
     >
       <head>
         <meta name="enamad" content="55116299" />
