@@ -1,19 +1,27 @@
 import { requirePlatformUser } from "@/app/actions/auth";
-import { getLeads, getPlatformStats } from "@/app/actions/platform";
+import { getLeads, getPlatformStats, getVenues } from "@/app/actions/platform";
 import { StatsHeader } from "@/app/platform/_components/stats-header";
 import { LeadsTable } from "@/app/platform/_components/leads-table";
+import { VenuesTable } from "@/app/platform/_components/venues-table";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 export const metadata = {
-  title: "صندوق لیدها | پلتفرم Studivo",
+  title: "پلتفرم داخلی | Studivo",
 };
 
 export default async function PlatformPage() {
   const user = await requirePlatformUser();
   const isSuperAdmin = user.platformRole === "SUPER_ADMIN";
 
-  const [stats, leads] = await Promise.all([
+  const [stats, leads, venues] = await Promise.all([
     getPlatformStats(),
     getLeads(),
+    getVenues(),
   ]);
 
   return (
@@ -21,18 +29,41 @@ export default async function PlatformPage() {
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-xl font-bold md:text-2xl">صندوق لیدها</h1>
+          <h1 className="text-xl font-bold md:text-2xl">پلتفرم داخلی</h1>
           <p className="text-sm text-muted-foreground">
-            لیست تمام لیدهای ورودی از کانال‌های بازاریابی
+            مدیریت لیدها و سالن‌های مطالعه
           </p>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats — always visible */}
       <StatsHeader stats={stats} />
 
-      {/* Leads table with client-side filters */}
-      <LeadsTable leads={leads} isSuperAdmin={isSuperAdmin} />
+      {/* Tab navigation */}
+      <Tabs defaultValue="leads">
+        <TabsList>
+          <TabsTrigger value="leads">
+            لیدها
+            <span className="ms-1.5 tabular-nums text-xs text-muted-foreground">
+              ({new Intl.NumberFormat("fa-IR").format(leads.length)})
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="venues">
+            سالن‌ها
+            <span className="ms-1.5 tabular-nums text-xs text-muted-foreground">
+              ({new Intl.NumberFormat("fa-IR").format(venues.length)})
+            </span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="leads">
+          <LeadsTable leads={leads} isSuperAdmin={isSuperAdmin} />
+        </TabsContent>
+
+        <TabsContent value="venues">
+          <VenuesTable venues={venues} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

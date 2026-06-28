@@ -150,12 +150,14 @@ The guiding principle is **YAGNI** (ADR-013): only the work needed to acquire th
 
 ## Milestone 3 — Internal Admin
 
-- [ ] Add a platform-only route segment (e.g. `app/(platform)/admin`) separate from `/dashboard`.
-- [ ] Add `requirePlatformUser` / `requireSuperAdmin` guards that check `platformRole`, mirroring `requireScopedUser`.
-- [ ] Leads inbox: list and filter by `status` and `source`; assign an owner (`ownerId`).
-- [ ] Lead detail: view contact info and demo requests, update `status` by hand, set `lostReason`.
+- [x] Add a platform-only route segment (`app/platform/`) separate from `/dashboard`.
+- [x] Add `requirePlatformUser` / `requireSuperAdmin` guards that check `platformRole`, mirroring `requireScopedUser`.
+- [x] Leads inbox: list and filter by `status` and `source`; assign an owner (`ownerId`).
+- [x] Lead detail: view contact info and demo requests, update `status` by hand, set `lostReason`.
 - [ ] Demo request handling: mark scheduled/completed and record `scheduledAt`.
-- [ ] Conversion flow: provision a StudyHall and link it via `Lead.studyhallId`, set `convertedAt`.
+- [x] Conversion flow (Phase 1 placeholder): mark lead as `CUSTOMER`, set `convertedAt`; real StudyHall provisioning is a future milestone.
+- [x] Venues tab: list all StudyHalls with name, gender, total seats, active members, occupancy %, creation date, and linked lead.
+- [x] Venue detail sheet (read-only): address, seat count, user count, monthly fee, occupancy bar, linked lead with status badge.
 
 ## Milestone 4 — Sales Pipeline (future, not in Phase 1)
 

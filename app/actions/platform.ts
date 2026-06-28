@@ -154,6 +154,123 @@ export async function getPlatformStats(): Promise<PlatformStats> {
 }
 
 // ---------------------------------------------------------------------------
+// Venues read helpers
+// ---------------------------------------------------------------------------
+
+export type VenueRow = {
+  id: string;
+  name: string;
+  gender: string;
+  totalSeats: number;
+  createdAt: Date;
+  lead: { id: string; name: string | null; venueName: string | null } | null;
+  _count: { activeSubscriptions: number };
+};
+
+export type VenueDetail = {
+  id: string;
+  name: string;
+  gender: string;
+  address: string;
+  totalSeats: number;
+  monthlyFee: number;
+  createdAt: Date;
+  updatedAt: Date;
+  lead: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    venueName: string | null;
+    status: string;
+  } | null;
+  _count: { activeSubscriptions: number; users: number };
+};
+
+export async function getVenues(): Promise<VenueRow[]> {
+  await requirePlatformUser();
+
+  const halls = await prisma.studyHall.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      gender: true,
+      totalSeats: true,
+      createdAt: true,
+      lead: {
+        select: { id: true, name: true, venueName: true },
+      },
+      subscriptions: {
+        where: { status: "active" },
+        select: { id: true },
+      },
+    },
+  });
+
+  return halls.map((h) => ({
+    id: h.id,
+    name: h.name,
+    gender: h.gender,
+    totalSeats: h.totalSeats,
+    createdAt: h.createdAt,
+    lead: h.lead ?? null,
+    _count: { activeSubscriptions: h.subscriptions.length },
+  }));
+}
+
+export async function getVenueById(id: string): Promise<VenueDetail | null> {
+  await requirePlatformUser();
+
+  const hall = await prisma.studyHall.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      gender: true,
+      address: true,
+      totalSeats: true,
+      monthlyFee: true,
+      createdAt: true,
+      updatedAt: true,
+      lead: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          venueName: true,
+          status: true,
+        },
+      },
+      subscriptions: {
+        where: { status: "active" },
+        select: { id: true },
+      },
+      users: {
+        select: { id: true },
+      },
+    },
+  });
+
+  if (!hall) return null;
+
+  return {
+    id: hall.id,
+    name: hall.name,
+    gender: hall.gender,
+    address: hall.address,
+    totalSeats: hall.totalSeats,
+    monthlyFee: hall.monthlyFee,
+    createdAt: hall.createdAt,
+    updatedAt: hall.updatedAt,
+    lead: hall.lead ?? null,
+    _count: {
+      activeSubscriptions: hall.subscriptions.length,
+      users: hall.users.length,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Mutations
 // ---------------------------------------------------------------------------
 
