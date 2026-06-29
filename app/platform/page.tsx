@@ -43,10 +43,8 @@ export default async function PlatformPage({
         </div>
       </div>
 
-      {/* Stats — always visible */}
       <StatsHeader stats={stats} />
 
-      {/* Tab navigation */}
       <Tabs defaultValue={activeTab}>
         <TabsList>
           <TabsTrigger value="leads">

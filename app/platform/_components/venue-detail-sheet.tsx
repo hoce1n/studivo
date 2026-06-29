@@ -24,10 +24,6 @@ import { GENDER_LABELS } from "@/app/platform/_components/venues-table";
 import { STATUS_LABELS, STATUS_VARIANTS } from "@/app/platform/_components/lead-detail-sheet";
 import type { VenueDetail } from "@/app/actions/platform";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function formatDate(date: Date | string) {
   return new Intl.DateTimeFormat("fa-IR", { dateStyle: "long" }).format(
     new Date(date)
@@ -65,10 +61,6 @@ function OccupancyBar({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 interface VenueDetailSheetProps {
   venue: VenueDetail | null;
@@ -153,7 +145,6 @@ export function VenueDetailSheet({
 
             <Separator />
 
-            {/* Occupancy */}
             <section className="flex flex-col gap-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 اشغال فعلی
@@ -169,7 +160,6 @@ export function VenueDetailSheet({
               )}
             </section>
 
-            {/* Linked lead */}
             {venue.lead && (
               <>
                 <Separator />

@@ -16,10 +16,6 @@ import { getVenueById } from "@/app/actions/platform";
 import { VenueDetailSheet } from "@/app/platform/_components/venue-detail-sheet";
 import type { VenueRow, VenueDetail } from "@/app/actions/platform";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function formatDate(date: Date | string) {
   return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(
     new Date(date)
@@ -59,10 +55,6 @@ function OccupancyBadge({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 interface VenuesTableProps {
   venues: VenueRow[];
 }
@@ -86,14 +78,12 @@ export function VenuesTable({ venues }: VenuesTableProps) {
 
   return (
     <>
-      {/* Row count */}
       <div className="flex items-center justify-end">
         <span className="text-xs text-muted-foreground">
           {fmt(venues.length)} سالن
         </span>
       </div>
 
-      {/* Table */}
       <div className="rounded-xl border">
         <Table>
           <TableHeader>
@@ -162,7 +152,6 @@ export function VenuesTable({ venues }: VenuesTableProps) {
         </Table>
       </div>
 
-      {/* Skeleton rows while loading detail */}
       {isLoadingDetail && (
         <div className="flex flex-col gap-2 px-1">
           <Skeleton className="h-3 w-1/3" />
@@ -170,7 +159,6 @@ export function VenuesTable({ venues }: VenuesTableProps) {
         </div>
       )}
 
-      {/* Detail sheet */}
       <VenueDetailSheet
         venue={isLoadingDetail ? null : selectedVenue}
         open={sheetOpen}

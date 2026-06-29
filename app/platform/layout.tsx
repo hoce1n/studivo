@@ -12,7 +12,7 @@ export default async function PlatformLayout({
   const user = await requirePlatformUser();
 
   const roleLabel =
-    user.platformRole === "SUPER_ADMIN" ? "مدیر ارشد" : "کارشناس فروش";
+    user.platformRole === "SUPER_ADMIN" ? "مدیر" : "کارشناس فروش";
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">

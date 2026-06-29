@@ -30,10 +30,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { updateLeadStatus, convertLeadToStudyHall } from "@/app/actions/platform";
 import type { LeadDetail } from "@/app/actions/platform";
 
-// ---------------------------------------------------------------------------
-// Status / Source display maps
-// ---------------------------------------------------------------------------
-
 export const STATUS_LABELS: Record<string, string> = {
   NEW: "جدید",
   CONTACTED: "تماس گرفته شده",
@@ -70,10 +66,6 @@ function formatDateTime(date: Date | string) {
     timeStyle: "short",
   }).format(new Date(date));
 }
-
-// ---------------------------------------------------------------------------
-// Sub-component: DemoRequest list
-// ---------------------------------------------------------------------------
 
 function DemoRequestList({ demos }: { demos: LeadDetail["demoRequests"] }) {
   if (demos.length === 0) {
@@ -123,10 +115,6 @@ function DemoRequestList({ demos }: { demos: LeadDetail["demoRequests"] }) {
     </ul>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
 
 interface LeadDetailSheetProps {
   lead: LeadDetail | null;

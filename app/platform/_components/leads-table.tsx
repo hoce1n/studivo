@@ -28,10 +28,6 @@ import {
 } from "@/app/platform/_components/lead-detail-sheet";
 import type { LeadRow, LeadDetail } from "@/app/actions/platform";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function formatDate(date: Date | string) {
   return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(
     new Date(date)
@@ -40,10 +36,6 @@ function formatDate(date: Date | string) {
 
 const ALL_STATUSES = ["NEW", "CONTACTED", "DEMO", "TRIAL", "CUSTOMER", "LOST"];
 const ALL_SOURCES = ["MARKETING_SITE", "REFERRAL", "DIRECT", "OTHER"];
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 interface LeadsTableProps {
   leads: LeadRow[];
@@ -57,7 +49,6 @@ export function LeadsTable({ leads, isSuperAdmin }: LeadsTableProps) {
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [isLoadingDetail, startDetailTransition] = React.useTransition();
 
-  // Client-side filtering (data already fetched server-side sorted by createdAt desc).
   const filtered = leads.filter((lead) => {
     const matchStatus =
       statusFilter === "ALL" || lead.status === statusFilter;
@@ -76,46 +67,45 @@ export function LeadsTable({ leads, isSuperAdmin }: LeadsTableProps) {
 
   return (
     <>
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger size="sm" className="w-40">
-            <SelectValue placeholder="وضعیت" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="ALL">همه وضعیت‌ها</SelectItem>
-              {ALL_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {STATUS_LABELS[s]}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <div className="mb-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger size="sm" className="w-40">
+              <SelectValue placeholder="وضعیت" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="ALL">همه وضعیت‌ها</SelectItem>
+                {ALL_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {STATUS_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
 
-        <Select value={sourceFilter} onValueChange={setSourceFilter}>
-          <SelectTrigger size="sm" className="w-44">
-            <SelectValue placeholder="منبع" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="ALL">همه منابع</SelectItem>
-              {ALL_SOURCES.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {SOURCE_LABELS[s]}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger size="sm" className="w-44">
+              <SelectValue placeholder="منبع" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="ALL">همه منابع</SelectItem>
+                {ALL_SOURCES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {SOURCE_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
         <span className="ms-auto text-xs text-muted-foreground">
           {new Intl.NumberFormat("fa-IR").format(filtered.length)} لید
         </span>
       </div>
 
-      {/* Table */}
       <div className="rounded-xl border">
         <Table>
           <TableHeader>
