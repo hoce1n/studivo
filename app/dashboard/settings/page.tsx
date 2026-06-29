@@ -3,6 +3,7 @@ import { Building2, Settings2 } from "lucide-react";
 
 import { requireUser } from "@/app/actions";
 import { HallSettingsForm } from "@/app/dashboard/settings/_components/hall-settings-form";
+import { PublicPageSettingsForm } from "@/app/dashboard/settings/_components/public-page-settings-form";
 
 export default async function HallSettingsPage() {
   const user = await requireUser();
@@ -42,6 +43,16 @@ export default async function HallSettingsPage() {
       </section>
 
       <HallSettingsForm studyHall={user.studyhall} />
+
+      <PublicPageSettingsForm
+        studyHall={{
+          slug: user.studyhall.slug,
+          publicPageEnabled: user.studyhall.publicPageEnabled,
+          heroImage: user.studyhall.heroImage,
+          galleryImages: user.studyhall.galleryImages,
+        }}
+        studyhallId={user.studyhallId}
+      />
     </section>
   );
 }

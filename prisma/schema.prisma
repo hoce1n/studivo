@@ -63,6 +63,13 @@ model StudyHall {
   reminderDaysBefore      Int      @default(3)
   renewalRemindersEnabled Boolean  @default(true)
   expiryRemindersEnabled  Boolean  @default(true)
+
+  // Public venue page — ADR-018
+  slug              String?  @unique
+  publicPageEnabled Boolean  @default(false)
+  heroImage         String?  // Vercel Blob public URL
+  galleryImages     String[] @default([])
+
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

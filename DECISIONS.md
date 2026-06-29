@@ -279,3 +279,18 @@ Two architectural issues were found during manual testing and corrected in a fol
 - `lead-detail-sheet.tsx` introduces `convertedStudyhallId` local state. It is initialised from `lead.studyhallId` so re-opening a previously converted lead immediately shows the success panel rather than the convert button.
 - `platform/page.tsx` reads the `tab` search param (`?tab=venues`) to set the `Tabs` `defaultValue`, so the "مشاهده سالن در لیست" link in the success panel opens the Venues tab automatically.
 - No schema migration required. All new columns (`studyhallId`, `convertedAt` on Lead) were already present from ADR-009.
+
+## ADR-018: Public Venue Page and Blob Image Storage
+
+**Status:** Accepted
+
+**Decision:** Add four new nullable fields to `StudyHall` (`slug @unique`, `publicPageEnabled`, `heroImage`, `galleryImages String[]`) and implement a full public venue page at `app/[slug]/page.tsx`. Images are stored in Vercel Blob (public store) via a dedicated upload API route at `app/api/upload/image/route.ts`. Settings are managed through a new `PublicPageSettingsForm` component in the existing `/dashboard/settings` page, backed by a new `updatePublicPageSettings` server action in `auth.ts`.
+
+**Reasoning:** The `[slug]` dynamic segment at the top-level app directory was chosen over `/venue/[slug]` to give venues clean, short URLs (`domain.com/my-hall`). Route conflicts are not a concern because all existing named routes (`/dashboard`, `/platform`, `/onboarding`, etc.) take precedence over the catch-all. The image upload flow uses an API route rather than a Server Action because Server Actions cannot stream multipart file data at acceptable sizes. Vercel Blob public store is used because hero and gallery images are intentionally public — no access-control layer is needed or desirable. Gallery is capped at 8 images to bound storage costs without a quota system.
+
+**Consequences:**
+- `prisma/schema.prisma` gains four new fields on `StudyHall`; a migration must be applied manually before deployment.
+- `requireUser` select is extended to include the four fields so the settings page can pre-populate the form without an extra query.
+- `next.config.ts` adds `*.public.blob.vercel-storage.com` to `images.remotePatterns` so `next/image` can optimise blob-hosted images.
+- The public page calls `notFound()` for slugs that don't exist or whose `publicPageEnabled` is `false`, preserving privacy for venues that haven't opted in.
+- `updatePublicPageSettings` performs a uniqueness check on the slug (excluding the current hall) before writing, returning a user-friendly Persian error on collision.
