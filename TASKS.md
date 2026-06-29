@@ -64,6 +64,12 @@ This board reflects the current repository state after reviewing the Prisma sche
   - Run lint, type/build checks, Prisma validation, and test suite on pull requests.
 
 
+- [x] Public venue page.
+  - Tenant admins can set a unique slug, enable/disable the page, upload a hero image, and manage a gallery of up to 8 images from `/dashboard/settings`.
+  - Vercel Blob (public store) is used for image storage via `POST /api/upload/image`.
+  - Public page lives at `/{slug}` — full-bleed hero, info cards, gallery grid, sticky address card, RTL, no auth required.
+  - `next.config.ts` updated with `*.public.blob.vercel-storage.com` remote image pattern.
+
 - [ ] Production security hardening.
   - Rate-limit auth routes.
   - Review headers/CSP.

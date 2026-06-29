@@ -40,6 +40,10 @@ export async function requireUser() {
           reminderDaysBefore: true,
           renewalRemindersEnabled: true,
           expiryRemindersEnabled: true,
+          slug: true,
+          publicPageEnabled: true,
+          heroImage: true,
+          galleryImages: true,
         },
       },
     },
@@ -226,6 +230,80 @@ export async function completeOnboarding(formData: FormData): Promise<ActionResu
 
   revalidatePath("/dashboard");
   redirect("/dashboard");
+}
+
+const publicPageSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, "آدرس عمومی باید حداقل ۳ کاراکتر باشد.")
+    .max(60, "آدرس عمومی نمی‌تواند بیشتر از ۶۰ کاراکتر باشد.")
+    .regex(
+      /^[a-z0-9-]+$/,
+      "آدرس عمومی فقط می‌تواند شامل حروف انگلیسی کوچک، اعداد و خط تیره باشد."
+    ),
+  publicPageEnabled: z.coerce.boolean(),
+  heroImage: z.string().url().nullable().optional(),
+  galleryImages: z.string().array().max(8, "حداکثر ۸ تصویر مجاز است.").optional(),
+});
+
+export async function updatePublicPageSettings(
+  formData: FormData
+): Promise<ActionResult> {
+  const user = await requireScopedUser();
+
+  if (user.role !== "admin") {
+    return { success: false, error: "فقط مدیر سالن اجازه ویرایش صفحه عمومی را دارد." };
+  }
+
+  // galleryImages is a JSON array encoded in a hidden field
+  let galleryImages: string[] = [];
+  try {
+    const raw = formData.get("galleryImages");
+    if (raw) galleryImages = JSON.parse(raw.toString());
+  } catch {
+    // ignore malformed JSON — default to empty
+  }
+
+  const parsed = publicPageSchema.safeParse({
+    slug: formData.get("slug"),
+    publicPageEnabled: formData.get("publicPageEnabled") === "on",
+    heroImage: formData.get("heroImage") || null,
+    galleryImages,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "اطلاعات صفحه عمومی معتبر نیست.",
+    };
+  }
+
+  // Check slug uniqueness excluding current hall
+  if (parsed.data.slug) {
+    const existing = await prisma.studyHall.findFirst({
+      where: { slug: parsed.data.slug, id: { not: user.studyhallId } },
+      select: { id: true },
+    });
+    if (existing) {
+      return { success: false, error: "این آدرس عمومی قبلاً توسط سالن دیگری انتخاب شده است." };
+    }
+  }
+
+  await prisma.studyHall.update({
+    where: { id: user.studyhallId },
+    data: {
+      slug: parsed.data.slug,
+      publicPageEnabled: parsed.data.publicPageEnabled,
+      heroImage: parsed.data.heroImage ?? null,
+      galleryImages: parsed.data.galleryImages ?? [],
+    },
+  });
+
+  revalidatePath("/dashboard/settings");
+  if (parsed.data.slug) revalidatePath(`/${parsed.data.slug}`);
+  return { success: true, message: "تنظیمات صفحه عمومی با موفقیت ذخیره شد." };
 }
 
 export async function createStaff(formData: FormData): Promise<ActionResult> {
