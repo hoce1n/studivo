@@ -127,6 +127,7 @@ export async function sendRenewalReminders() {
       endDate: subscription.endDate,
       kind,
       daysLeft,
+      paymentStatus: subscription.paymentStatus,
     }];
   });
 
