@@ -68,7 +68,7 @@ export function LeadsTable({ leads, isSuperAdmin }: LeadsTableProps) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <div className="mb-2">
+        <div className="flex space-x-2 mb-4">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger size="sm" className="w-40">
               <SelectValue placeholder="وضعیت" />

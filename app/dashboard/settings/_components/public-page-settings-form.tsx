@@ -262,7 +262,7 @@ export function PublicPageSettingsForm({
                   <span className="text-xs text-muted-foreground" dir="ltr">
                     {typeof window !== "undefined"
                       ? window.location.origin
-                      : "https://yourdomain.com"}
+                      : "https://studivo.ir"}
                     /
                   </span>
                   <Input

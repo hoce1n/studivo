@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tabs";
 
 export const metadata = {
-  title: "پلتفرم داخلی | Studivo",
+  title: "Studivo: Managment",
 };
 
 export default async function PlatformPage({

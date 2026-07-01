@@ -25,7 +25,7 @@ export default async function PlatformLayout({
             </span>
             <Separator orientation="vertical" className="h-4 data-vertical:h-4 data-vertical:self-auto" />
             <span className="text-sm text-muted-foreground">
-              پلتفرم داخلی
+              مدیریت فروش و سالن‌ها
             </span>
           </div>
 

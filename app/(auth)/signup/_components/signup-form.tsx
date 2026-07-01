@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth-client"
+import Link from "next/link";
 
 
 function validatePasswordStrength(password: string) {
@@ -115,7 +116,7 @@ export function SignupForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             type="text"
-            placeholder="حسین دانش"
+            placeholder="مثلا حسین دانش"
             required
             className="bg-background"
           />
@@ -128,7 +129,7 @@ export function SignupForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
-            placeholder="m@example.com"
+            placeholder="m@studivo.ir"
             required
             className="bg-background"
           />
@@ -210,8 +211,8 @@ export function SignupForm({
             {loading ? <Loader className="animate-spin" /> : "ساخت حساب"}
           </Button>
         </Field>
-        <FieldSeparator>میتونی ادامه بدی با</FieldSeparator>
-        <Field className="grid grid-cols-2">
+        <FieldSeparator></FieldSeparator>
+        {/* <Field className="grid grid-cols-2">
           <Button 
             variant="outline" 
             type="button"
@@ -238,9 +239,9 @@ export function SignupForm({
             </svg>
             <span className="sr-only">ثبت نام با گوگل</span>
           </Button>
-        </Field>
+        </Field> */}
           <FieldDescription className="px-6 text-center">
-            اگه قبلا ثبت‌نام کردی <a href="/login">وارد شو</a>.
+            اگه قبلا ثبت‌نام کردی <Link href="/login">وارد شو</Link>.
           </FieldDescription>
       </FieldGroup>
     </form>

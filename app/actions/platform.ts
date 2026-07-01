@@ -13,10 +13,6 @@ type TransactionClient = Omit<
   "$connect" | "$disconnect" | "$on" | "$use" | "$extends"
 >;
 
-// ---------------------------------------------------------------------------
-// Guards
-// ---------------------------------------------------------------------------
-
 /**
  * requireSuperAdmin — asserts the current session is a SUPER_ADMIN.
  * Redirects SALES users back to /platform (read-only view).

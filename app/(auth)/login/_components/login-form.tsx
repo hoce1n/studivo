@@ -123,7 +123,7 @@ export function LoginForm({
           </Button>
         </Field>
         <FieldSeparator>یا</FieldSeparator>
-        <Field className="grid grid-cols-2">
+        {/* <Field className="grid grid-cols-2">
           <Button variant="outline" type="button">
             <span className="sr-only">ورود با گیت‌هاب</span>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -142,8 +142,7 @@ export function LoginForm({
               />
             </svg>
           </Button>
-
-        </Field>
+        </Field> */}
         <FieldDescription className="col-span-1 text-center">
           تا حالا وارد نشدی؟{" "}
           <Link href="/signup" className="underline underline-offset-4">
