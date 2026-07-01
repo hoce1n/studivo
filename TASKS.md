@@ -115,6 +115,12 @@ This board reflects the current repository state after reviewing the Prisma sche
   - Verified and enriched legal/compliance pages (Privacy, Terms, Refund) with SMS consent.
   - Polished UI/UX and verified successful local build.
 
+## Completed — Financial Reporting Phase 1
+
+- [x] Add minimal nullable payment reporting fields to `Subscription`: `monthlyFeeAtSubscription` and `paymentDate`.
+- [x] Add tenant-scoped finance server actions for revenue reports, overdue payments, and occupancy revenue stats.
+- [x] Add the RTL `/dashboard/finance` page with stats cards, overdue payments, and a first-pass revenue report section.
+
 ## Completed — Data Preservation & Trust
 
 - [x] Expose seat-level subscription history in the seat management sheet.
