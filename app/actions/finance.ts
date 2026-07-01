@@ -11,47 +11,85 @@ const dateRangeSchema = z
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
   })
+  .refine((value) => !Number.isNaN(value.startDate.getTime()) && !Number.isNaN(value.endDate.getTime()), {
+    message: "بازه تاریخ گزارش معتبر نیست.",
+  })
   .refine((value) => value.startDate <= value.endDate, {
     message: "تاریخ شروع گزارش باید قبل از تاریخ پایان باشد.",
     path: ["startDate"],
   });
 
-type RevenueTransaction = {
+export type RevenueTransaction = {
   id: string;
-  monthlyFeeAtSubscription: number | null;
+  amount: number;
   paymentDate: Date | null;
+  fallbackDate: Date;
   user: { name: string; phoneNumber: string | null };
   seat: { seatNumber: number };
 };
 
-type RevenueReport = {
+export type RevenueReport = {
+  startDate: Date;
+  endDate: Date;
   totalRevenue: number;
   transactions: RevenueTransaction[];
 };
 
-type OverduePayment = {
+export type OverduePayment = {
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  amount: number;
+  user: { name: string; phoneNumber: string | null };
+  seat: { seatNumber: number };
+};
+
+export type OverduePaymentsReport = {
+  totalOverdueAmount: number;
+  overdueSubscriptions: OverduePayment[];
+};
+
+export type OccupancyRevenueStats = {
+  totalSeats: number;
+  activeSubscriptions: number;
+  paidActiveSubscriptions: number;
+  unpaidActiveSubscriptions: number;
+  occupancyRate: number;
+  totalRevenue: number;
+  monthlyRevenue: number;
+  activeRevenue: number;
+  potentialMonthlyRevenue: number;
+};
+
+type SubscriptionMoneyRow = {
+  id: string;
+  monthlyFeeAtSubscription: number | null;
+  paymentDate: Date | null;
+  updatedAt: Date;
+  user: { name: string; phoneNumber: string | null };
+  seat: { seatNumber: number };
+  studyhall: { monthlyFee: number };
+};
+
+type OverdueSubscriptionRow = {
   id: string;
   startDate: Date;
   endDate: Date;
   monthlyFeeAtSubscription: number | null;
   user: { name: string; phoneNumber: string | null };
   seat: { seatNumber: number };
+  studyhall: { monthlyFee: number };
 };
 
-type OverduePaymentsReport = {
-  totalOverdueAmount: number;
-  overdueSubscriptions: OverduePayment[];
-};
+function amountFor(row: { monthlyFeeAtSubscription: number | null; studyhall: { monthlyFee: number } }) {
+  return row.monthlyFeeAtSubscription ?? row.studyhall.monthlyFee ?? 0;
+}
 
-type OccupancyRevenueStats = {
-  totalSeats: number;
-  activeSubscriptions: number;
-  paidActiveSubscriptions: number;
-  unpaidActiveSubscriptions: number;
-  occupancyRate: number;
-  potentialMonthlyRevenue: number;
-  currentMonthlyRevenue: number;
-};
+function inclusiveEndOfDay(date: Date) {
+  const value = new Date(date);
+  value.setHours(23, 59, 59, 999);
+  return value;
+}
 
 export async function fetchRevenueReport(startDate: Date, endDate: Date): Promise<ActionResult<RevenueReport>> {
   const user = await requireScopedUser();
@@ -61,30 +99,46 @@ export async function fetchRevenueReport(startDate: Date, endDate: Date): Promis
     return { success: false, error: parsed.error.issues[0]?.message ?? "بازه گزارش درآمد معتبر نیست." };
   }
 
+  const rangeStart = parsed.data.startDate;
+  const rangeEnd = inclusiveEndOfDay(parsed.data.endDate);
+
   try {
-    const transactions = await prisma.subscription.findMany({
+    const rows = (await prisma.subscription.findMany({
       where: {
         studyhallId: user.studyhallId,
         paymentStatus: "paid",
-        paymentDate: {
-          gte: parsed.data.startDate,
-          lte: parsed.data.endDate,
-        },
+        OR: [
+          { paymentDate: { gte: rangeStart, lte: rangeEnd } },
+          { paymentDate: null, updatedAt: { gte: rangeStart, lte: rangeEnd } },
+        ],
       },
       select: {
         id: true,
         monthlyFeeAtSubscription: true,
         paymentDate: true,
+        updatedAt: true,
         user: { select: { name: true, phoneNumber: true } },
         seat: { select: { seatNumber: true } },
+        studyhall: { select: { monthlyFee: true } },
       },
-      orderBy: { paymentDate: "desc" },
-    });
+      orderBy: [{ paymentDate: "desc" }, { updatedAt: "desc" }],
+    })) as SubscriptionMoneyRow[];
+
+    const transactions = rows.map((row) => ({
+      id: row.id,
+      amount: amountFor(row),
+      paymentDate: row.paymentDate,
+      fallbackDate: row.updatedAt,
+      user: row.user,
+      seat: row.seat,
+    }));
 
     return {
       success: true,
       data: {
-        totalRevenue: transactions.reduce((sum: number, item: RevenueTransaction) => sum + (item.monthlyFeeAtSubscription ?? 0), 0),
+        startDate: rangeStart,
+        endDate: rangeEnd,
+        totalRevenue: transactions.reduce((sum, item) => sum + item.amount, 0),
         transactions,
       },
     };
@@ -97,7 +151,7 @@ export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymen
   const user = await requireScopedUser();
 
   try {
-    const overdueSubscriptions = await prisma.subscription.findMany({
+    const rows = (await prisma.subscription.findMany({
       where: {
         studyhallId: user.studyhallId,
         paymentStatus: "unpaid",
@@ -111,14 +165,24 @@ export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymen
         monthlyFeeAtSubscription: true,
         user: { select: { name: true, phoneNumber: true } },
         seat: { select: { seatNumber: true } },
+        studyhall: { select: { monthlyFee: true } },
       },
       orderBy: { endDate: "asc" },
-    });
+    })) as OverdueSubscriptionRow[];
+
+    const overdueSubscriptions = rows.map((row) => ({
+      id: row.id,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      amount: amountFor(row),
+      user: row.user,
+      seat: row.seat,
+    }));
 
     return {
       success: true,
       data: {
-        totalOverdueAmount: overdueSubscriptions.reduce((sum: number, item: OverduePayment) => sum + (item.monthlyFeeAtSubscription ?? 0), 0),
+        totalOverdueAmount: overdueSubscriptions.reduce((sum, item) => sum + item.amount, 0),
         overdueSubscriptions,
       },
     };
@@ -141,12 +205,32 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
     }
 
     const now = new Date();
-    const [activeSubscriptions, paidActiveSubscriptions] = await Promise.all([
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [activeSubscriptions, paidActiveSubscriptions, paidRows, monthlyPaidRows, activePaidRows] = await Promise.all([
       prisma.subscription.count({
         where: { studyhallId: user.studyhallId, status: "active", endDate: { gte: now } },
       }),
       prisma.subscription.count({
         where: { studyhallId: user.studyhallId, status: "active", paymentStatus: "paid", endDate: { gte: now } },
+      }),
+      prisma.subscription.findMany({
+        where: { studyhallId: user.studyhallId, paymentStatus: "paid" },
+        select: { monthlyFeeAtSubscription: true, studyhall: { select: { monthlyFee: true } } },
+      }),
+      prisma.subscription.findMany({
+        where: {
+          studyhallId: user.studyhallId,
+          paymentStatus: "paid",
+          OR: [
+            { paymentDate: { gte: monthStart, lte: now } },
+            { paymentDate: null, updatedAt: { gte: monthStart, lte: now } },
+          ],
+        },
+        select: { monthlyFeeAtSubscription: true, studyhall: { select: { monthlyFee: true } } },
+      }),
+      prisma.subscription.findMany({
+        where: { studyhallId: user.studyhallId, status: "active", paymentStatus: "paid", endDate: { gte: now } },
+        select: { monthlyFeeAtSubscription: true, studyhall: { select: { monthlyFee: true } } },
       }),
     ]);
 
@@ -161,8 +245,10 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
         paidActiveSubscriptions,
         unpaidActiveSubscriptions: activeSubscriptions - paidActiveSubscriptions,
         occupancyRate,
+        totalRevenue: (paidRows as Array<{ monthlyFeeAtSubscription: number | null; studyhall: { monthlyFee: number } }>).reduce((sum, row) => sum + amountFor(row), 0),
+        monthlyRevenue: (monthlyPaidRows as Array<{ monthlyFeeAtSubscription: number | null; studyhall: { monthlyFee: number } }>).reduce((sum, row) => sum + amountFor(row), 0),
+        activeRevenue: (activePaidRows as Array<{ monthlyFeeAtSubscription: number | null; studyhall: { monthlyFee: number } }>).reduce((sum, row) => sum + amountFor(row), 0),
         potentialMonthlyRevenue: totalSeats * studyHall.monthlyFee,
-        currentMonthlyRevenue: paidActiveSubscriptions * studyHall.monthlyFee,
       },
     };
   } catch (error) {
