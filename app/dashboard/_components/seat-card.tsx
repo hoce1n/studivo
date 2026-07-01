@@ -14,6 +14,7 @@ export type SeatCardProps = {
     memberName: string;
     phoneNumber: string;
     endDate: string;
+    paymentStatus: string;
   };
 };
 
@@ -44,7 +45,18 @@ export function SeatCard({
       </div>
       {subscription ? (
         <div className="mt-3 space-y-1 text-xs leading-6">
-          <p className="truncate font-medium">{subscription.memberName}</p>
+          <div className="flex items-center justify-between gap-1">
+            <p className="truncate font-medium">{subscription.memberName}</p>
+            <span
+              className={cn(
+                "size-1.5 shrink-0 rounded-full",
+                subscription.paymentStatus === "paid"
+                  ? "bg-emerald-500"
+                  : "bg-amber-500 animate-pulse",
+              )}
+              title={subscription.paymentStatus === "paid" ? "پرداخت شده" : "تسویه نشده"}
+            />
+          </div>
           <p className="opacity-80">تا {subscription.endDate}</p>
         </div>
       ) : (

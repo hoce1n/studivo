@@ -21,6 +21,7 @@ import {
   renewSubscription,
   reserveSeat,
   swapSeat,
+  updatePaymentStatus,
 } from "@/app/actions";
 import { ActionForm } from "@/components/action-form";
 import { SubscriptionProgress } from "@/app/dashboard/_components/subscription-progress";
@@ -69,6 +70,7 @@ export type ReserveFormSeat = {
     endDate: string;
     startDateISO: string;
     endDateISO: string;
+    paymentStatus: string;
   };
   history?: {
     id: string;
@@ -230,6 +232,7 @@ export function ReserveForm({
   const [renewPending, startRenewTransition] = React.useTransition();
   const [swapPending, startSwapTransition] = React.useTransition();
   const [releasePending, startReleaseTransition] = React.useTransition();
+  const [paymentPending, startPaymentTransition] = React.useTransition();
 
   const reservationSeatNumber = normalizeSeatNumber(
     seat?.reserveSeatNumber ?? seat?.seatNumber,
@@ -366,6 +369,23 @@ export function ReserveForm({
         onOpenChange(false);
       } catch (error) {
         toast.error(getActionErrorMessage(error, "تخلیه صندلی ناموفق بود."));
+      }
+    });
+  }
+
+  function handlePaymentStatusToggle() {
+    if (!subscription) return;
+
+    const nextStatus = subscription.paymentStatus === "paid" ? "unpaid" : "paid";
+    startPaymentTransition(async () => {
+      try {
+        const result = await updatePaymentStatus(subscription.id, nextStatus);
+        if (!result.success) {
+          throw new Error(result.error || "تغییر وضعیت پرداخت ناموفق بود.");
+        }
+        toast.success(result.message || "وضعیت پرداخت با موفقیت به‌روزرسانی شد.");
+      } catch (error) {
+        toast.error(getActionErrorMessage(error, "تغییر وضعیت پرداخت ناموفق بود."));
       }
     });
   }
@@ -557,9 +577,32 @@ export function ReserveForm({
                     {subscription.phoneNumber}
                   </a>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CalendarClock className="size-4 text-muted-foreground" />
-                  <span>پایان فعلی اشتراک: {subscription.endDate}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="size-4 text-muted-foreground" />
+                    <span>پایان فعلی اشتراک: {subscription.endDate}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={subscription.paymentStatus === "paid" ? "outline" : "default"}
+                    size="sm"
+                    className={cn(
+                      "h-7 px-2 text-[10px]",
+                      subscription.paymentStatus === "paid"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        : "bg-amber-500 text-white hover:bg-amber-600",
+                    )}
+                    onClick={handlePaymentStatusToggle}
+                    disabled={paymentPending}
+                  >
+                    {paymentPending ? (
+                      <Loader className="size-3 animate-spin" />
+                    ) : subscription.paymentStatus === "paid" ? (
+                      "پرداخت شده"
+                    ) : (
+                      "تسویه نشده"
+                    )}
+                  </Button>
                 </div>
                 <Button
                   type="button"

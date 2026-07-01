@@ -294,3 +294,16 @@ Two architectural issues were found during manual testing and corrected in a fol
 - `next.config.ts` adds `*.public.blob.vercel-storage.com` to `images.remotePatterns` so `next/image` can optimise blob-hosted images.
 - The public page calls `notFound()` for slugs that don't exist or whose `publicPageEnabled` is `false`, preserving privacy for venues that haven't opted in.
 - `updatePublicPageSettings` performs a uniqueness check on the slug (excluding the current hall) before writing, returning a user-friendly Persian error on collision.
+
+## ADR-014: Payment Status Management in Seat Sheet
+
+**Status:** Accepted
+
+**Decision:** Implement a direct toggle for `paymentStatus` in the seat management Sheet and surface it via small visual indicators (dots/badges) in the seat map and member list.
+
+**Reasoning:** Operators need a quick way to track whether a student has paid for their current subscription without leaving the main seat map. While a full invoicing system is planned, a simple binary status (`paid`/`unpaid`) provides immediate operational value. Using a toggle in the Sheet follows the existing pattern of seat operations (renew/swap/release) and keeps the UI focused.
+
+**Consequences:**
+- A new `updatePaymentStatus` server action handles the state change inside a transaction and records an `AuditLog`.
+- The seat map cards and member list now include a small status dot (green for paid, pulsing amber for unpaid) to highlight pending payments.
+- This bridges the gap between simple reservation and full financial tracking.

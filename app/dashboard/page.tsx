@@ -297,6 +297,7 @@ export default async function Page({ searchParams }: PageProps) {
                   endDate: formatDate(seat.subscription.endDate),
                   startDateISO: seat.subscription.startDate.toISOString(),
                   endDateISO: seat.subscription.endDate.toISOString(),
+                  paymentStatus: seat.subscription.paymentStatus,
                 }
               : undefined,
             history: seat.subscriptions.slice(0, 8).map((item) => ({

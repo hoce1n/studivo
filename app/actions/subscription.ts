@@ -125,3 +125,69 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
     data: renewalResult ?? undefined,
   };
 }
+
+const updatePaymentStatusSchema = z.object({
+  subscriptionId: z.string().min(1, "شناسه اشتراک معتبر نیست."),
+  status: z.enum(["paid", "unpaid"]),
+});
+
+export async function updatePaymentStatus(subscriptionId: string, status: "paid" | "unpaid"): Promise<ActionResult> {
+  const user = await requireScopedUser();
+  const parsed = updatePaymentStatusSchema.safeParse({ subscriptionId, status });
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات وضعیت پرداخت معتبر نیست." };
+  }
+
+  try {
+    await prisma.$transaction(async (tx: TransactionClient) => {
+      const current = await tx.subscription.findFirst({
+        where: { id: parsed.data.subscriptionId, studyhallId: user.studyhallId },
+        select: {
+          id: true,
+          paymentStatus: true,
+          user: { select: { name: true } },
+          seat: { select: { seatNumber: true } },
+        },
+      });
+
+      if (!current) {
+        throw new Error("اشتراک مورد نظر پیدا نشد.");
+      }
+
+      if (current.paymentStatus === parsed.data.status) {
+        return;
+      }
+
+      await tx.subscription.update({
+        where: { id: current.id },
+        data: { paymentStatus: parsed.data.status },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          studyhallId: user.studyhallId,
+          userId: user.id,
+          action: "UPDATE_PAYMENT_STATUS",
+          details: {
+            operatorName: user.name,
+            memberName: current.user.name,
+            seatNumber: current.seat.seatNumber,
+            oldStatus: current.paymentStatus,
+            newStatus: parsed.data.status,
+            message: `${user.name} وضعیت پرداخت صندلی ${current.seat.seatNumber} (${current.user.name}) را به ${parsed.data.status === "paid" ? "پرداخت شده" : "پرداخت نشده"} تغییر داد.`,
+          },
+        },
+      });
+    });
+  } catch (error) {
+    return actionError(error, "تغییر وضعیت پرداخت ناموفق بود.");
+  }
+
+  revalidateOperationalPaths();
+
+  return {
+    success: true,
+    message: "وضعیت پرداخت با موفقیت به‌روزرسانی شد.",
+  };
+}

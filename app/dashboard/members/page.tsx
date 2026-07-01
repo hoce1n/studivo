@@ -31,7 +31,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
         subscriptions: filter === "active" ? { some: { status: "active" } } : { none: { status: "active" } },
       },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, name: true, phoneNumber: true, subscriptions: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, endDate: true, seat: { select: { seatNumber: true } } } } },
+      select: { id: true, name: true, phoneNumber: true, subscriptions: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, endDate: true, paymentStatus: true, seat: { select: { seatNumber: true } } } } },
     }),
     params.memberId
       ? prisma.user.findFirst({
@@ -56,7 +56,15 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
           {members.map((member) => {
             const latest = member.subscriptions[0];
             return <Link key={member.id} href={`/dashboard/members?status=${filter}&memberId=${member.id}`} className="block rounded-2xl border p-3 transition-colors hover:bg-muted/60">
-              <div className="flex items-center justify-between gap-3"><div className="font-medium">{member.name}</div><Badge variant={latest?.status === "active" ? "success" : "muted"}>{latest?.status === "active" ? "فعال" : "آرشیوی"}</Badge></div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="font-medium">{member.name}</div>
+                  {latest?.paymentStatus === "unpaid" && latest?.status === "active" && (
+                    <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" title="تسویه نشده" />
+                  )}
+                </div>
+                <Badge variant={latest?.status === "active" ? "success" : "muted"}>{latest?.status === "active" ? "فعال" : "آرشیوی"}</Badge>
+              </div>
               <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><Phone className="size-3.5" />{member.phoneNumber ?? "بدون تلفن"}</div>
               {latest ? <div className="mt-1 text-xs text-muted-foreground">آخرین صندلی: {latest.seat.seatNumber} · تا {formatDate(latest.endDate)}</div> : null}
             </Link>;
