@@ -1,7 +1,5 @@
 "use client";
 
-import { Armchair } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 
 export type SeatCardProps = {
@@ -35,7 +33,6 @@ export function SeatCard({
     >
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 font-bold">
-          <Armchair className="size-3.5 opacity-70" />
           صندلی {seatNumber}
         </span>
         <span className="inline-flex items-center gap-1 text-xs font-medium">

@@ -168,7 +168,7 @@ export async function updatePaymentStatus(subscriptionId: string, status: "paid"
         data: {
           studyhallId: user.studyhallId,
           userId: user.id,
-          action: "UPDATE_PAYMENT_STATUS",
+          action: "تغییر وضعیت پرداخت",
           details: {
             operatorName: user.name,
             memberName: current.user.name,

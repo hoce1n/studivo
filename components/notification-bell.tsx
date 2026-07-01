@@ -34,11 +34,11 @@ export function NotificationBell({ unreadCount = 0 }: { unreadCount?: number }) 
           <PopoverDescription>یادآوری‌های تمدید و انقضای سالن اینجا نمایش داده می‌شوند.</PopoverDescription>
         </PopoverHeader>
         <div className="rounded-2xl border bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-          No new notifications
+          اعلان جدیدی وچود ندارد.
         </div>
         <Button asChild variant="outline" className="w-full justify-between rounded-2xl">
           <Link href="/dashboard/settings#notification-preferences">
-            <span>Notification Settings</span>
+            <span>تنظیمات اعلانات</span>
             <Settings2 className="size-4" />
           </Link>
         </Button>
