@@ -122,7 +122,7 @@ export function LoginForm({
             {loading ? <Loader className="animate-spin" /> : "ورود"}
           </Button>
         </Field>
-        <FieldSeparator>یا</FieldSeparator>
+        <FieldSeparator></FieldSeparator>
         {/* <Field className="grid grid-cols-2">
           <Button variant="outline" type="button">
             <span className="sr-only">ورود با گیت‌هاب</span>
@@ -143,13 +143,13 @@ export function LoginForm({
             </svg>
           </Button>
         </Field> */}
-        <FieldDescription className="col-span-1 text-center">
+        {/* <FieldDescription className="col-span-1 text-center">
           تا حالا وارد نشدی؟{" "}
           <Link href="/signup" className="underline underline-offset-4">
             ثبت نام
           </Link>
           .
-        </FieldDescription>
+        </FieldDescription> */}
       </FieldGroup>
     </form>
   )
