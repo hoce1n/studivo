@@ -1,6 +1,5 @@
 import { Banknote, CalendarDays, CircleDollarSign, TrendingUp, UsersRound } from "lucide-react";
-
-import { fetchOccupancyRevenueStats, fetchOverduePayments, fetchRevenueReport } from "@/app/actions";
+import { fetchOccupancyRevenueStats, fetchOverduePayments, fetchRevenueReport } from "@/app/actions/finance";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +21,7 @@ function formatMoney(value: number | null | undefined) {
 }
 
 function formatDate(date: Date | null | undefined) {
-  return date ? dateFormatter.format(date) : "ثبت نشده";
+  return date ? dateFormatter.format(new Date(date)) : "ثبت نشده";
 }
 
 function isoDateInputValue(date: Date) {
@@ -31,7 +30,6 @@ function isoDateInputValue(date: Date) {
 
 function parseDateParam(value: string | string[] | undefined) {
   if (typeof value !== "string") return undefined;
-
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
@@ -129,7 +127,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Fina
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="shadow-sm">
+        <Card className="shadow-sm" id="overdue">
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -146,11 +144,11 @@ export default async function FinancePage({ searchParams }: { searchParams: Fina
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>عضو</TableHead>
-                    <TableHead>صندلی</TableHead>
-                    <TableHead>شروع</TableHead>
-                    <TableHead>پایان</TableHead>
-                    <TableHead>مبلغ</TableHead>
+                    <TableHead className="text-right">عضو</TableHead>
+                    <TableHead className="text-right">صندلی</TableHead>
+                    <TableHead className="text-right">شروع</TableHead>
+                    <TableHead className="text-right">پایان</TableHead>
+                    <TableHead className="text-right">مبلغ</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

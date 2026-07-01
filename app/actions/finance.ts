@@ -1,24 +1,14 @@
 "use server";
 
 import { z } from "zod";
-
-import { requireScopedUser } from "@/app/actions/auth";
-import { actionError, type ActionResult } from "@/app/actions/audit";
 import { prisma } from "@/lib/db";
+import { actionError } from "@/app/actions/audit";
+import type { ActionResult } from "@/app/actions/audit";
+import { requireScopedUser } from "@/app/actions/auth";
 
-const dateRangeSchema = z
-  .object({
-    startDate: z.coerce.date(),
-    endDate: z.coerce.date(),
-  })
-  .refine((value) => !Number.isNaN(value.startDate.getTime()) && !Number.isNaN(value.endDate.getTime()), {
-    message: "بازه تاریخ گزارش معتبر نیست.",
-  })
-  .refine((value) => value.startDate <= value.endDate, {
-    message: "تاریخ شروع گزارش باید قبل از تاریخ پایان باشد.",
-    path: ["startDate"],
-  });
-
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 export type RevenueTransaction = {
   id: string;
   amount: number;
@@ -81,6 +71,9 @@ type OverdueSubscriptionRow = {
   studyhall: { monthlyFee: number };
 };
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 function amountFor(row: { monthlyFeeAtSubscription: number | null; studyhall: { monthlyFee: number } }) {
   return row.monthlyFeeAtSubscription ?? row.studyhall.monthlyFee ?? 0;
 }
@@ -91,6 +84,26 @@ function inclusiveEndOfDay(date: Date) {
   return value;
 }
 
+// ---------------------------------------------------------------------------
+// Schema for date range validation
+// ---------------------------------------------------------------------------
+const dateRangeSchema = z
+  .object({
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+  })
+  .refine((value) => !Number.isNaN(value.startDate.getTime()) && !Number.isNaN(value.endDate.getTime()), {
+    message: "بازه تاریخ گزارش معتبر نیست.",
+  })
+  .refine((value) => value.startDate <= value.endDate, {
+    message: "تاریخ شروع گزارش باید قبل از تاریخ پایان باشد.",
+    path: ["startDate"],
+  });
+
+// ---------------------------------------------------------------------------
+// fetchRevenueReport
+// Fetches revenue data for a given date range.
+// ---------------------------------------------------------------------------
 export async function fetchRevenueReport(startDate: Date, endDate: Date): Promise<ActionResult<RevenueReport>> {
   const user = await requireScopedUser();
   const parsed = dateRangeSchema.safeParse({ startDate, endDate });
@@ -147,6 +160,10 @@ export async function fetchRevenueReport(startDate: Date, endDate: Date): Promis
   }
 }
 
+// ---------------------------------------------------------------------------
+// fetchOverduePayments
+// Fetches subscriptions with unpaid status that are past their end date.
+// ---------------------------------------------------------------------------
 export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymentsReport>> {
   const user = await requireScopedUser();
 
@@ -191,6 +208,10 @@ export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymen
   }
 }
 
+// ---------------------------------------------------------------------------
+// fetchOccupancyRevenueStats
+// Fetches current occupancy and potential revenue stats.
+// ---------------------------------------------------------------------------
 export async function fetchOccupancyRevenueStats(): Promise<ActionResult<OccupancyRevenueStats>> {
   const user = await requireScopedUser();
 
@@ -206,7 +227,8 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
 
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const [activeSubscriptions, paidActiveSubscriptions, paidRows, monthlyPaidRows, activePaidRows] = await Promise.all([
+
+    const [activeSubscriptions, paidActiveSubscriptions, allPaidRows, monthlyPaidRows, activePaidRows] = await Promise.all([
       prisma.subscription.count({
         where: { studyhallId: user.studyhallId, status: "active", endDate: { gte: now } },
       }),
@@ -245,9 +267,9 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
         paidActiveSubscriptions,
         unpaidActiveSubscriptions: activeSubscriptions - paidActiveSubscriptions,
         occupancyRate,
-        totalRevenue: (paidRows as Array<{ monthlyFeeAtSubscription: number | null; studyhall: { monthlyFee: number } }>).reduce((sum, row) => sum + amountFor(row), 0),
-        monthlyRevenue: (monthlyPaidRows as Array<{ monthlyFeeAtSubscription: number | null; studyhall: { monthlyFee: number } }>).reduce((sum, row) => sum + amountFor(row), 0),
-        activeRevenue: (activePaidRows as Array<{ monthlyFeeAtSubscription: number | null; studyhall: { monthlyFee: number } }>).reduce((sum, row) => sum + amountFor(row), 0),
+        totalRevenue: (allPaidRows as any[]).reduce((sum, row) => sum + amountFor(row), 0),
+        monthlyRevenue: (monthlyPaidRows as any[]).reduce((sum, row) => sum + amountFor(row), 0),
+        activeRevenue: (activePaidRows as any[]).reduce((sum, row) => sum + amountFor(row), 0),
         potentialMonthlyRevenue: totalSeats * studyHall.monthlyFee,
       },
     };

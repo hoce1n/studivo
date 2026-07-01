@@ -9,6 +9,7 @@ import {
   ScrollTextIcon,
   UsersRoundIcon,
   WalletCardsIcon,
+  TrendingUpIcon,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -37,11 +38,12 @@ function adminOnlyItems(activePath?: string) {
     },
     {
       title: "مالی",
-      url: "#",
-      icon: <WalletCardsIcon />,
+      url: "/dashboard/finance",
+      icon: <TrendingUpIcon />,
+      isActive: activePath === "/dashboard/finance",
       items: [
-        { title: "پرداخت‌ها", url: "#" },
-        { title: "گزارش درآمد", url: "#" },
+        { title: "گزارش‌های مالی", url: "/dashboard/finance" },
+        { title: "پرداخت‌های معوقه", url: "/dashboard/finance#overdue" },
       ],
     },
     {
