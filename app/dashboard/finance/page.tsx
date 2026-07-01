@@ -84,7 +84,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Fina
           <div className="space-y-3">
             <Badge variant="outline" className="w-fit gap-2 bg-background/80">
               <CircleDollarSign className="size-4" />
-              گزارش مالی فاز ۱
+              گزارش مالی
             </Badge>
             <div className="space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight">پرداخت‌ها و گزارش درآمد</h1>
