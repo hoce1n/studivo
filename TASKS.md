@@ -146,10 +146,10 @@ The guiding principle is **YAGNI** (ADR-013): only the work needed to acquire th
 
 ## Milestone 1 — Marketing Foundation
 
-- [ ] Build the public marketing site under `app/(marketing)` explaining Studivo with a single clear CTA: request a demo.
-- [ ] Add landing copy, product highlights, and pricing/contact sections (Persian, RTL, consistent with existing design tokens).
-- [ ] Add SEO metadata and Open Graph tags.
-- [ ] Ensure the marketing pages are public (outside auth) and do not load tenant data.
+- [x] Build the public marketing site under `app/(marketing)` explaining Studivo with a single clear CTA: request a demo.
+- [x] Add landing copy, product highlights, and pricing/contact sections (Persian, RTL, consistent with existing design tokens).
+- [x] Add SEO metadata and Open Graph tags.
+- [x] Ensure the marketing pages are public (outside auth) and do not load tenant data.
 
 ## Milestone 2 — Lead Management
 

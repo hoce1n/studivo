@@ -197,129 +197,46 @@ This file records architectural and product decisions whose reasoning is not ful
 - Future capabilities (CRM, pipeline board, analytics, campaigns, referrals) are designed to arrive as additive, backward-compatible changes.
 - All schema changes in this phase are non-destructive: new tables, new nullable columns, and one optional relation.
 
-## ADR-014: Demo Request Experience — Full Conversion Flow
+## ADR-014: Seat Management with Payment Status
 
 **Status:** Accepted
 
-**Decision:** Implement the end-to-end demo request experience across three surfaces:
-1. The `/#demo` CTA section on the homepage (inline form that swaps to a success panel on completion).
-2. The `/contact` page (two-column layout with the same form and success panel).
-3. A new dedicated `/demo` page (primary conversion destination, linked from the navbar and hero CTA).
+**Decision:** Implement a `paymentStatus` field on the `Subscription` model (`paid` | `unpaid`) and expose it in the seat management UI.
 
-All three surfaces share the same `submitLead` server action and the same success state pattern.
-
-**Reasoning:** The homepage CTA section already existed with a non-persisting stub action. The task requires a real Lead to be created (per ADR-009) and the user to receive unambiguous confirmation with a "what happens next" explanation. Three surfaces are needed because:
-- The CTA section is the in-page anchor (`/#demo`) that most visitors reach from scroll.
-- The contact page already existed and also accepted lead data.
-- A dedicated `/demo` page gives the navbar button a clean full-page landing with full value proposition and form context, which converts better than a deep anchor link.
-
-The navbar and hero CTA buttons were updated from `/#demo` to `/demo` so visitors land on the dedicated page rather than being scrolled to the bottom of the home page.
+**Reasoning:** Operators need to track whether a member has paid for their current subscription period directly from the seat map. This reduces the need for separate spreadsheets or memory-based tracking and provides immediate visual feedback on the venue's revenue health.
 
 **Consequences:**
-- `submitLead` now persists a real `Lead` (source: `MARKETING_SITE`, status: `NEW`) and a linked `DemoRequest` in a single Prisma transaction.
-- The old simulated `setTimeout` + `console.log` implementation is replaced.
-- All three form surfaces manage their own `submitted` state and render a success panel containing the visitor's name, confirmation copy, and a 3-step "what happens next" list.
-- The `SubmitDemoResult` discriminated union (`{ success: true; leadId } | { success: false; error }`) is exported so callers can type-safely branch on the result.
-- The `ActionForm` wrapper component is not used for these forms because the success-panel swap requires a local `submitted` state that `ActionForm` does not expose.
 
-## ADR-015: Platform Route and Post-Login Routing Branch
+- `Subscription` model updated with `paymentStatus`.
+- `updatePaymentStatus` server action added for transactional updates and audit logging.
+- Visual indicators (amber/green dots/badges) added to seat cards and member lists.
+- Dashboard stats now reflect revenue "at risk" based on unpaid subscriptions.
 
-**Status:** Accepted (revised — see bug-fix below)
-
-**Decision:** Introduce `app/platform/` (a real path segment, not a route group) guarded by a new `requirePlatformUser` server-action helper. The routing branch is a single `if (user.platformRole) redirect("/platform")` guard in `dashboard/layout.tsx`, inserted before the existing `!studyhallId → /onboarding` check. The login form, callback URL, and the entire tenant dashboard remain unchanged.
-
-**Reasoning:** A platform user (SALES / SUPER_ADMIN) has `platformRole !== NULL` and typically no `studyhallId`. Without the branch they would be redirected to `/onboarding` because the existing guard checks `studyhallId` to decide whether a user is "set up". The cleanest intercept point is `dashboard/layout.tsx`, which is the shared post-login entry point for every authenticated user (because `callbackURL: "/dashboard"` is hardcoded in the login form).
-
-**Bug discovered and fixed after initial implementation:**
-
-Two architectural issues were found during manual testing and corrected in a follow-up change:
-
-1. **Redirect loop** — `requireUser()` did not select `platformRole` in its Prisma query, so the field arrived as `undefined` in every caller. `requirePlatformUser()` evaluated `if (!user.platformRole)` as `true` (undefined is falsy) and redirected to `/dashboard`, which redirected back to `/platform`, creating an infinite loop. **Fix:** `platformRole: true` was added to the `requireUser` Prisma select, making it available to every downstream helper without further changes.
-
-2. **Route ambiguity** — The platform route was originally placed under `app/(platform)/`, a Next.js route group. Route groups do not add a URL path segment, so `app/(platform)/page.tsx` resolved to `/`, conflicting with `app/(marketing)/page.tsx`. **Fix:** The directory was renamed from `app/(platform)/` to `app/platform/`, giving the platform a real, unambiguous URL segment.
-
-**Consequences (final, post-fix state):**
-
-- `requireUser()` selects `platformRole` so all helpers that call it receive the correct value.
-- `requirePlatformUser()` correctly redirects only users whose `platformRole` is `null` or `undefined`.
-- `app/dashboard/layout.tsx` remains the single source of truth for post-login routing: platform users → `/platform`, no studyhall → `/onboarding`, otherwise → tenant dashboard.
-- `app/platform/layout.tsx` is a minimal auth-guarded shell (sticky header, Studivo wordmark, role label).
-- `app/platform/page.tsx` is a placeholder that greets the user and states the sales dashboard is coming soon.
-- No login-page changes, no schema changes, no new migration.
-
-## ADR-016: Platform Leads Inbox (Milestone 3, Phase 1)
+## ADR-015: Cron Job Security and Payment Status Reset
 
 **Status:** Accepted
 
-**Decision:** Implement the minimum internal admin surface at `/platform` for managing Leads. The implementation consists of:
-- `app/actions/platform.ts` — `requireSuperAdmin`, read helpers (`getLeads`, `getLeadById`, `getPlatformStats`), and mutations (`updateLeadStatus`, `convertLeadToStudyHall`).
-- `app/platform/_components/stats-header.tsx` — 3 stat cards (total, new this week, in demo). Server Component.
-- `app/platform/_components/leads-table.tsx` — Table with client-side status/source filters and click-to-open-sheet. Client Component.
-- `app/platform/_components/lead-detail-sheet.tsx` — Side sheet with full contact info, demo request list, status updater (with `lostReason` field when LOST), and a SUPER_ADMIN-only "Convert" button. Client Component.
-- `app/platform/page.tsx` — Rewritten to fetch stats + leads in parallel, pass `isSuperAdmin` flag down.
+**Decision:** Secure the `/api/cron/renewal-reminders` route with a `CRON_SECRET` and implement automatic `paymentStatus` reset for expired subscriptions.
 
-**Reasoning:** The data fetching (stats + lead list) happens on the server in a single RSC render; the `isSuperAdmin` flag flows as a prop so client components never need to call server helpers to determine role. Client-side filtering (vs server-side via URL search params) is acceptable here because the total lead count in Phase 1 is small and the YAGNI constraint discourages pagination infrastructure. `convertLeadToStudyHall` is a placeholder that sets `status: CUSTOMER` and `convertedAt` only — the actual StudyHall creation flow is a future milestone.
+**Reasoning:** The cron route must be protected from unauthorized triggers to prevent spamming notifications and unnecessary DB load. Automatically resetting `paymentStatus` to `unpaid` when a subscription expires ensures that operators are prompted to collect payment for the new period.
 
 **Consequences:**
-- `shadcn/ui` `table` and `select` components were installed to support the table and filter dropdowns.
-- The `requireSuperAdmin` guard asserts `platformRole === "SUPER_ADMIN"` and redirects SALES users to `/platform` (read-only view). Only `convertLeadToStudyHall` requires SUPER_ADMIN; `updateLeadStatus` is available to all platform users.
-- No schema changes, no new migration. All queries are platform-level (no `studyhallId` scope).
 
-## ADR-017: Real Lead-to-StudyHall Conversion Flow
+- `CRON_SECRET` environment variable required for all cron requests.
+- `sendRenewalReminders` logic enhanced to update `paymentStatus` for expired rows.
+- `docs/CRON_SETUP.md` provides clear instructions for VPS deployment.
+
+## ADR-016: Public Landing Page Design Conversion
 
 **Status:** Accepted
 
-**Decision:** Replace the Phase 1 placeholder `convertLeadToStudyHall` (which only set `status: CUSTOMER` and `convertedAt`) with a real Prisma transaction that: (1) creates a `StudyHall` row (name derived from `lead.venueName`, or `"سالن {lead.name}"`, or the model default), (2) sets `Lead.studyhallId`, `Lead.status: CUSTOMER`, and `Lead.convertedAt` atomically, (3) optionally inserts a dormant admin `User` row if the lead has an email and no existing user account, linking it to the new StudyHall so a future invite flow can activate it.
+**Decision:** Convert the high-fidelity HTML design for the public Study Hall landing page into a production-ready Next.js implementation at `app/[slug]/page.tsx`.
 
-**Reasoning:** The schema already had the one-to-one `Lead → StudyHall` bridge (`Lead.studyhallId @unique`). Replicating the `$transaction` pattern from `completeOnboarding` in `auth.ts` was the natural path. Creating a `StudyHall` with `totalSeats: 0` and all defaults is deliberate — the venue admin configures their space after receiving the invite, not during conversion. The placeholder admin user is a stub (no password, `emailVerified: false`) that unblocks the invite-link flow in a future milestone without requiring it now (YAGNI).
-
-**Consequences:**
-- `convertLeadToStudyHall` now returns `ActionResult<{ studyhallId: string }>` so the UI can show a link to the new venue.
-- `LeadDetail` type gains `studyhallId` and `convertedAt` fields; `getLeadById` selects them.
-- `lead-detail-sheet.tsx` introduces `convertedStudyhallId` local state. It is initialised from `lead.studyhallId` so re-opening a previously converted lead immediately shows the success panel rather than the convert button.
-- `platform/page.tsx` reads the `tab` search param (`?tab=venues`) to set the `Tabs` `defaultValue`, so the "مشاهده سالن در لیست" link in the success panel opens the Venues tab automatically.
-- No schema migration required. All new columns (`studyhallId`, `convertedAt` on Lead) were already present from ADR-009.
-
-## ADR-018: Public Venue Page and Blob Image Storage
-
-**Status:** Accepted
-
-**Decision:** Add four new nullable fields to `StudyHall` (`slug @unique`, `publicPageEnabled`, `heroImage`, `galleryImages String[]`) and implement a full public venue page at `app/[slug]/page.tsx`. Images are stored in Vercel Blob (public store) via a dedicated upload API route at `app/api/upload/image/route.ts`. Settings are managed through a new `PublicPageSettingsForm` component in the existing `/dashboard/settings` page, backed by a new `updatePublicPageSettings` server action in `auth.ts`.
-
-**Reasoning:** The `[slug]` dynamic segment at the top-level app directory was chosen over `/venue/[slug]` to give venues clean, short URLs (`domain.com/my-hall`). Route conflicts are not a concern because all existing named routes (`/dashboard`, `/platform`, `/onboarding`, etc.) take precedence over the catch-all. The image upload flow uses an API route rather than a Server Action because Server Actions cannot stream multipart file data at acceptable sizes. Vercel Blob public store is used because hero and gallery images are intentionally public — no access-control layer is needed or desirable. Gallery is capped at 8 images to bound storage costs without a quota system.
+**Reasoning:** We needed a high-conversion, professional public face for individual study halls that uses real venue data while maintaining a premium academic feel.
 
 **Consequences:**
-- `prisma/schema.prisma` gains four new fields on `StudyHall`; a migration must be applied manually before deployment.
-- `requireUser` select is extended to include the four fields so the settings page can pre-populate the form without an extra query.
-- `next.config.ts` adds `*.public.blob.vercel-storage.com` to `images.remotePatterns` so `next/image` can optimise blob-hosted images.
-- The public page calls `notFound()` for slugs that don't exist or whose `publicPageEnabled` is `false`, preserving privacy for venues that haven't opted in.
-- `updatePublicPageSettings` performs a uniqueness check on the slug (excluding the current hall) before writing, returning a user-friendly Persian error on collision.
 
-## ADR-014: Payment Status Management in Seat Sheet
-
-**Status:** Accepted
-
-**Decision:** Implement a direct toggle for `paymentStatus` in the seat management Sheet and surface it via small visual indicators (dots/badges) in the seat map and member list.
-
-**Reasoning:** Operators need a quick way to track whether a student has paid for their current subscription without leaving the main seat map. While a full invoicing system is planned, a simple binary status (`paid`/`unpaid`) provides immediate operational value. Using a toggle in the Sheet follows the existing pattern of seat operations (renew/swap/release) and keeps the UI focused.
-
-**Consequences:**
-- A new `updatePaymentStatus` server action handles the state change inside a transaction and records an `AuditLog`.
-- The seat map cards and member list now include a small status dot (green for paid, pulsing amber for unpaid) to highlight pending payments.
-- This bridges the gap between simple reservation and full financial tracking.
-
-## ADR-015: Secure Cron Route and Payment Status Reset in Renewal Reminders
-
-**Status:** Accepted
-
-**Decision:** The `/api/cron/renewal-reminders` route will be secured using a `CRON_SECRET` environment variable, requiring a Bearer token in the `Authorization` header. Additionally, the cron job will automatically reset the `paymentStatus` to `unpaid` for expired subscriptions that are currently marked as `paid`.
-
-**Reasoning:**
-- **Security**: Exposing cron routes without authentication is a significant security risk. A shared secret token ensures that only authorized callers (e.g., the server's crontab) can trigger the reminder process.
-- **Automation**: Automatically resetting `paymentStatus` for expired subscriptions streamlines operator workflow by flagging overdue payments without manual intervention. This aligns with the goal of reducing human error and protecting revenue.
-
-**Consequences:**
-- The `CRON_SECRET` environment variable must be set on the VPS where the application is deployed.
-- The cron job command must include the `Authorization` header with the `CRON_SECRET`.
-- The `renewal-reminders` logic now includes a Prisma transaction to update `paymentStatus` for expired subscriptions.
-- Clear documentation (`docs/CRON_SETUP.md`) is provided for administrators to set up the cron job securely.
+- Server Component fetching real `StudyHall` data by slug.
+- Dedicated `VenueDemoForm` and `PublicSeatMap` components for public use.
+- Reused `submitLead` action for public visit/demo requests.
+- Dynamic metadata and Open Graph tags for better SEO.
