@@ -62,12 +62,12 @@ export function JalaliDatePicker({
             type="button"
             variant="outline"
             className={cn(
-              "w-full justify-start text-right font-normal",
+              "w-full justify-start p-1 items-center text-right font-normal",
               !selected && "text-muted-foreground",
               buttonClassName,
             )}
           >
-            <CalendarIcon className="ml-2 size-4 opacity-50" />
+            <CalendarIcon className="mr-2 size-4 opacity-50" />
             {selected ? format(selected, "yyyy/MM/dd") : <span>{placeholder}</span>}
           </Button>
         </PopoverTrigger>
