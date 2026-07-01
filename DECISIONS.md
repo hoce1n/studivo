@@ -240,3 +240,21 @@ This file records architectural and product decisions whose reasoning is not ful
 - Dedicated `VenueDemoForm` and `PublicSeatMap` components for public use.
 - Reused `submitLead` action for public visit/demo requests.
 - Dynamic metadata and Open Graph tags for better SEO.
+
+## ADR-017: Financial Reporting Foundation
+
+### Context
+To provide study hall managers with better insights into their revenue and payment status, financial reporting features are needed. This includes tracking revenue, overdue payments, and occupancy-related revenue statistics.
+
+### Decision
+1.  **Minimal Schema Extensions**: Instead of a full `Invoice` model, we've added `monthlyFeeAtSubscription` (Float) and `paymentDate` (DateTime) as nullable fields to the existing `Subscription` model. This keeps the schema lean (YAGNI) while providing enough data for initial financial reports.
+2.  **New Server Actions**: Created `fetchRevenueReport(dateRange)`, `fetchOverduePayments()`, and `fetchOccupancyRevenueStats()` to encapsulate financial logic, ensuring proper RBAC and tenant scoping.
+3.  **Prioritization**: `fetchOverduePayments()` is prioritized first. This directly addresses a critical operational need for hall managers: identifying and following up on unpaid subscriptions to recover lost revenue. `fetchOccupancyRevenueStats()` provides valuable insights into potential vs. actual revenue, and `fetchRevenueReport()` offers a broader view of financial performance.
+4.  **RBAC and Scoping**: All new server actions are scoped by `studyhallId` using `requireScopedUser()`, ensuring that managers can only access data for their own study halls.
+5.  **Optimized Prisma Queries**: Queries are designed to be efficient, leveraging Prisma's `findMany` and `count` methods with appropriate `where` clauses and `select` statements to fetch only necessary data.
+
+### Consequences
+-   Hall managers gain immediate visibility into their financial health.
+-   The minimal schema extensions reduce complexity and allow for future expansion without major refactoring.
+-   The new server actions provide a clear API for financial data, facilitating UI development.
+-   The prioritization ensures that the most impactful financial feature is delivered first.

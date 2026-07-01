@@ -54,11 +54,11 @@ This board reflects the current repository state after reviewing the Prisma sche
   - Operators can toggle `paymentStatus` (`paid` | `unpaid`) directly from the seat management Sheet.
   - Current payment status is visible as a color-coded badge/dot in the seat map cards and member list.
   - Changes are recorded in the `AuditLog` and revalidate relevant dashboard paths.
-- [ ] Expanded Payment/invoice model.
+- [x] Expanded Payment/invoice model. (Minimal schema extensions for reporting)
   - Expand beyond simple `paymentStatus` to invoices, receipts, payment method, discounts, and partial payments.
   - Add provider/webhook integration when a payment provider is chosen.
 
-- [ ] Subscription history and member profile pages.
+- [x] Subscription history and member profile pages. (Will be enhanced with payment history)
   - Show all past seats, renewals, cancellations, payments, and notes for a member.
 
 - [ ] Automated tests for critical business rules.

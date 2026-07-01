@@ -192,7 +192,9 @@ model Subscription {
   seatId        String
   startDate     DateTime @default(now())
   endDate       DateTime
-  paymentStatus String   @default("unpaid") // paid, unpaid
+  paymentStatus          String    @default("unpaid") // paid, unpaid
+  monthlyFeeAtSubscription Float?    // The monthly fee at the time of subscription creation/renewal
+  paymentDate              DateTime? // When the payment was recorded
   status        String   @default("active") // active, expired, cancelled
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
