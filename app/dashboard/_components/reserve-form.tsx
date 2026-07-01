@@ -234,11 +234,20 @@ export function ReserveForm({
   const [releasePending, startReleaseTransition] = React.useTransition();
   const [paymentPending, startPaymentTransition] = React.useTransition();
 
+  const [currentSeat, setCurrentSeat] = React.useState<ReserveFormSeat | null>(seat);
+
+  React.useEffect(() => {
+    if (seat) {
+      setCurrentSeat(seat);
+      setRenewDate(getDefaultEndDate());
+    }
+  }, [seat]);
+
   const reservationSeatNumber = normalizeSeatNumber(
-    seat?.reserveSeatNumber ?? seat?.seatNumber,
+    currentSeat?.reserveSeatNumber ?? currentSeat?.seatNumber,
   );
-  const isAvailable = seat?.status === "available";
-  const subscription = seat?.subscription;
+  const isAvailable = currentSeat?.status === "available";
+  const subscription = currentSeat?.subscription;
   const smartRenewalPreview = React.useMemo(
     () =>
       subscription
@@ -383,6 +392,19 @@ export function ReserveForm({
         if (!result.success) {
           throw new Error(result.error || "تغییر وضعیت پرداخت ناموفق بود.");
         }
+        setCurrentSeat((previousSeat) =>
+          previousSeat
+            ? {
+                ...previousSeat,
+                subscription: previousSeat.subscription
+                  ? {
+                      ...previousSeat.subscription,
+                      paymentStatus: nextStatus,
+                    }
+                  : previousSeat.subscription,
+              }
+            : previousSeat,
+        );
         toast.success(result.message || "وضعیت پرداخت با موفقیت به‌روزرسانی شد.");
       } catch (error) {
         toast.error(getActionErrorMessage(error, "تغییر وضعیت پرداخت ناموفق بود."));
@@ -391,13 +413,13 @@ export function ReserveForm({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet key={seat?.id ?? "empty"} open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="overflow-y-auto sm:max-w-md">
         <SheetHeader>
           <SheetTitle className="text-right">
             {isAvailable
               ? "رزرو سریع صندلی"
-              : `مدیریت صندلی ${seat?.seatNumber ?? ""}`}
+              : `مدیریت صندلی ${currentSeat?.seatNumber ?? ""}`}
           </SheetTitle>
           <SheetDescription className="text-right">
             {isAvailable
@@ -414,7 +436,7 @@ export function ReserveForm({
           ) : null}
           {isAvailable ? (
             <ActionForm
-              key={seat?.id ?? "empty"}
+              key={currentSeat?.id ?? "empty"}
               action={reserveSeat}
               successMessage="رزرو صندلی با موفقیت ثبت شد."
               resetOnSuccess
@@ -702,7 +724,7 @@ export function ReserveForm({
                         <Trash2 />
                       </AlertDialogMedia>
                       <AlertDialogTitle>
-                        تخلیه صندلی {seat?.seatNumber}؟
+                        تخلیه صندلی {currentSeat?.seatNumber}؟
                       </AlertDialogTitle>
                       <AlertDialogDescription>
                         اشتراک فعال {subscription.memberName} لغو می‌شود و صندلی
@@ -730,7 +752,7 @@ export function ReserveForm({
               </div>
               </TabsContent>
               <TabsContent value="history">
-                <SeatHistoryTimeline history={seat?.history ?? []} />
+                <SeatHistoryTimeline history={currentSeat?.history ?? []} />
               </TabsContent>
             </Tabs>
           ) : (
