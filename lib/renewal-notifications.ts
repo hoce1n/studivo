@@ -13,6 +13,7 @@ type ReminderCandidate = {
   endDate: Date;
   kind: "renewal" | "expired";
   daysLeft: number;
+  paymentStatus: string;
 };
 
 function getReminderKey(kind: ReminderCandidate["kind"], dateKey: string) {
@@ -68,6 +69,7 @@ export async function sendRenewalReminders() {
       id: true,
       endDate: true,
       studyhallId: true,
+      paymentStatus: true,
       studyhall: {
         select: {
           name: true,
@@ -80,6 +82,23 @@ export async function sendRenewalReminders() {
       user: { select: { name: true } },
     },
   });
+
+  // Handle paymentStatus reset for expired subscriptions
+  const expiredPaidSubscriptions = subscriptions.filter(
+    (sub) => sub.endDate < now && sub.paymentStatus === "paid"
+  );
+
+  if (expiredPaidSubscriptions.length > 0) {
+    console.log(`Found ${expiredPaidSubscriptions.length} expired paid subscriptions. Setting paymentStatus to unpaid.`);
+    await prisma.$transaction(
+      expiredPaidSubscriptions.map((sub) =>
+        prisma.subscription.update({
+          where: { id: sub.id },
+          data: { paymentStatus: "unpaid" },
+        })
+      )
+    );
+  }
 
   const candidates: ReminderCandidate[] = subscriptions.flatMap((subscription) => {
     const daysLeft = Math.ceil(

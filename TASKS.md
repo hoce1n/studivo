@@ -26,6 +26,7 @@ This board reflects the current repository state after reviewing the Prisma sche
   - Push subscriptions persist in PostgreSQL by `userId` and `studyhallId`.
   - Daily cron route sends renewal/expiry reminders to admin/staff devices.
   - Owner-configurable reminder timing and notification preferences UI are complete.
+  - Cron job is secured with `CRON_SECRET` and setup instructions are documented for self-hosted VPS.
 
 ## Planned Features (Short-term)
 

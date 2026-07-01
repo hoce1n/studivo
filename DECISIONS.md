@@ -307,3 +307,19 @@ Two architectural issues were found during manual testing and corrected in a fol
 - A new `updatePaymentStatus` server action handles the state change inside a transaction and records an `AuditLog`.
 - The seat map cards and member list now include a small status dot (green for paid, pulsing amber for unpaid) to highlight pending payments.
 - This bridges the gap between simple reservation and full financial tracking.
+
+## ADR-015: Secure Cron Route and Payment Status Reset in Renewal Reminders
+
+**Status:** Accepted
+
+**Decision:** The `/api/cron/renewal-reminders` route will be secured using a `CRON_SECRET` environment variable, requiring a Bearer token in the `Authorization` header. Additionally, the cron job will automatically reset the `paymentStatus` to `unpaid` for expired subscriptions that are currently marked as `paid`.
+
+**Reasoning:**
+- **Security**: Exposing cron routes without authentication is a significant security risk. A shared secret token ensures that only authorized callers (e.g., the server's crontab) can trigger the reminder process.
+- **Automation**: Automatically resetting `paymentStatus` for expired subscriptions streamlines operator workflow by flagging overdue payments without manual intervention. This aligns with the goal of reducing human error and protecting revenue.
+
+**Consequences:**
+- The `CRON_SECRET` environment variable must be set on the VPS where the application is deployed.
+- The cron job command must include the `Authorization` header with the `CRON_SECRET`.
+- The `renewal-reminders` logic now includes a Prisma transaction to update `paymentStatus` for expired subscriptions.
+- Clear documentation (`docs/CRON_SETUP.md`) is provided for administrators to set up the cron job securely.
