@@ -1,33 +1,68 @@
 "use server";
 
 import { z } from "zod";
-import { prisma } from "@/lib/db";
-import { actionError, revalidateOperationalPaths } from "@/app/actions/audit";
-import type { ActionResult } from "@/app/actions/audit";
+
 import { requireScopedUser } from "@/app/actions/auth";
+import { actionError, type ActionResult } from "@/app/actions/audit";
+import { prisma } from "@/lib/db";
 
-// ---------------------------------------------------------------------------
-// Schema for date range validation
-// ---------------------------------------------------------------------------
-const dateRangeSchema = z.object({
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
-});
+const dateRangeSchema = z
+  .object({
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+  })
+  .refine((value) => value.startDate <= value.endDate, {
+    message: "تاریخ شروع گزارش باید قبل از تاریخ پایان باشد.",
+    path: ["startDate"],
+  });
 
-// ---------------------------------------------------------------------------
-// fetchRevenueReport
-// Fetches revenue data for a given date range.
-// ---------------------------------------------------------------------------
-export async function fetchRevenueReport(startDate: Date, endDate: Date): Promise<ActionResult<any>> {
+type RevenueTransaction = {
+  id: string;
+  monthlyFeeAtSubscription: number | null;
+  paymentDate: Date | null;
+  user: { name: string; phoneNumber: string | null };
+  seat: { seatNumber: number };
+};
+
+type RevenueReport = {
+  totalRevenue: number;
+  transactions: RevenueTransaction[];
+};
+
+type OverduePayment = {
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  monthlyFeeAtSubscription: number | null;
+  user: { name: string; phoneNumber: string | null };
+  seat: { seatNumber: number };
+};
+
+type OverduePaymentsReport = {
+  totalOverdueAmount: number;
+  overdueSubscriptions: OverduePayment[];
+};
+
+type OccupancyRevenueStats = {
+  totalSeats: number;
+  activeSubscriptions: number;
+  paidActiveSubscriptions: number;
+  unpaidActiveSubscriptions: number;
+  occupancyRate: number;
+  potentialMonthlyRevenue: number;
+  currentMonthlyRevenue: number;
+};
+
+export async function fetchRevenueReport(startDate: Date, endDate: Date): Promise<ActionResult<RevenueReport>> {
   const user = await requireScopedUser();
   const parsed = dateRangeSchema.safeParse({ startDate, endDate });
 
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "تاریخ‌های گزارش معتبر نیستند." };
+    return { success: false, error: parsed.error.issues[0]?.message ?? "بازه گزارش درآمد معتبر نیست." };
   }
 
   try {
-    const revenueData = await prisma.subscription.findMany({
+    const transactions = await prisma.subscription.findMany({
       where: {
         studyhallId: user.studyhallId,
         paymentStatus: "paid",
@@ -40,19 +75,17 @@ export async function fetchRevenueReport(startDate: Date, endDate: Date): Promis
         id: true,
         monthlyFeeAtSubscription: true,
         paymentDate: true,
-        user: { select: { name: true } },
+        user: { select: { name: true, phoneNumber: true } },
         seat: { select: { seatNumber: true } },
       },
-      orderBy: { paymentDate: "asc" },
+      orderBy: { paymentDate: "desc" },
     });
-
-    const totalRevenue = revenueData.reduce((sum, sub) => sum + (sub.monthlyFeeAtSubscription || 0), 0);
 
     return {
       success: true,
       data: {
-        totalRevenue,
-        transactions: revenueData,
+        totalRevenue: transactions.reduce((sum: number, item: RevenueTransaction) => sum + (item.monthlyFeeAtSubscription ?? 0), 0),
+        transactions,
       },
     };
   } catch (error) {
@@ -60,11 +93,7 @@ export async function fetchRevenueReport(startDate: Date, endDate: Date): Promis
   }
 }
 
-// ---------------------------------------------------------------------------
-// fetchOverduePayments
-// Fetches subscriptions with unpaid status that are past their end date.
-// ---------------------------------------------------------------------------
-export async function fetchOverduePayments(): Promise<ActionResult<any>> {
+export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymentsReport>> {
   const user = await requireScopedUser();
 
   try {
@@ -72,7 +101,8 @@ export async function fetchOverduePayments(): Promise<ActionResult<any>> {
       where: {
         studyhallId: user.studyhallId,
         paymentStatus: "unpaid",
-        endDate: { lt: new Date() }, // Subscriptions that have ended and are unpaid
+        status: "active",
+        endDate: { lt: new Date() },
       },
       select: {
         id: true,
@@ -85,29 +115,23 @@ export async function fetchOverduePayments(): Promise<ActionResult<any>> {
       orderBy: { endDate: "asc" },
     });
 
-    const totalOverdueAmount = overdueSubscriptions.reduce((sum, sub) => sum + (sub.monthlyFeeAtSubscription || 0), 0);
-
     return {
       success: true,
       data: {
-        totalOverdueAmount,
+        totalOverdueAmount: overdueSubscriptions.reduce((sum: number, item: OverduePayment) => sum + (item.monthlyFeeAtSubscription ?? 0), 0),
         overdueSubscriptions,
       },
     };
   } catch (error) {
-    return actionError(error, "خطا در دریافت لیست پرداخت‌های معوقه.");
+    return actionError(error, "خطا در دریافت پرداخت‌های معوقه.");
   }
 }
 
-// ---------------------------------------------------------------------------
-// fetchOccupancyRevenueStats
-// Fetches current occupancy and potential revenue stats.
-// ---------------------------------------------------------------------------
-export async function fetchOccupancyRevenueStats(): Promise<ActionResult<any>> {
+export async function fetchOccupancyRevenueStats(): Promise<ActionResult<OccupancyRevenueStats>> {
   const user = await requireScopedUser();
 
   try {
-    const studyHall = await prisma.studyHall.findUnique({
+    const studyHall = await prisma.studyHall.findFirst({
       where: { id: user.studyhallId },
       select: { totalSeats: true, monthlyFee: true },
     });
@@ -116,39 +140,29 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<any>> {
       return { success: false, error: "سالن مطالعه یافت نشد." };
     }
 
-    const activeSubscriptions = await prisma.subscription.count({
-      where: {
-        studyhallId: user.studyhallId,
-        status: "active",
-        endDate: { gte: new Date() },
-      },
-    });
+    const now = new Date();
+    const [activeSubscriptions, paidActiveSubscriptions] = await Promise.all([
+      prisma.subscription.count({
+        where: { studyhallId: user.studyhallId, status: "active", endDate: { gte: now } },
+      }),
+      prisma.subscription.count({
+        where: { studyhallId: user.studyhallId, status: "active", paymentStatus: "paid", endDate: { gte: now } },
+      }),
+    ]);
 
-    const paidActiveSubscriptions = await prisma.subscription.count({
-      where: {
-        studyhallId: user.studyhallId,
-        status: "active",
-        paymentStatus: "paid",
-        endDate: { gte: new Date() },
-      },
-    });
-
-    const unpaidActiveSubscriptions = activeSubscriptions - paidActiveSubscriptions;
-
-    const occupancyRate = (activeSubscriptions / studyHall.totalSeats) * 100;
-    const potentialMonthlyRevenue = studyHall.totalSeats * studyHall.monthlyFee;
-    const currentMonthlyRevenue = paidActiveSubscriptions * studyHall.monthlyFee;
+    const totalSeats = studyHall.totalSeats;
+    const occupancyRate = totalSeats ? Math.round((activeSubscriptions / totalSeats) * 100) : 0;
 
     return {
       success: true,
       data: {
-        totalSeats: studyHall.totalSeats,
+        totalSeats,
         activeSubscriptions,
         paidActiveSubscriptions,
-        unpaidActiveSubscriptions,
-        occupancyRate: parseFloat(occupancyRate.toFixed(2)),
-        potentialMonthlyRevenue,
-        currentMonthlyRevenue,
+        unpaidActiveSubscriptions: activeSubscriptions - paidActiveSubscriptions,
+        occupancyRate,
+        potentialMonthlyRevenue: totalSeats * studyHall.monthlyFee,
+        currentMonthlyRevenue: paidActiveSubscriptions * studyHall.monthlyFee,
       },
     };
   } catch (error) {
