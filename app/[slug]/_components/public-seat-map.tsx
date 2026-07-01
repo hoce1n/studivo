@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { Armchair } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type SeatStatus = "available" | "reserved" | "expired";
@@ -11,7 +10,7 @@ type PublicSeatMapProps = {
   occupiedSeats?: number;
 };
 
-function getSeatStatus(index: number, occupiedSeats: number): SeatStatus {
+function getSeatStatus(index: number, totalSeats: number, occupiedSeats: number): SeatStatus {
   // Distribute occupied seats across the map
   const occupancyRate = occupiedSeats / Math.max(totalSeats, 1);
   const seatIndex = index / Math.max(totalSeats, 1);
@@ -44,7 +43,7 @@ export function PublicSeatMap({ totalSeats, occupiedSeats = 0 }: PublicSeatMapPr
   const seats = useMemo(() => {
     return Array.from({ length: totalSeats }, (_, i) => ({
       number: i + 1,
-      status: getSeatStatus(i, occupiedSeats),
+      status: getSeatStatus(i, totalSeats, occupiedSeats),
     }));
   }, [totalSeats, occupiedSeats]);
 
