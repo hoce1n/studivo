@@ -1,10 +1,8 @@
-import { Banknote, CalendarDays, CircleDollarSign, TrendingUp, UsersRound } from "lucide-react";
+import { Banknote, CircleDollarSign, TrendingUp, UsersRound } from "lucide-react";
 import { fetchOccupancyRevenueStats, fetchOverduePayments, fetchRevenueReport } from "@/app/actions/finance";
+import { RevenueDateRangeForm } from "@/app/dashboard/finance/_components/revenue-date-range-form";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -24,13 +22,9 @@ function formatDate(date: Date | null | undefined) {
   return date ? dateFormatter.format(new Date(date)) : "ثبت نشده";
 }
 
-function isoDateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
 function parseDateParam(value: string | string[] | undefined) {
   if (typeof value !== "string") return undefined;
-  const parsed = new Date(`${value}T00:00:00.000Z`);
+  const parsed = new Date(value.includes("T") ? value : `${value}T00:00:00.000Z`);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
@@ -84,8 +78,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Fina
   ];
 
   return (
-    <main className="space-y-6" dir="rtl">
-      <section className="overflow-hidden rounded-3xl border bg-gradient-to-br from-background via-background to-muted/60 p-6 shadow-sm">
+    <main className="space-y-6">
+      <section className="overflow-hidden rounded-3xl border bg-linear-to-br from-background via-background to-muted/60 p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">
             <Badge variant="outline" className="w-fit gap-2 bg-background/80">
@@ -186,20 +180,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Fina
             <CardDescription>پرداخت‌های ثبت‌شده در بازه انتخابی.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <form className="grid gap-3 rounded-2xl border bg-muted/30 p-4 sm:grid-cols-[1fr_1fr_auto]" action="/dashboard/finance">
-              <div className="space-y-2">
-                <Label htmlFor="startDate">از تاریخ</Label>
-                <Input id="startDate" name="startDate" type="date" defaultValue={isoDateInputValue(startDate)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endDate">تا تاریخ</Label>
-                <Input id="endDate" name="endDate" type="date" defaultValue={isoDateInputValue(endDate)} />
-              </div>
-              <Button type="submit" className="self-end gap-2">
-                <CalendarDays className="size-4" />
-                اعمال
-              </Button>
-            </form>
+            <RevenueDateRangeForm startDate={startDate} endDate={endDate} />
 
             <Separator />
 
