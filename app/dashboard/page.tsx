@@ -300,15 +300,18 @@ export default async function Page({ searchParams }: PageProps) {
                   paymentStatus: seat.subscription.paymentStatus,
                 }
               : undefined,
-            history: seat.subscriptions.slice(0, 8).map((item) => ({
-              id: item.id,
-              memberName: item.user.name ?? "بدون نام",
-              phoneNumber: item.user.phoneNumber ?? "—",
-              startDate: formatDate(item.startDate),
-              endDate: formatDate(item.endDate),
-              status: item.status,
-              paymentStatus: item.paymentStatus,
-            })),
+            history: seat.subscriptions
+              .filter((item) => item.status !== "active")
+              .slice(0, 8)
+              .map((item) => ({
+                id: item.id,
+                memberName: item.user.name ?? "بدون نام",
+                phoneNumber: item.user.phoneNumber ?? "—",
+                startDate: formatDate(item.startDate),
+                endDate: formatDate(item.endDate),
+                status: item.status,
+                paymentStatus: item.paymentStatus,
+              })),
           }))}
           shouldSortByRenewal={shouldSortByRenewal}
           statusCopy={statusCopy}
