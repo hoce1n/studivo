@@ -9,36 +9,35 @@ import {
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 import { StarIcon } from "lucide-react";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 
 const testimonials = [
   {
     id: 1,
-    name: "علیرضا محمدی",
-    designation: "مدیر سالن مطالعه گام",
-    company: "تهران",
+    name: "غزال پیرایش",
+    designation: "مدیر سالن مطالعه سنجش",
+    company: "نیشابور",
     testimonial:
       "استادیو دقیقاً همان چیزی بود که برای نظم دادن به سالن نیاز داشتیم. قبلاً تداخل صندلی‌ها و پیگیری تمدیدها وقت زیادی از ما می‌گرفت، اما الان همه چیز شفاف و سیستمی شده است.",
-    avatar: "https://randomuser.me/api/portraits/men/1.jpg",
+    avatar: "",
   },
   {
     id: 2,
-    name: "مریم رضایی",
-    designation: "مؤسس پانسیون مطالعاتی هدف",
-    company: "اصفهان",
+    name: "حسین باقری",
+    designation: "مراقب سالن مطالعه سنجش",
+    company: "نیشابور",
     testimonial:
       "رابط کاربری فارسی و ساده استادیو باعث شد پرسنل ما در کمتر از یک روز کار با آن را یاد بگیرند. نقشه زنده صندلی‌ها بهترین ویژگی برای مدیریت ظرفیت در روزهای شلوغ است.",
-    avatar: "https://randomuser.me/api/portraits/women/2.jpg",
+    avatar: "",
   },
   {
     id: 3,
-    name: "سعید حسینی",
-    designation: "مدیر کتابخانه خصوصی فرهنگ",
-    company: "شیراز",
+    name: "علی محمدیان",
+    designation: "مراقب سالن مطالعه سنجش",
+    company: "نیشابور",
     testimonial:
       "از وقتی از استادیو استفاده می‌کنیم، هیچ تمدیدی را فراموش نکردیم. گزارش‌های مالی و آمار اشغال صندلی‌ها دید خیلی خوبی برای برنامه‌ریزی بهتر به ما داده است.",
-    avatar: "https://randomuser.me/api/portraits/men/3.jpg",
+    avatar: "",
   },
 ];
 const Testimonial = () => {
