@@ -74,7 +74,7 @@ export function LoginForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
-            placeholder="m@example.com"
+            placeholder="m@studivo.ir"
             required
             className="bg-background"
           />
