@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/css" href="https://www.xml-sitemaps.com/css/sitemap.css"?>
+<urlset
+      xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+  xmlns:fo="http://www.w3.org/1999/XSL/Format"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml"
+      xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+<!-- created with Free Online Sitemap Generator www.xml-sitemaps.com -->
+
+
+<url>
+  <loc>https://studivo.ir/</loc>
+  <lastmod>2026-07-02T12:55:29+00:00</lastmod>
+  <priority>1.00</priority>
+</url>
+<url>
+  <loc>https://studivo.ir/dashboard</loc>
+  <lastmod>2026-07-02T12:55:29+00:00</lastmod>
+  <priority>0.80</priority>
+</url>
+<url>
+  <loc>https://studivo.ir/demo</loc>
+  <lastmod>2026-07-02T12:55:29+00:00</lastmod>
+  <priority>0.80</priority>
+</url>
+<url>
+  <loc>https://studivo.ir/about</loc>
+  <lastmod>2026-07-02T12:55:29+00:00</lastmod>
+  <priority>0.80</priority>
+</url>
+<url>
+  <loc>https://studivo.ir/contact</loc>
+  <lastmod>2026-07-02T12:55:29+00:00</lastmod>
+  <priority>0.80</priority>
+</url>
+<url>
+  <loc>https://studivo.ir/terms</loc>
+  <lastmod>2026-07-02T12:55:29+00:00</lastmod>
+  <priority>0.80</priority>
+</url>
+<url>
+  <loc>https://studivo.ir/privacy</loc>
+  <lastmod>2026-07-02T12:55:29+00:00</lastmod>
+  <priority>0.80</priority>
+</url>
+<url>
+  <loc>https://studivo.ir/refund</loc>
+  <lastmod>2026-07-02T12:55:29+00:00</lastmod>
+  <priority>0.80</priority>
+</url>
+<url>
+  <loc>https://studivo.ir/login</loc>
+  <lastmod>2026-07-02T12:55:29+00:00</lastmod>
+  <priority>0.64</priority>
+</url>
+
+</urlset>
