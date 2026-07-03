@@ -1,28 +1,18 @@
 import type { LegalDocumentSlug, RelatedLegalDocument } from "./types";
+import { STATIC_LEGAL_DOCUMENTS } from "./content";
 
 export const LEGAL_DOCUMENTS: Record<
   LegalDocumentSlug,
   Omit<RelatedLegalDocument, "href"> & { path: string }
-> = {
-  "term-of-service": {
-    slug: "term-of-service",
-    path: "/term-of-service",
-    title: "شرایط استفاده",
-    description: "قوانین و ضوابط استفاده از خدمات استادیو",
-  },
-  "privacy-policy": {
-    slug: "privacy-policy",
-    path: "/privacy-policy",
-    title: "سیاست حفظ حریم خصوصی",
-    description: "نحوه جمع‌آوری، استفاده و حفاظت از اطلاعات کاربران",
-  },
-  "refund-policy": {
-    slug: "refund-policy",
-    path: "/refund-policy",
-    title: "سیاست بازپرداخت",
-    description: "شرایط بازپرداخت اشتراک و موارد استثنا",
-  },
-};
+> = STATIC_LEGAL_DOCUMENTS.reduce((acc, doc) => {
+  acc[doc.slug] = {
+    slug: doc.slug,
+    path: `/${doc.slug}`,
+    title: doc.title,
+    description: doc.description,
+  };
+  return acc;
+}, {} as any);
 
 export function getRelatedDocuments(
   currentSlug: LegalDocumentSlug
