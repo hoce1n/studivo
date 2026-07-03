@@ -1,0 +1,12 @@
+export { BackToTopButton } from "./BackToTopButton";
+export { CopyHeadingLink } from "./CopyHeadingLink";
+export { LegalContent } from "./LegalContent";
+export { LegalFooter } from "./LegalFooter";
+export { LegalHeader } from "./LegalHeader";
+export { LegalLayout } from "./LegalLayout";
+export { LegalMobileTOC } from "./LegalMobileTOC";
+export { LegalPageInteractions, LegalSidebarTOC } from "./LegalPageInteractions";
+export { LegalRelatedDocs } from "./LegalRelatedDocs";
+export { LegalSidebar } from "./LegalSidebar";
+export { LegalTOC, LegalTOCWithObserver, useActiveHeading } from "./LegalTOC";
+export { ReadingProgress } from "./ReadingProgress";

@@ -14,9 +14,9 @@ const footerLinks = [
   { href: "/", label: "خانه" },
   { href: "/about", label: "درباره ما" },
   { href: "/contact", label: "تماس با ما" },
-  { href: "/terms", label: "قوانین و مقررات" },
-  { href: "/privacy", label: "حریم خصوصی" },
-  { href: "/refund", label: "سیاست بازگشت وجه" },
+  { href: "/term-of-service", label: "قوانین و مقررات" },
+  { href: "/privacy-policy", label: "حریم خصوصی" },
+  { href: "/refund-policy", label: "سیاست بازگشت وجه" },
 ];
 
 function StackedCircularFooter() {
