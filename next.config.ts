@@ -2,7 +2,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["studivo.ir", "192.168.227.1"],
+  allowedDevOrigins: ["studivo.ir"],
   images: {
     remotePatterns: [
       {
@@ -10,25 +10,6 @@ const nextConfig: NextConfig = {
         hostname: "*.public.blob.vercel-storage.com",
       },
     ],
-  },
-  async redirects() {
-    return [
-      {
-        source: "/terms",
-        destination: "/term-of-service",
-        permanent: true,
-      },
-      {
-        source: "/privacy",
-        destination: "/privacy-policy",
-        permanent: true,
-      },
-      {
-        source: "/refund",
-        destination: "/refund-policy",
-        permanent: true,
-      },
-    ];
   },
 };
 
