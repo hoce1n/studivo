@@ -1,47 +1,136 @@
 export const CONTRACT_TEMPLATE = `
-## Studivo Service Agreement
+# قرارداد ارائه خدمات نرم‌افزار استادیو
 
-This Service Agreement (the "Agreement") is made and entered into as of **{{contractDate}}** (the "Effective Date"), by and between Studivo ("Service Provider") and **{{customerName}}** ("Customer").
+**شماره قرارداد:** {{contractNumber}}
 
-**Contract Number:** {{contractNumber}}
+**تاریخ انعقاد:** {{contractDate}}
 
-**Customer Details:**
-*   **Study Hall Name:** {{customerName}}
-*   **Manager Name:** {{managerName}}
-*   **Phone Number:** {{phoneNumber}}
-*   **Current Subscription Plan:** {{subscriptionPlan}}
+این قرارداد بین اشخاص زیر منعقد می‌شود:
 
-### 1. Services Provided
+## ۱. طرفین قرارداد
 
-Studivo agrees to provide the Customer with access to its cloud-based study hall management software (the "Service"). The Service includes, but is not limited to, features for managing study hall members, seats, subscriptions, and reporting.
+### ارائه‌دهنده خدمات
 
-### 2. Term and Termination
+نام: حسین ..................
 
-This Agreement shall commence on the Effective Date and continue for the duration of the Customer's active subscription. Either party may terminate this Agreement in accordance with the terms of the current subscription plan and Studivo's Terms of Service.
+نام تجاری: استادیو (Studivo)
 
-### 3. Fees and Payment
+شماره تماس: 09039328727
 
-Customer agrees to pay Studivo the fees associated with their selected subscription plan. All fees are non-refundable, except as explicitly stated in Studivo's Refund Policy.
+که در این قرارداد «استادیو» نامیده می‌شود.
 
-### 4. Data Privacy and Security
+### مشتری
 
-Studivo is committed to protecting the privacy and security of Customer data. All data collected and processed through the Service will be handled in accordance with Studivo's Privacy Policy.
+نام شخص / مجموعه: {{customerName}}
 
-### 5. Intellectual Property
+نام نماینده (در صورت وجود): {{managerName}}
 
-All intellectual property rights related to the Studivo Service, including software, trademarks, and content, remain the sole property of Studivo. Customer is granted a limited, non-exclusive, non-transferable license to use the Service during the term of this Agreement.
+شماره تماس: {{phoneNumber}}
 
-### 6. Limitation of Liability
+که در این قرارداد «مشتری» نامیده می‌شود.
 
-Studivo shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses, resulting from (a) your access to or use of or inability to access or use the service; (b) any conduct or content of any third party on the service.
+---
 
-### 7. Governing Law
+## ۲. موضوع قرارداد
 
-This Agreement shall be governed by and construed in accordance with the laws of the Islamic Republic of Iran.
+موضوع این قرارداد، ارائه دسترسی به نرم‌افزار ابری استادیو به‌منظور مدیریت سالن مطالعه و استفاده از امکانات نرم‌افزار، مطابق پلن انتخابی مشتری است.
 
-### 8. Entire Agreement
+---
 
-This Agreement constitutes the entire agreement between Studivo and the Customer regarding the use of the Service and supersedes all prior and contemporaneous agreements, understandings, and communications, whether written or oral.
+## ۳. مدت قرارداد
 
-By using the Studivo Service, the Customer acknowledges that they have read, understood, and agree to be bound by the terms and conditions of this Agreement.
+این قرارداد از تاریخ فعال‌سازی اشتراک آغاز شده و تا پایان دوره اشتراک انتخاب‌شده معتبر خواهد بود.
+
+در صورت تمدید اشتراک، همکاری مطابق شرایط جدید ادامه خواهد یافت.
+
+---
+
+## ۴. مبلغ قرارداد
+
+مبلغ قرارداد مطابق پلن انتخابی مشتری و تعرفه‌های اعلام‌شده توسط استادیو محاسبه می‌شود.
+
+مشتری متعهد است هزینه اشتراک را مطابق شرایط اعلام‌شده پرداخت نماید.
+
+**پلن اشتراک فعلی:** {{subscriptionPlan}}
+
+---
+
+## ۵. تعهدات استادیو
+
+استادیو متعهد می‌شود:
+
+* دسترسی به خدمات را مطابق پلن خریداری‌شده فراهم کند.
+* تمام تلاش معقول خود را برای ارائه خدمات پایدار و ایمن به کار گیرد.
+* از اطلاعات مشتری مطابق «سیاست حفظ حریم خصوصی» محافظت کند.
+* در صورت بروز مشکلات فنی، در کوتاه‌ترین زمان ممکن نسبت به بررسی و رفع آن‌ها اقدام نماید.
+
+---
+
+## ۶. تعهدات مشتری
+
+مشتری متعهد می‌شود:
+
+* اطلاعات صحیح و کامل در سامانه ثبت کند.
+* از حساب کاربری خود محافظت نماید.
+* از خدمات در چارچوب قوانین و مقررات استفاده کند.
+* از هرگونه اقدام برای ایجاد اختلال، دسترسی غیرمجاز یا سوءاستفاده از سامانه خودداری نماید.
+* هزینه اشتراک را در موعد مقرر پرداخت نماید.
+
+---
+
+## ۷. محرمانگی اطلاعات
+
+استادیو اطلاعات ثبت‌شده توسط مشتری را محرمانه تلقی کرده و از آن‌ها صرفاً برای ارائه خدمات استفاده خواهد کرد.
+
+مالکیت تمامی اطلاعات ثبت‌شده در سامانه متعلق به مشتری است.
+
+---
+
+## ۸. خاتمه قرارداد
+
+در صورت پایان دوره اشتراک و عدم تمدید آن، دسترسی مشتری به خدمات مطابق شرایط استفاده محدود یا متوقف خواهد شد.
+
+هر یک از طرفین می‌توانند در صورت نقض اساسی تعهدات طرف مقابل، همکاری را مطابق مفاد این قرارداد خاتمه دهند.
+
+---
+
+## ۹. اسناد مرتبط
+
+مشتری با امضای این قرارداد اعلام می‌کند که اسناد زیر را مطالعه کرده و مفاد آن‌ها را پذیرفته است:
+
+* شرایط استفاده (Terms of Service)
+* سیاست حفظ حریم خصوصی (Privacy Policy)
+* سیاست بازپرداخت (Refund Policy)
+
+این اسناد بخش جدایی‌ناپذیر این قرارداد محسوب می‌شوند.
+
+---
+
+## ۱۰. حل اختلاف
+
+طرفین تلاش خواهند کرد اختلافات احتمالی را از طریق مذاکره و توافق حل‌وفصل کنند.
+
+در صورت عدم حصول توافق، رسیدگی به اختلاف مطابق قوانین و مقررات لازم‌الاجرا و از طریق مراجع صالح قضایی انجام خواهد شد.
+
+---
+
+## ۱۱. نسخ قرارداد
+
+این قرارداد در دو نسخه با اعتبار یکسان تنظیم شده و پس از امضای طرفین لازم‌الاجرا خواهد بود.
+
+---
+
+### امضای ارائه‌دهنده خدمات
+
+نام و امضا:
+
+تاریخ:
+
+---
+
+### امضای مشتری
+
+نام و امضا:
+
+تاریخ:
 `;

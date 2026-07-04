@@ -75,8 +75,8 @@ function ContractContent({ content }: { content: string }) {
       continue;
     }
 
-    // Handle headers (## and ###)
-    if (trimmed.startsWith("##")) {
+    // Handle headers (#, ## and ###)
+    if (trimmed.startsWith("#")) {
       if (currentParagraph.length > 0) {
         elements.push(
           <p key={elements.length} className="text-sm leading-relaxed">
@@ -86,10 +86,19 @@ function ContractContent({ content }: { content: string }) {
         currentParagraph = [];
       }
 
+      const level = trimmed.match(/^#+/)?.[0].length || 1;
       const headerText = trimmed.replace(/^#+\s*/, "");
-      const isMainHeader = trimmed.startsWith("## ") && !trimmed.startsWith("### ");
 
-      if (isMainHeader) {
+      if (level === 1) {
+        elements.push(
+          <h1
+            key={elements.length}
+            className="mt-8 mb-6 text-2xl font-bold text-foreground text-center"
+          >
+            {headerText}
+          </h1>
+        );
+      } else if (level === 2) {
         elements.push(
           <h2
             key={elements.length}
@@ -151,33 +160,18 @@ export function ContractView({ venue }: ContractViewProps) {
   const contractContent = React.useMemo(() => renderContract(venue), [venue]);
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Contract Header */}
-      <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-bold text-foreground">Service Agreement</h2>
-        <p className="text-sm text-muted-foreground">
-          Studivo Service Agreement for {venue.name}
-        </p>
-      </div>
-
-      <Separator />
-
+    <div className="flex flex-col gap-6 p-6" dir="rtl">
       {/* Contract Content */}
-      <div className="prose prose-sm max-w-none space-y-4 text-foreground">
+      <div className="prose prose-sm max-w-none space-y-4 text-foreground text-right">
         <ContractContent content={contractContent} />
       </div>
 
       <Separator className="mt-6" />
 
       {/* Footer */}
-      <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+      <div className="flex flex-col gap-2 text-xs text-muted-foreground text-center">
         <p>
-          This agreement is effective as of the date shown above. Both parties
-          acknowledge their understanding and acceptance of these terms.
-        </p>
-        <p>
-          For questions or concerns, please contact Studivo support or refer to
-          the full Terms of Service.
+          این قرارداد به‌صورت سیستمی تولید شده و بر اساس اطلاعات ثبت‌شده در سامانه استادیو تنظیم شده است.
         </p>
       </div>
     </div>
