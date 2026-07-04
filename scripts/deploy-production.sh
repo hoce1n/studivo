@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-APP_DIR="${APP_DIR:-/workspace/minimal-saas}"
+APP_DIR="${APP_DIR:-/home/hocein/projects/minimal-saas}"
 PM2_APP_NAME="${PM2_APP_NAME:-studivo}"
 
 cd "$APP_DIR"
