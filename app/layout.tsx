@@ -7,7 +7,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "./providers/ThemeProvider";
 import { DirectionProvider } from "@/components/ui/direction";
 import CommandPalette from "@/components/command-palette";
-import { ChunkLoadRecovery } from "@/components/chunk-load-recovery";
 
 const estedaad = localFont({
   src: "./fonts/Estedad[wght].woff2",
@@ -67,7 +66,6 @@ export default async function RootLayout({
             <TooltipProvider>
               {children}
               <CommandPalette />
-              <ChunkLoadRecovery />
             </TooltipProvider>
             <Toaster
               position="top-right"

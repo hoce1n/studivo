@@ -140,7 +140,6 @@ export function ContractView({ data }: ContractViewProps) {
       return lines.map(l => `<p>${l}</p>`).join("");
     }).join("")}
   </div>
-  <hr />
   `).join("")}
   <div class="signatures">
     <div class="sig-box">
