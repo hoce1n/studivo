@@ -3,11 +3,12 @@
 import * as React from "react";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { 
   CONTRACT_TEMPLATE, 
   ContractContentBlock, 
   ContractSection } from "@/lib/legal/contract-template";
-import { Library } from "lucide-react";
+import { Library, Printer } from "lucide-react";
 
 export interface ContractData {
   contractNumber: string;
@@ -66,6 +67,10 @@ export function ContractView({ data }: ContractViewProps) {
   const version = data.version || "v1.0";
   const status = data.status || "فعال";
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <>
       <style>{`
@@ -107,6 +112,19 @@ export function ContractView({ data }: ContractViewProps) {
       `}</style>
 
       <div className="contract-container flex flex-col gap-8 p-6" dir="rtl">
+        {/* Print Button */}
+        <div className="contract-no-print flex justify-end">
+          <Button
+            onClick={handlePrint}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            چاپ قرارداد
+          </Button>
+        </div>
+
         {/* Header */}
         <div className="flex flex-col items-center gap-2 text-center">
           <Library className="h-8 w-8 text-foreground" />
