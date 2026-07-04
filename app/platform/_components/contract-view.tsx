@@ -67,49 +67,106 @@ export function ContractView({ data }: ContractViewProps) {
   const version = data.version || "v1.0";
   const status = data.status || "فعال";
 
+  const printFrameRef = React.useRef<HTMLIFrameElement>(null);
+
   const handlePrint = () => {
-    window.print();
+    const frame = printFrameRef.current;
+    if (!frame || !frame.contentWindow) return;
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
   };
 
   return (
     <>
-      <style>{`
-        @media print {
-          body {
-            margin: 0;
-            padding: 0;
-          }
-          .contract-no-print {
-            display: none !important;
-          }
-          .contract-container {
-            max-width: 100%;
-            padding: 0;
-            margin: 0;
-          }
-          .contract-content {
-            box-shadow: none !important;
-            border: none !important;
-            page-break-inside: avoid;
-          }
-          .contract-section {
-            page-break-inside: avoid;
-          }
-          .contract-signature-section {
-            margin-top: 2rem;
-            page-break-inside: avoid;
-          }
-          .contract-signature-line {
-            border-bottom: 1px solid #000;
-            height: 3rem;
-            margin-bottom: 0.5rem;
-          }
-          .contract-signature-label {
-            font-size: 0.875rem;
-            margin-top: 0.5rem;
-          }
-        }
-      `}</style>
+      {/* Hidden iframe that contains only the contract content for printing */}
+      <iframe
+        ref={printFrameRef}
+        title="contract-print-frame"
+        style={{ position: "absolute", width: 0, height: 0, border: 0, left: "-9999px", top: "-9999px" }}
+        srcDoc={`<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+<meta charset="UTF-8" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap');
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #111;
+    direction: rtl;
+  }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 18mm 20mm;
+    margin: 0 auto;
+  }
+  h1 { font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { font-size: 12px; color: #555; text-align: center; margin-bottom: 24px; }
+  hr { border: none; border-top: 1px solid #ccc; margin: 16px 0; }
+  p { margin: 0 0 6px; }
+  ul { margin: 0 0 6px; padding-right: 20px; }
+  li { margin-bottom: 3px; }
+  .section { margin-bottom: 20px; page-break-inside: avoid; }
+  .signatures { margin-top: 36px; display: flex; justify-content: space-between; gap: 32px; page-break-inside: avoid; }
+  .sig-box { flex: 1; text-align: center; }
+  .sig-line { border-bottom: 1px solid #000; height: 40px; margin-bottom: 8px; }
+  .sig-label { font-size: 12px; font-weight: 600; }
+  .sig-sub { font-size: 11px; color: #555; margin-bottom: 6px; }
+  .sig-fields { font-size: 11px; color: #333; }
+  .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #888; }
+  @page { size: A4; margin: 0; }
+  @media print { html, body { width: 210mm; } .page { padding: 15mm 18mm; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>${CONTRACT_TEMPLATE.title}</h1>
+  <p class="subtitle">${CONTRACT_TEMPLATE.subtitle}</p>
+  <hr />
+  ${CONTRACT_TEMPLATE.sections.map((section: ContractSection) => `
+  <div class="section">
+    <h2>${replacePlaceholders(section.title, data)}</h2>
+    ${section.blocks.map((block) => {
+      const lines = block.content.map(l => replacePlaceholders(l, data));
+      if (block.type === "list") {
+        return `<ul>${lines.map(item => `<li>${item}</li>`).join("")}</ul>`;
+      }
+      return lines.map(l => `<p>${l}</p>`).join("");
+    }).join("")}
+  </div>
+  <hr />
+  `).join("")}
+  <div class="signatures">
+    <div class="sig-box">
+      <div class="sig-line"></div>
+      <p class="sig-label">امضای ارائه‌دهنده خدمات</p>
+      <p class="sig-sub">Service Provider Signature</p>
+      <div class="sig-fields">
+        <p>نام و امضا: _____________________</p>
+        <p>تاریخ: _____________________</p>
+      </div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line"></div>
+      <p class="sig-label">امضای مشتری</p>
+      <p class="sig-sub">Customer Signature</p>
+      <div class="sig-fields">
+        <p>نام و امضا: _____________________</p>
+        <p>تاریخ: _____________________</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer">${CONTRACT_TEMPLATE.footer}</div>
+</div>
+</body>
+</html>`}
+      />
 
       <div className="contract-container flex flex-col gap-8 p-6" dir="rtl">
         {/* Print Button */}
