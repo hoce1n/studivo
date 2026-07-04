@@ -31,8 +31,8 @@ export const CONTRACT_TEMPLATE: ContractTemplate = {
         {
           type: "paragraph",
           content: [
-            "**ارائه‌دهنده خدمات**",
-            "نام: حسین ..................",
+            "ارائه‌دهنده خدمات",
+            "نام: حسین دانش پژوه",
             "نام تجاری: استادیو (Studivo)",
             "شماره تماس: 09039328727",
             "که در این قرارداد «استادیو» نامیده می‌شود.",
@@ -41,7 +41,7 @@ export const CONTRACT_TEMPLATE: ContractTemplate = {
         {
           type: "paragraph",
           content: [
-            "**مشتری**",
+            "مشتری",
             "نام شخص / مجموعه: {{customerName}}",
             "نام نماینده (در صورت وجود): {{managerName}}",
             "شماره تماس: {{phoneNumber}}",
@@ -81,7 +81,7 @@ export const CONTRACT_TEMPLATE: ContractTemplate = {
           content: [
             "مبلغ قرارداد مطابق پلن انتخابی مشتری و تعرفه‌های اعلام‌شده توسط استادیو محاسبه می‌شود.",
             "مشتری متعهد است هزینه اشتراک را مطابق شرایط اعلام‌شده پرداخت نماید.",
-            "**پلن اشتراک فعلی:** {{subscriptionPlan}}",
+            "پلن اشتراک فعلی: ماهانه",
           ],
         },
       ],
@@ -200,7 +200,7 @@ export const CONTRACT_TEMPLATE: ContractTemplate = {
         {
           type: "paragraph",
           content: [
-            "**امضای ارائه‌دهنده خدمات**",
+            "امضای ارائه‌دهنده خدمات",
             "نام و امضا:",
             "تاریخ:",
           ],
@@ -208,7 +208,7 @@ export const CONTRACT_TEMPLATE: ContractTemplate = {
         {
           type: "paragraph",
           content: [
-            "**امضای مشتری**",
+            "امضای مشتری",
             "نام و امضا:",
             "تاریخ:",
           ],

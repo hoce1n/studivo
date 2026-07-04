@@ -154,13 +154,13 @@ export function VenueDetailSheet({
                 value="details"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
-                Details
+                جزئیات
               </TabsTrigger>
               <TabsTrigger
                 value="contract"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
-                Contract
+                قرارداد
               </TabsTrigger>
             </TabsList>
 

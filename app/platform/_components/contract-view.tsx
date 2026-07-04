@@ -3,7 +3,10 @@
 import * as React from "react";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
-import { CONTRACT_TEMPLATE, ContractContentBlock, ContractSection } from "@/lib/legal/contract-template";
+import { 
+  CONTRACT_TEMPLATE, 
+  ContractContentBlock, 
+  ContractSection } from "@/lib/legal/contract-template";
 import { Library } from "lucide-react";
 
 export interface ContractData {
@@ -61,7 +64,7 @@ function renderBlock(block: ContractContentBlock, data: ContractData, index: num
 
 export function ContractView({ data }: ContractViewProps) {
   const version = data.version || "v1.0";
-  const status = data.status || "Active";
+  const status = data.status || "فعال";
 
   return (
     <>
@@ -120,10 +123,10 @@ export function ContractView({ data }: ContractViewProps) {
         {/* Metadata */}
         <div className="contract-no-print flex justify-between text-xs text-muted-foreground">
           <div>
-            <span className="font-semibold">Version:</span> {version}
+            <span className="font-semibold">نسخه:</span> {version}
           </div>
           <div>
-            <span className="font-semibold">Status:</span> {status}
+            <span className="font-semibold">وضعیت:</span> {status}
           </div>
         </div>
 
