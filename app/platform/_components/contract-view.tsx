@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import { Separator } from "@/components/ui/separator";
-import { CONTRACT_TEMPLATE } from "@/lib/legal/contract-template";
+import { Card, CardContent } from "@/components/ui/card";
+import { CONTRACT_TEMPLATE, ContractContentBlock, ContractSection } from "@/lib/legal/contract-template";
 import type { VenueDetail } from "@/app/actions/platform";
+import { Logo } from "@/app/(marketing)/_components/navbar/logo";
 
 interface ContractViewProps {
   venue: VenueDetail;
@@ -11,16 +13,13 @@ interface ContractViewProps {
 
 /**
  * Replaces template placeholders with actual venue data.
- * Returns formatted contract content as plain text (not HTML).
  */
-function renderContract(venue: VenueDetail): string {
+function replacePlaceholders(text: string, venue: VenueDetail): string {
   const today = new Date();
   const contractDate = new Intl.DateTimeFormat("fa-IR", {
     dateStyle: "long",
   }).format(today);
 
-  // Determine subscription plan from monthly fee
-  // This is a simple heuristic based on the pricing page
   let subscriptionPlan = "Custom Plan";
   if (venue.monthlyFee === 0) {
     subscriptionPlan = "Free Trial";
@@ -32,16 +31,12 @@ function renderContract(venue: VenueDetail): string {
     subscriptionPlan = "ویژه (Premium)";
   }
 
-  // Generate a simple contract number based on venue ID and date
   const contractNumber = `STD-${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${venue.id.slice(0, 8).toUpperCase()}`;
+  const managerName = venue.lead?.name || "مدیر سالن مطالعه";
+  const phoneNumber = venue.lead?.phone || "ثبت نشده";
 
-  // Get manager name from the linked lead if available
-  const managerName = venue.lead?.name || "Study Hall Manager";
-
-  // Get phone number from the linked lead if available
-  const phoneNumber = venue.lead?.phone || "Not provided";
-
-  return CONTRACT_TEMPLATE.replace(/{{contractNumber}}/g, contractNumber)
+  return text
+    .replace(/{{contractNumber}}/g, contractNumber)
     .replace(/{{contractDate}}/g, contractDate)
     .replace(/{{customerName}}/g, venue.name)
     .replace(/{{managerName}}/g, managerName)
@@ -49,130 +44,144 @@ function renderContract(venue: VenueDetail): string {
     .replace(/{{subscriptionPlan}}/g, subscriptionPlan);
 }
 
-/**
- * Parses the contract text and renders it with proper formatting.
- * Handles markdown-like headers and sections.
- */
-function ContractContent({ content }: { content: string }) {
-  const lines = content.split("\n");
-  const elements: React.ReactNode[] = [];
+function renderBlock(block: ContractContentBlock, venue: VenueDetail, index: number): React.ReactNode {
+  const processedContent = block.content.map(line => replacePlaceholders(line, venue));
 
-  let currentParagraph: string[] = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    // Skip empty lines
-    if (!trimmed) {
-      if (currentParagraph.length > 0) {
-        elements.push(
-          <p key={elements.length} className="text-sm leading-relaxed">
-            {currentParagraph.join(" ")}
+  if (block.type === "paragraph") {
+    return (
+      <React.Fragment key={index}>
+        {processedContent.map((text, i) => (
+          <p key={i} className="mb-2 text-sm leading-relaxed">
+            {text}
           </p>
-        );
-        currentParagraph = [];
-      }
-      continue;
-    }
-
-    // Handle headers (#, ## and ###)
-    if (trimmed.startsWith("#")) {
-      if (currentParagraph.length > 0) {
-        elements.push(
-          <p key={elements.length} className="text-sm leading-relaxed">
-            {currentParagraph.join(" ")}
-          </p>
-        );
-        currentParagraph = [];
-      }
-
-      const level = trimmed.match(/^#+/)?.[0].length || 1;
-      const headerText = trimmed.replace(/^#+\s*/, "");
-
-      if (level === 1) {
-        elements.push(
-          <h1
-            key={elements.length}
-            className="mt-8 mb-6 text-2xl font-bold text-foreground text-center"
-          >
-            {headerText}
-          </h1>
-        );
-      } else if (level === 2) {
-        elements.push(
-          <h2
-            key={elements.length}
-            className="mt-6 mb-4 text-lg font-bold text-foreground"
-          >
-            {headerText}
-          </h2>
-        );
-      } else {
-        elements.push(
-          <h3
-            key={elements.length}
-            className="mt-4 mb-2 text-base font-semibold text-foreground"
-          >
-            {headerText}
-          </h3>
-        );
-      }
-      continue;
-    }
-
-    // Handle bullet points
-    if (trimmed.startsWith("*")) {
-      if (currentParagraph.length > 0) {
-        elements.push(
-          <p key={elements.length} className="text-sm leading-relaxed">
-            {currentParagraph.join(" ")}
-          </p>
-        );
-        currentParagraph = [];
-      }
-
-      const bulletText = trimmed.replace(/^\*\s*/, "");
-      elements.push(
-        <li key={elements.length} className="ms-4 text-sm leading-relaxed">
-          {bulletText}
-        </li>
-      );
-      continue;
-    }
-
-    // Accumulate regular text
-    currentParagraph.push(trimmed);
-  }
-
-  // Add any remaining paragraph
-  if (currentParagraph.length > 0) {
-    elements.push(
-      <p key={elements.length} className="text-sm leading-relaxed">
-        {currentParagraph.join(" ")}
-      </p>
+        ))}
+      </React.Fragment>
+    );
+  } else if (block.type === "list") {
+    return (
+      <ul key={index} className="mb-2 list-disc pe-5 text-sm leading-relaxed">
+        {processedContent.map((item, i) => (
+          <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+        ))}
+      </ul>
     );
   }
-
-  return <>{elements}</>;
+  return null;
 }
 
 export function ContractView({ venue }: ContractViewProps) {
-  const contractContent = React.useMemo(() => renderContract(venue), [venue]);
+  const contractInfo = React.useMemo(() => {
+    const today = new Date();
+    const contractDate = new Intl.DateTimeFormat("fa-IR", {
+      dateStyle: "long",
+    }).format(today);
+
+    let subscriptionPlan = "Custom Plan";
+    if (venue.monthlyFee === 0) {
+      subscriptionPlan = "Free Trial";
+    } else if (venue.monthlyFee <= 890000) {
+      subscriptionPlan = "پایه (Basic)";
+    } else if (venue.monthlyFee <= 1490000) {
+      subscriptionPlan = "حرفه‌ای (Professional)";
+    } else {
+      subscriptionPlan = "ویژه (Premium)";
+    }
+
+    const contractNumber = `STD-${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${venue.id.slice(0, 8).toUpperCase()}`;
+    const managerName = venue.lead?.name || "مدیر سالن مطالعه";
+    const phoneNumber = venue.lead?.phone || "ثبت نشده";
+
+    return {
+      contractNumber,
+      contractDate,
+      customerName: venue.name,
+      managerName,
+      phoneNumber,
+      subscriptionPlan,
+    };
+  }, [venue]);
 
   return (
-    <div className="flex flex-col gap-6 p-6" dir="rtl">
-      {/* Contract Content */}
-      <div className="prose prose-sm max-w-none space-y-4 text-foreground text-right">
-        <ContractContent content={contractContent} />
+    <div className="flex flex-col gap-8 p-6" dir="rtl">
+      {/* Header */}
+      <div className="flex flex-col items-center gap-2 text-center">
+        <Logo />
+        <h1 className="text-2xl font-bold text-foreground">
+          {CONTRACT_TEMPLATE.title}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {CONTRACT_TEMPLATE.subtitle}
+        </p>
       </div>
 
-      <Separator className="mt-6" />
+      <Separator />
+
+      {/* Contract Information Card */}
+      <Card className="w-full">
+        <CardContent className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <p className="text-xs text-muted-foreground">شماره قرارداد</p>
+            <p className="font-medium text-foreground">
+              {contractInfo.contractNumber}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">تاریخ انعقاد</p>
+            <p className="font-medium text-foreground">
+              {contractInfo.contractDate}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">نام سالن</p>
+            <p className="font-medium text-foreground">
+              {contractInfo.customerName}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">مدیر</p>
+            <p className="font-medium text-foreground">
+              {contractInfo.managerName}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">شماره تماس</p>
+            <p className="font-medium text-foreground">
+              {contractInfo.phoneNumber}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">پلن</p>
+            <p className="font-medium text-foreground">
+              {contractInfo.subscriptionPlan}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Contract Sections */}
+      <div className="space-y-8">
+        {CONTRACT_TEMPLATE.sections.map((section: ContractSection, sectionIndex: number) => (
+          <React.Fragment key={sectionIndex}>
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-foreground">
+                {replacePlaceholders(section.title, venue)}
+              </h2>
+              <div className="space-y-3">
+                {section.blocks.map((block, blockIndex) =>
+                  renderBlock(block, venue, blockIndex)
+                )}
+              </div>
+            </div>
+            {sectionIndex < CONTRACT_TEMPLATE.sections.length - 1 && (
+              <Separator className="my-8" />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
 
       {/* Footer */}
-      <div className="flex flex-col gap-2 text-xs text-muted-foreground text-center">
-        <p>
-          این قرارداد به‌صورت سیستمی تولید شده و بر اساس اطلاعات ثبت‌شده در سامانه استادیو تنظیم شده است.
-        </p>
+      <div className="mt-8 text-center text-xs text-muted-foreground">
+        <p>{CONTRACT_TEMPLATE.footer}</p>
       </div>
     </div>
   );
