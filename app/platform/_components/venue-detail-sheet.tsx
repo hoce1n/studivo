@@ -20,8 +20,15 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { GENDER_LABELS } from "@/app/platform/_components/venues-table";
 import { STATUS_LABELS, STATUS_VARIANTS } from "@/app/platform/_components/lead-detail-sheet";
+import { ContractView } from "@/app/platform/_components/contract-view";
 import type { VenueDetail } from "@/app/actions/platform";
 
 function formatDate(date: Date | string) {
@@ -73,6 +80,8 @@ export function VenueDetailSheet({
   open,
   onOpenChange,
 }: VenueDetailSheetProps) {
+  const [activeTab, setActiveTab] = React.useState("details");
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -100,7 +109,27 @@ export function VenueDetailSheet({
             <Skeleton className="h-4 w-1/3" />
           </div>
         ) : (
-          <div className="flex flex-col gap-6 p-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex flex-col gap-0"
+          >
+            <TabsList className="w-full justify-start border-b rounded-none bg-transparent px-6 py-0">
+              <TabsTrigger
+                value="details"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Details
+              </TabsTrigger>
+              <TabsTrigger
+                value="contract"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Contract
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="details" className="mt-0 flex flex-col gap-6 p-6">
             {/* Core info */}
             <section className="flex flex-col gap-2">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -187,7 +216,12 @@ export function VenueDetailSheet({
                 </section>
               </>
             )}
-          </div>
+            </TabsContent>
+
+            <TabsContent value="contract" className="mt-0 overflow-y-auto">
+              <ContractView venue={venue} />
+            </TabsContent>
+          </Tabs>
         )}
       </SheetContent>
     </Sheet>
