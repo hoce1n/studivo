@@ -106,6 +106,8 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Profile settings are separated from admin-only hall settings.
 - [x] Dedicated `تنظیمات سالن` admin dashboard route exists for venue configuration.
 - [x] PWA manifest and service-worker registration exist.
+- [x] Service worker excludes Next.js build assets/navigation responses from runtime caching to reduce stale chunk failures after deployment.
+- [x] Production chunk-load recovery and clean PM2 deployment script documented and added.
 - [x] Push notification proof-of-concept exists with VAPID/web-push scaffolding.
 - [x] Product positioning and marketing docs exist under `docs/`.
 - [x] Strategic root documentation files populated: `AGENT.md`, `DESIGN.md`, `DECISIONS.md`, and `TASKS.md`.

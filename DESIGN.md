@@ -22,9 +22,15 @@ The current application is a Next.js 16 App Router application with server-rende
 - **Database:** PostgreSQL is the official platform database for development-aligned production workflows and transactional seat-management safety.
 - **Authentication:** Better Auth with email/password enabled and a Prisma adapter.
 - **Styling:** Tailwind CSS v4, next-themes, Radix/shadcn-style UI components, Sonner toasts.
-- **PWA:** Web app manifest, service-worker registration, persisted push subscriptions scoped by user/study hall, and automated renewal reminder delivery for staff/admin operators.
+- **PWA:** Web app manifest, service-worker registration, persisted push subscriptions scoped by user/study hall, automated renewal reminder delivery for staff/admin operators, and a service-worker cache policy that keeps Next.js build assets and navigation responses network-owned to prevent stale post-deploy chunks.
 
 PostgreSQL now backs Studivo's server-side concurrency model. Seat reservation, renewal, release, and swap flows still use explicit Prisma transactions, and those transactions are now backed by PostgreSQL isolation and locking behavior instead of file-level database locking. This is critical for peak-season front-desk activity where multiple staff members may attempt high-value seat operations at the same time.
+
+### Deployment & Client Asset Consistency
+
+Production deployments must avoid mixing `.next` output from different builds. The baseline VPS deploy path is `scripts/deploy-production.sh`, which pulls the branch, installs locked dependencies, stops PM2 before deleting `.next`, builds a clean Next.js output, then starts the PM2 process. The root layout also mounts `ChunkLoadRecovery`, a client-only safety net that reloads an already-open tab once when the browser reports a stale Next.js chunk load failure.
+
+Nginx should cache only immutable `/_next/static/*` files for a long duration. HTML, RSC, and navigation/prefetch responses should remain controlled by Next.js cache headers or explicitly be marked no-store at the proxy.
 
 ## 3. Database & Entity Relationships
 
