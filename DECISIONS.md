@@ -258,3 +258,18 @@ To provide study hall managers with better insights into their revenue and payme
 -   The minimal schema extensions reduce complexity and allow for future expansion without major refactoring.
 -   The new server actions provide a clear API for financial data, facilitating UI development.
 -   The prioritization ensures that the most impactful financial feature is delivered first.
+
+## ADR-007: Clean Self-Hosted Deploys and Stale Chunk Recovery
+
+**Status:** Accepted
+
+**Decision:** Treat Next.js build output as an atomic production artifact for VPS deployments and add client-side recovery for stale chunks.
+
+**Reasoning:** Next.js production builds emit content-hashed JavaScript chunks. Open browser tabs, service-worker runtime caches, or reverse-proxy caches can request files from the previous build after PM2 starts serving the new build, causing route-specific client components to fail with `ChunkLoadError`.
+
+**Consequences:**
+
+- Production deploys should stop PM2 before deleting `.next` and running `pnpm build`, then start the process after a clean build.
+- The service worker must not cache `/_next/` assets, navigation requests, HTML, RSC payloads, or App Router data responses.
+- The root layout mounts a one-shot chunk-load recovery component to refresh stale open tabs after deployment.
+- Nginx may cache immutable `/_next/static/*` assets, but must not cache HTML/RSC responses without a deliberate App Router cache strategy.

@@ -1,16 +1,18 @@
-const CACHE_NAME = "studivo-v1";
+const CACHE_NAME = "studivo-v2";
 const ASSETS_TO_CACHE = [
-  "/",
   "/web-app-manifest-192x192.png",
   "/web-app-manifest-512x512.png",
 ];
 
-// Install event - cache essential assets
+const isNextAssetRequest = (request) => new URL(request.url).pathname.startsWith("/_next/");
+const isNavigationRequest = (request) => request.mode === "navigate";
+
+// Install event - cache only stable public assets. Do not precache HTML or Next.js chunks.
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE).catch(() => {
-        // Continue even if some assets fail to cache
+        // Continue even if some assets fail to cache.
       });
     }),
   );
@@ -33,9 +35,14 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Fetch event - network first, fallback to cache
+// Fetch event - keep HTML/RSC and Next.js build assets network-owned to avoid stale chunks after deploy.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") {
+    return;
+  }
+
+  if (isNavigationRequest(event.request) || isNextAssetRequest(event.request)) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
@@ -46,10 +53,17 @@ self.addEventListener("fetch", (event) => {
           return response;
         }
 
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
+        const requestUrl = new URL(event.request.url);
+        const shouldCache =
+          requestUrl.origin === self.location.origin &&
+          ASSETS_TO_CACHE.includes(requestUrl.pathname);
+
+        if (shouldCache) {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
 
         return response;
       })
