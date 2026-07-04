@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/tabs";
 import { GENDER_LABELS } from "@/app/platform/_components/venues-table";
 import { STATUS_LABELS, STATUS_VARIANTS } from "@/app/platform/_components/lead-detail-sheet";
-import { ContractView } from "@/app/platform/_components/contract-view";
+import { ContractView, type ContractData } from "@/app/platform/_components/contract-view";
 import type { VenueDetail } from "@/app/actions/platform";
 
 function formatDate(date: Date | string) {
@@ -81,6 +81,41 @@ export function VenueDetailSheet({
   onOpenChange,
 }: VenueDetailSheetProps) {
   const [activeTab, setActiveTab] = React.useState("details");
+
+  const contractData = React.useMemo(() => {
+    if (!venue) return null;
+
+    const today = new Date();
+    const contractDate = new Intl.DateTimeFormat("fa-IR", {
+      dateStyle: "long",
+    }).format(today);
+
+    let subscriptionPlan = "Custom Plan";
+    if (venue.monthlyFee === 0) {
+      subscriptionPlan = "Free Trial";
+    } else if (venue.monthlyFee <= 890000) {
+      subscriptionPlan = "پایه (Basic)";
+    } else if (venue.monthlyFee <= 1490000) {
+      subscriptionPlan = "حرفه‌ای (Professional)";
+    } else {
+      subscriptionPlan = "ویژه (Premium)";
+    }
+
+    const contractNumber = `STD-${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${venue.id.slice(0, 8).toUpperCase()}`;
+    const managerName = venue.lead?.name || "مدیر سالن مطالعه";
+    const phoneNumber = venue.lead?.phone || "ثبت نشده";
+
+    return {
+      contractNumber,
+      contractDate,
+      customerName: venue.name,
+      managerName,
+      phoneNumber,
+      subscriptionPlan,
+      version: "v1.0",
+      status: "Active",
+    } as ContractData;
+  }, [venue]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -219,7 +254,7 @@ export function VenueDetailSheet({
             </TabsContent>
 
             <TabsContent value="contract" className="mt-0 overflow-y-auto">
-              <ContractView venue={venue} />
+              {contractData && <ContractView data={contractData} />}
             </TabsContent>
           </Tabs>
         )}
