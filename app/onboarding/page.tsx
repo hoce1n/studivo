@@ -7,7 +7,8 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { completeOnboarding } from "@/app/actions";
+import { completeOnboarding } from "@/app/actions/auth";
+
 import OnboardingForm from "@/components/onboarding-form";
 import {
   Card,

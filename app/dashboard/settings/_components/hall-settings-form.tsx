@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Bell, Building2, Loader2, MapPin } from "lucide-react";
 import { z } from "zod";
 
-import { updateNotificationPreferences, updateStudyHallSettings } from "@/app/actions";
+import { updateNotificationPreferences, updateStudyHallSettings } from "@/app/actions/auth";
 import { ActionForm } from "@/components/action-form";
 import { Button } from "@/components/ui/button";
 import {

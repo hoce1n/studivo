@@ -18,11 +18,14 @@ import { format } from "date-fns-jalali";
 
 import {
   releaseSeat,
-  renewSubscription,
   reserveSeat,
   swapSeat,
-  updatePaymentStatus,
-} from "@/app/actions";
+} from "@/app/actions/seat";
+import { 
+  renewSubscription, 
+  updatePaymentStatus
+} from "@/app/actions/subscription";
+
 import { ActionForm } from "@/components/action-form";
 import { SubscriptionProgress } from "@/app/dashboard/_components/subscription-progress";
 import {

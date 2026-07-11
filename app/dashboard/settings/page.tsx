@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Building2, Settings2 } from "lucide-react";
 
-import { requireUser } from "@/app/actions";
+import { requireUser } from "@/app/actions/auth";
 import { HallSettingsForm } from "@/app/dashboard/settings/_components/hall-settings-form";
 import { PublicPageSettingsForm } from "@/app/dashboard/settings/_components/public-page-settings-form";
 

@@ -3,7 +3,7 @@ import { LegalLayout } from "@/components/legal";
 import { loadLegalDocument } from "@/lib/legal/markdown";
 
 export const metadata: Metadata = {
-  title: "شرایط استفاده | استادیو",
+  title: "شرایط استفاده",
   description: "قوانین و ضوابط استفاده از خدمات استادیو",
 };
 

@@ -31,7 +31,7 @@ function LegalLayout({ document, className }: LegalLayoutProps) {
       <LegalPageInteractions headings={document.headings}>
         <div
           className={cn(
-            "mx-auto w-full max-w-[1280px] px-4 sm:px-6",
+            "mx-auto w-full max-w-7xl px-4 sm:px-6",
             className,
           )}
         >

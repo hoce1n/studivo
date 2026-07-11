@@ -44,7 +44,7 @@ function ReadingProgress({ targetId = "legal-article" }: ReadingProgressProps) {
   return (
     <div
       aria-hidden="true"
-      className="fixed inset-x-0 top-0 z-[60] h-0.5 bg-transparent print:hidden"
+      className="fixed inset-x-0 top-0 z-60 h-0.5 bg-transparent print:hidden"
     >
       <div
         className={cn(
