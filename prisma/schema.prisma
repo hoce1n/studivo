@@ -1,87 +1,10 @@
 generator client {
   provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  output   = "../src/lib/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-}
-
-// ===========================================================================
-// Sales & Marketing Platform enums (Phase 1 foundation — YAGNI scope)
-//
-// Phase 1 builds ONLY the minimum needed to acquire the first paying
-// customers: a platform role, a Lead, and a DemoRequest. There is intentionally
-// NO Company / Campaign / Referral / Interaction model yet (see ADR-012).
-// These enums are platform-level and never scoped by `studyhallId`.
-// ===========================================================================
-
-// Platform-level roles that exist OUTSIDE any StudyHall tenant. A user with a
-// `platformRole` operates the Studivo platform itself rather than a single
-// venue. This is intentionally separate from the tenant `role` string
-// (admin/staff/member) so the existing RBAC is untouched. See ADR-010.
-enum PlatformRole {
-  SUPER_ADMIN
-  SALES
-}
-
-// The lifecycle of a Lead. The full set of future pipeline stages is declared
-// now so the Sales Pipeline (a future phase) can be built without a
-// destructive migration — but the pipeline itself is NOT implemented in
-// Phase 1. See ADR-011 and ADR-013.
-enum LeadStatus {
-  NEW
-  CONTACTED
-  DEMO
-  TRIAL
-  CUSTOMER
-  LOST
-}
-
-// Where a Lead came from. Kept as a small, stable enum (not a table) because
-// in Phase 1 we only need coarse attribution; richer campaign tracking is a
-// future concern and is deliberately not modeled yet (YAGNI). See ADR-013.
-enum LeadSource {
-  MARKETING_SITE
-  REFERRAL
-  DIRECT
-  OTHER
-}
-
-model StudyHall {
-  id                      String  @id @default(cuid())
-  name                    String  @default("سالن مطالعه")
-  totalSeats              Int     @default(0)
-  monthlyFee              Float   @default(0)
-  gender                  String  @default("unspecified")
-  address                 String  @default("")
-  reminderDaysBefore      Int     @default(3)
-  renewalRemindersEnabled Boolean @default(true)
-  expiryRemindersEnabled  Boolean @default(true)
-
-  // Public venue page — ADR-018
-  slug              String?  @unique
-  publicPageEnabled Boolean  @default(false)
-  heroImage         String? // Vercel Blob public URL
-  galleryImages     String[] @default([])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users             User[]
-  seats             Seat[]
-  subscriptions     Subscription[]
-  auditLogs         AuditLog[]
-  pushSubscriptions PushSubscription[]
-  renewalReminders  RenewalReminder[]
-
-  // Optional back-link to the Lead this study hall was converted from. This is
-  // the single bridge between the sales world and the tenant world: a won Lead
-  // points to the StudyHall it became. StudyHall itself stays unchanged for
-  // every existing tenant (the relation lives on Lead, not here).
-  lead Lead?
-
-  @@map("studyhall")
 }
 
 model User {
@@ -95,27 +18,35 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  phoneNumber       String?
-  role              String             @default("member")
-  subscriptions     Subscription[]
-  auditLogs         AuditLog[]
-  pushSubscriptions PushSubscription[]
+  phoneNumber String? @map("phone_number")
 
-  // Platform-level role, separate from the tenant `role` string above.
-  // NULL for ordinary venue users (admin/staff/member). A SUPER_ADMIN / SALES
-  // user has a platformRole and typically NO studyhallId, because they operate
-  // the Studivo platform itself rather than a single venue. See ADR-010.
-  platformRole PlatformRole?
+  memberships Membership[]
 
-  // Leads owned by this platform user (SALES / SUPER_ADMIN). Empty for venue users.
+  staffAssignments StaffAssignment[]
+
+  notifications Notification[]
+
+  auditLogs AuditLog[] @relation("UserAuditLogs")
+
+  createdPayments Payment[] @relation("PaymentCreatedBy")
+  voidedPayments  Payment[] @relation("PaymentVoidedBy")
+
+  createdExpenses Expense[] @relation("ExpenseCreatedBy")
+  voidedExpenses  Expense[] @relation("ExpenseVoidedBy")
+
+  checkedInAttendances Attendance[] @relation("AttendanceCheckedInBy")
+
+  checkedOutAttendances Attendance[] @relation("AttendanceCheckedOutBy")
+
+  platformRole PlatformRole? @map("platform_role")
+
   ownedLeads Lead[] @relation("LeadOwner")
 
-  studyhallId String?
-  studyhall   StudyHall? @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
+  pushSubscriptions PushSubscription[]
+  demoRequests      DemoRequest[]
 
   @@unique([email])
-  @@unique([studyhallId, phoneNumber])
-  @@index([studyhallId])
+  @@unique([phoneNumber])
   @@index([platformRole])
   @@map("user")
 }
@@ -168,181 +99,458 @@ model Verification {
   @@map("verification")
 }
 
-model Seat {
-  id            String         @id @default(cuid())
-  seatNumber    Int
-  createdAt     DateTime       @default(now())
-  subscriptions Subscription[]
-
-  studyhallId String
-  studyhall   StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
-
-  @@unique([studyhallId, seatNumber])
-  @@map("seat")
+enum LeadSource {
+  WEBSITE
+  INSTAGRAM
+  TELEGRAM
+  REFERRAL
+  PHONE
+  MANUAL
+  OTHER
 }
 
-model Subscription {
-  id                       String    @id @default(cuid())
-  userId                   String
-  seatId                   String
-  startDate                DateTime  @default(now())
-  endDate                  DateTime
-  paymentStatus            String    @default("unpaid") // paid, unpaid
-  monthlyFeeAtSubscription Float? // The monthly fee at the time of subscription creation/renewal
-  paymentDate              DateTime? // When the payment was recorded
-  status                   String    @default("active") // active, expired, cancelled
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  seat Seat @relation(fields: [seatId], references: [id], onDelete: Cascade)
-
-  studyhallId      String
-  studyhall        StudyHall         @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
-  renewalReminders RenewalReminder[]
-
-  @@index([userId])
-  @@index([seatId])
-  @@index([studyhallId])
-  @@map("subscription")
+enum LeadStatus {
+  NEW
+  CONTACTED
+  DEMO_SCHEDULED
+  DEMO_COMPLETED
+  NEGOTIATION
+  CONVERTED
+  LOST
 }
 
-model PushSubscription {
-  id          String   @id @default(cuid())
-  userId      String
-  studyhallId String
-  endpoint    String   @unique
-  p256dh      String
-  auth        String
-  userAgent   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  studyhall StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([studyhallId])
-  @@map("pushsubscription")
-}
-
-model RenewalReminder {
-  id             String   @id @default(cuid())
-  subscriptionId String
-  studyhallId    String
-  reminderKey    String
-  sentAt         DateTime @default(now())
-
-  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  studyhall    StudyHall    @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
-
-  @@unique([subscriptionId, reminderKey])
-  @@index([studyhallId])
-  @@map("renewalreminder")
-}
-
-model AuditLog {
-  id          String   @id @default(cuid())
-  studyhallId String
-  userId      String
-  action      String
-  details     Json
-  createdAt   DateTime @default(now())
-
-  studyhall StudyHall @relation(fields: [studyhallId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([studyhallId, createdAt])
-  @@index([userId])
-  @@map("auditlog")
-}
-
-model OtpVerification {
-  id          String   @id @default(cuid())
-  phoneNumber String
-  code        String
-  purpose     String
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-
-  @@index([phoneNumber, purpose])
-  @@map("otpverification")
-}
-
-// ===========================================================================
-// Sales & Marketing Platform models (Phase 1 foundation — YAGNI scope)
-//
-// These models are PLATFORM-LEVEL. They are intentionally NOT scoped by
-// `studyhallId` and are never read by tenant dashboard queries. They are
-// owned and operated by platform users (SUPER_ADMIN / SALES).
-//
-// Phase 1 business flow:
-//   Visitor → Landing Website → Request Demo → Lead → StudyHall (after conversion)
-//
-// Only Lead and DemoRequest exist. Company / Campaign / Referral / Interaction
-// and any other CRM concept are deliberately NOT modeled yet (ADR-012, ADR-013).
-// ===========================================================================
-
-// Lead is the single sales-world record of an interested prospect. It is
-// created the moment an anonymous Visitor identifies themselves through the
-// marketing site (a demo request / contact form). A Lead is pre-sale and may
-// never convert — which is exactly why it is kept separate from StudyHall, a
-// post-sale operational tenant. See ADR-011.
 model Lead {
-  id        String  @id @default(cuid())
-  name      String?
-  phone     String?
-  email     String?
-  venueName String? // prospective study hall name the prospect mentioned
-  message   String?
+  id            String     @id @default(cuid())
+  fullName      String
+  studyhallName String?    @map("studyhall_name")
+  phoneNumber   String?    @map("phone_number")
+  email         String?
+  city          String?
+  source        LeadSource
+  status        LeadStatus @default(NEW)
+  ownerId       String?    @map("owner_id")
+  owner         User?      @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
-  status     LeadStatus @default(NEW)
-  source     LeadSource @default(MARKETING_SITE)
-  lostReason String? // free text, only meaningful when status = LOST
+  convertedStudyHallId String?    @map("converted_studyhall_id")
+  convertedStudyHall   StudyHall? @relation(fields: [convertedStudyHallId], references: [id], onDelete: SetNull)
 
-  // Owner: the platform user (SALES / SUPER_ADMIN) responsible for this lead.
-  // Nullable because a brand-new inbound lead is unassigned.
-  ownerId String?
-
-  // Conversion bridge: when a lead is won it is linked to the StudyHall it
-  // became. Nullable + unique (one lead → at most one study hall). This is the
-  // ONLY structural connection between the sales and tenant worlds.
-  studyhallId String?   @unique
-  convertedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  owner        User?         @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  studyhall    StudyHall?    @relation(fields: [studyhallId], references: [id], onDelete: SetNull)
+  notes        String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
   demoRequests DemoRequest[]
 
-  @@index([status])
-  @@index([source])
   @@index([ownerId])
-  @@index([createdAt])
+  @@index([status])
   @@map("lead")
 }
 
-// DemoRequest is a discrete request for a product demo, captured from the
-// marketing site. It belongs to a Lead. It is kept separate from Lead because
-// one prospect can request more than one demo, and a demo carries its own
-// scheduling info. Status is a simple string (not an enum) to stay minimal in
-// Phase 1; the lead's pipeline position is tracked by Lead.status. See ADR-013.
+enum HallRole {
+  OWNER
+  STAFF
+}
+
+enum PlatformRole {
+  SUPER_ADMIN
+  SALES
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+model StudyHall {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String
+  gender      Gender
+  phoneNumber String?  @map("phone_number")
+  address     String?
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  membershipPlans  MembershipPlan[]
+  memberships      Membership[]
+  sections         Section[]
+  staffAssignments StaffAssignment[]
+  expenses         Expense[]
+  auditLogs        AuditLog[]
+  leads            Lead[]
+
+  @@unique([slug])
+  @@index([isActive])
+  @@map("studyhall")
+}
+
+enum PaymentMethod {
+  CASH
+  POS
+  CARD_TO_CARD
+  ONLINE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  VOIDED
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  membershipId String        @map("membership_id")
+  membership   Membership    @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  amount       Decimal       @db.Decimal(10, 2)
+  method       PaymentMethod
+  status       PaymentStatus
+  paidAt       DateTime?     @map("paid_at")
+  note         String?
+  createdById  String        @map("created_by_id")
+  createdBy    User          @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+  voidedAt     DateTime?     @map("voided_at")
+  voidReason   String?       @map("void_reason")
+  voidedById   String?       @map("voided_by_id")
+  voidedBy     User?         @relation("PaymentVoidedBy", fields: [voidedById], references: [id])
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@index([membershipId])
+  @@index([status])
+  @@index([paidAt])
+  @@index([createdById])
+  @@map("payment")
+}
+
+model Attendance {
+  id             String     @id @default(cuid())
+  membershipId   String     @map("membership_id")
+  membership     Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  checkedInAt    DateTime   @map("checked_in_at")
+  checkedOutAt   DateTime?  @map("checked_out_at")
+  checkedInById  String?    @map("checked_in_by_id")
+  checkedInBy    User?      @relation("AttendanceCheckedInBy", fields: [checkedInById], references: [id], onDelete: SetNull)
+  checkedOutById String?    @map("checked_out_by_id")
+  checkedOutBy   User?      @relation("AttendanceCheckedOutBy", fields: [checkedOutById], references: [id], onDelete: SetNull)
+  note           String?
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  @@index([membershipId])
+  @@index([checkedInAt])
+  @@index([checkedOutAt])
+  @@map("attendance")
+}
+
+model SeatAssignment {
+  id           String     @id @default(cuid())
+  membershipId String     @map("membership_id")
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  seatId       String     @map("seat_id")
+  seat         Seat       @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  startsAt     DateTime   @map("starts_at")
+  endsAt       DateTime?  @map("ends_at")
+  note         String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([membershipId])
+  @@index([seatId])
+  @@index([startsAt])
+  @@index([endsAt])
+  @@map("seat_assignments")
+}
+
+model Seat {
+  id        String   @id @default(cuid())
+  sectionId String   @map("section_id")
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  number    String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  assignments SeatAssignment[]
+
+  @@unique([sectionId, number])
+  @@index([sectionId])
+  @@map("seats")
+}
+
+model Section {
+  id          String    @id @default(cuid())
+  studyHallId String    @map("studyhall_id")
+  studyHall   StudyHall @relation(fields: [studyHallId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  seats Seat[]
+
+  @@unique([studyHallId, name])
+  @@index([studyHallId])
+  @@map("sections")
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model Membership {
+  id               String           @id @default(cuid())
+  userId           String           @map("user_id")
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studyHallId      String           @map("studyhall_id")
+  studyHall        StudyHall        @relation(fields: [studyHallId], references: [id], onDelete: Cascade)
+  membershipPlanId String           @map("membership_plan_id")
+  membershipPlan   MembershipPlan   @relation(fields: [membershipPlanId], references: [id])
+  status           MembershipStatus
+  startsAt         DateTime         @map("starts_at")
+  endsAt           DateTime         @map("ends_at")
+  planName         String           @map("plan_name")
+  planDurationDays Int              @map("plan_duration_days")
+  planPrice        Decimal          @map("plan_price") @db.Decimal(10, 2)
+  hasFixedSeat     Boolean          @map("has_fixed_seat")
+  note             String?
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  payments        Payment[]
+  seatAssignments SeatAssignment[]
+  attendances     Attendance[]
+
+  @@index([userId])
+  @@index([studyHallId])
+  @@index([status])
+  @@index([startsAt])
+  @@index([endsAt])
+  @@map("memberships")
+}
+
+model MembershipPlan {
+  id String @id @default(cuid())
+
+  studyHallId String    @map("studyhall_id")
+  studyHall   StudyHall @relation(fields: [studyHallId], references: [id], onDelete: Cascade)
+
+  name String
+
+  durationDays Int @map("duration_days")
+
+  price Decimal @db.Decimal(10, 2)
+
+  hasFixedSeat Boolean @default(true) @map("has_fixed_seat")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  description String?
+
+  memberships Membership[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([studyHallId])
+  @@index([isActive])
+  @@map("membership_plans")
+}
+
+model Shift {
+  id                String          @id @default(cuid())
+  staffAssignmentId String          @map("staff_assignment_id")
+  staffAssignment   StaffAssignment @relation(fields: [staffAssignmentId], references: [id], onDelete: Cascade)
+  startsAt          DateTime        @map("starts_at")
+  endsAt            DateTime        @map("ends_at")
+  note              String?
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  @@index([staffAssignmentId])
+  @@index([startsAt])
+  @@index([endsAt])
+  @@map("shifts")
+}
+
+model StaffAssignment {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studyHallId String    @map("studyhall_id")
+  studyHall   StudyHall @relation(fields: [studyHallId], references: [id], onDelete: Cascade)
+  role        HallRole
+  startDate   DateTime  @map("start_date")
+  endDate     DateTime? @map("end_date")
+  isActive    Boolean   @default(true) @map("is_active")
+  note        String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  shifts Shift[]
+
+  @@index([userId])
+  @@index([studyHallId])
+  @@index([role])
+  @@index([isActive])
+  @@map("staff_assignments")
+}
+
+enum ExpenseCategory {
+  RENT
+  ELECTRICITY
+  WATER
+  INTERNET
+  CLEANING
+  EQUIPMENT
+  SALARY
+  OTHER
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  studyHallId String          @map("studyhall_id")
+  studyHall   StudyHall       @relation(fields: [studyHallId], references: [id], onDelete: Cascade)
+  title       String
+  amount      Decimal         @db.Decimal(10, 2)
+  category    ExpenseCategory
+  occurredAt  DateTime        @map("occurred_at")
+  note        String?
+  createdById String          @map("created_by_id")
+  createdBy   User            @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+  voidedAt    DateTime?       @map("voided_at")
+  voidReason  String?         @map("void_reason")
+  voidedById  String?         @map("voided_by_id")
+  voidedBy    User?           @relation("ExpenseVoidedBy", fields: [voidedById], references: [id])
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@index([studyHallId])
+  @@index([occurredAt])
+  @@index([createdById])
+  @@map("expenses")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VOID
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum AuditEntity {
+  STUDYHALL
+  USER
+  MEMBERSHIP_PLAN
+  MEMBERSHIP
+  PAYMENT
+  SEAT
+  SEAT_ASSIGNMENT
+  ATTENDANCE
+  STAFF_ASSIGNMENT
+  SHIFT
+  EXPENSE
+  NOTIFICATION
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  studyHallId String?     @map("studyhall_id")
+  studyHall   StudyHall?  @relation(fields: [studyHallId], references: [id], onDelete: Cascade)
+  actorId     String?     @map("actor_id")
+  actor       User?       @relation("UserAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+  action      AuditAction
+  entityType  AuditEntity @map("entity_type")
+  entityId    String      @map("entity_id")
+  metadata    Json?
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([studyHallId])
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+enum NotificationType {
+  MEMBERSHIP_EXPIRING
+  PAYMENT_DUE
+  PAYMENT_RECEIVED
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false) @map("is_read")
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+enum OtpPurpose {
+  LOGIN
+  VERIFY_PHONE
+}
+
+model OtpVerification {
+  id          String     @id @default(cuid())
+  phoneNumber String     @map("phone_number")
+  code        String
+  purpose     OtpPurpose @default(LOGIN)
+  expiresAt   DateTime   @map("expires_at")
+  usedAt      DateTime?  @map("used_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  @@index([phoneNumber])
+  @@index([expiresAt])
+  @@map("otp_verifications")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+enum DemoRequestStatus {
+  PENDING
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
 model DemoRequest {
-  id            String    @id @default(cuid())
-  leadId        String
-  preferredTime String? // free-text preferred time from the prospect
-  scheduledAt   DateTime? // set once the demo is actually booked
-  status        String    @default("requested") // requested | scheduled | completed | cancelled
-  notes         String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  id          String            @id @default(cuid())
+  leadId      String            @map("lead_id")
+  lead        Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  scheduledAt DateTime?         @map("scheduled_at")
+  status      DemoRequestStatus @default(PENDING)
+  note        String?
+  createdById String?           @map("created_by_id")
+  createdBy   User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
 
   @@index([leadId])
   @@index([status])
-  @@map("demorequest")
+  @@map("demo_requests")
 }
