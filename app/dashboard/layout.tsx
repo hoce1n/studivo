@@ -14,8 +14,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/server";
+import { requireUser } from "@/app/actions/auth";
 import ThemeToggle from "../(marketing)/_components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 
@@ -27,33 +26,7 @@ export default async function Layout({
     children: React.ReactNode;
 }) {
 
-  const session = await getSession();
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      name: true,
-      role: true,
-      platformRole: true,
-      studyhallId: true,
-      studyhall: {
-        select: {
-          id: true,
-          name: true,
-          totalSeats: true,
-          monthlyFee: true,
-        },
-      },
-    },
-  });
-
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await requireUser();
 
   // Platform users (SALES / SUPER_ADMIN) have no studyhallId and must not
   // reach onboarding. Redirect them to their own route group before the
