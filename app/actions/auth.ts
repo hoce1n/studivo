@@ -8,11 +8,16 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import type { ActionResult } from "@/app/actions/audit";
-
+import {
+  getTenantContext,
+  isTenantOwner,
+  type TenantContext,
+  type TenantPrincipal,
+} from "@/lib/tenant-context";
 
 type TransactionClient = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$use" | "$extends">;
 
-export async function requireUser() {
+export async function requireUser(): Promise<TenantPrincipal> {
   const session = await getSession();
 
   if (!session?.user?.id) {
@@ -26,26 +31,8 @@ export async function requireUser() {
       name: true,
       email: true,
       phoneNumber: true,
-      role: true,
       platformRole: true,
       image: true,
-      studyhallId: true,
-      studyhall: {
-        select: {
-          name: true,
-          totalSeats: true,
-          monthlyFee: true,
-          gender: true,
-          address: true,
-          reminderDaysBefore: true,
-          renewalRemindersEnabled: true,
-          expiryRemindersEnabled: true,
-          slug: true,
-          publicPageEnabled: true,
-          heroImage: true,
-          galleryImages: true,
-        },
-      },
     },
   });
 
@@ -53,7 +40,9 @@ export async function requireUser() {
     redirect("/login");
   }
 
-  return user;
+  const tenantContext = await getTenantContext(user.id);
+
+  return tenantContext ? { ...user, ...tenantContext } : { ...user, role: "member" };
 }
 
 export async function requireScopedUser() {
@@ -64,6 +53,21 @@ export async function requireScopedUser() {
   }
 
   return { ...user, studyhallId: user.studyhallId };
+}
+
+export async function requireTenantContext() {
+  const user = await requireScopedUser();
+  return user as TenantPrincipal & TenantContext;
+}
+
+export async function requireOwnerUser() {
+  const user = await requireTenantContext();
+
+  if (!isTenantOwner(user)) {
+    redirect("/dashboard");
+  }
+
+  return user;
 }
 
 // Asserts that the current session belongs to a platform user (SALES or
@@ -147,7 +151,7 @@ export async function updateProfileDetails(formData: FormData): Promise<ActionRe
 export async function updateNotificationPreferences(formData: FormData): Promise<ActionResult> {
   const user = await requireScopedUser();
 
-  if (user.role !== "admin") {
+  if (!isTenantOwner(user)) {
     return { success: false, error: "فقط مدیر سالن اجازه تغییر تنظیمات اعلان‌ها را دارد." };
   }
 
@@ -171,7 +175,7 @@ export async function updateNotificationPreferences(formData: FormData): Promise
 export async function updateStudyHallSettings(formData: FormData): Promise<ActionResult> {
   const user = await requireScopedUser();
 
-  if (user.role !== "admin") {
+  if (!isTenantOwner(user)) {
     return { success: false, error: "فقط مدیر سالن اجازه تغییر تنظیمات سالن را دارد." };
   }
 
@@ -253,7 +257,7 @@ export async function updatePublicPageSettings(
 ): Promise<ActionResult> {
   const user = await requireScopedUser();
 
-  if (user.role !== "admin") {
+  if (!isTenantOwner(user)) {
     return { success: false, error: "فقط مدیر سالن اجازه ویرایش صفحه عمومی را دارد." };
   }
 
@@ -309,7 +313,7 @@ export async function updatePublicPageSettings(
 export async function createStaff(formData: FormData): Promise<ActionResult> {
   const user = await requireScopedUser();
 
-  if (user.role !== "admin") {
+  if (!isTenantOwner(user)) {
     return { success: false, error: "فقط مدیر سالن اجازه تعریف همکار جدید را دارد." };
   }
 

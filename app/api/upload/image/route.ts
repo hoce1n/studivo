@@ -3,8 +3,8 @@
 import { put } from "@vercel/blob";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { getTenantContext, isTenantOwner } from "@/lib/tenant-context";
 import { getSession } from "@/lib/server";
-import { prisma } from "@/lib/db";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -16,12 +16,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "احراز هویت الزامی است." }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, studyhallId: true },
-  });
+  const tenantContext = await getTenantContext(session.user.id);
 
-  if (!user?.studyhallId || user.role !== "admin") {
+  if (!tenantContext || !isTenantOwner(tenantContext)) {
     return NextResponse.json({ error: "دسترسی غیر مجاز." }, { status: 403 });
   }
 
@@ -48,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   // Scope the path to the studyhall so blobs are organised per-venue
   const ext = file.name.split(".").pop() ?? "jpg";
-  const pathname = `venues/${user.studyhallId}/${Date.now()}.${ext}`;
+  const pathname = `venues/${tenantContext.studyhallId}/${Date.now()}.${ext}`;
 
   const blob = await put(pathname, file, { access: "public" });
 
