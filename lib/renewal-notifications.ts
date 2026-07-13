@@ -10,7 +10,7 @@ type ReminderCandidate = {
   studyhallName: string;
   seatNumber: string;
   memberName: string;
-  endDate: Date;
+  endsAt: Date;
   kind: "renewal" | "expired";
   daysLeft: number;
 };
@@ -109,7 +109,7 @@ export async function sendRenewalReminders() {
       studyhallName: membership.studyHall.name,
       seatNumber: membership.seatAssignments[0]?.seat.number ?? "—",
       memberName: membership.user.name,
-      endDate: membership.endDate,
+      endsAt: membership.endsAt,
       kind,
       daysLeft,
     }];
