@@ -149,28 +149,12 @@ export async function updateProfileDetails(formData: FormData): Promise<ActionRe
   return { success: true, message: "پروفایل با موفقیت به‌روزرسانی شد." };
 }
 
-export async function updateNotificationPreferences(formData: FormData): Promise<ActionResult> {
-  const user = await requireTenantContext();
-
-  if (!isTenantOwner(user)) {
-    return { success: false, error: "فقط مدیر سالن اجازه تغییر تنظیمات اعلان‌ها را دارد." };
-  }
-
-  const parsed = notificationPreferencesSchema.safeParse({
-    renewalRemindersEnabled: formData.get("renewalRemindersEnabled") === "on",
-    expiryRemindersEnabled: formData.get("expiryRemindersEnabled") === "on",
-    reminderDaysBefore: formData.get("reminderDaysBefore"),
-  });
-
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "تنظیمات اعلان‌ها معتبر نیست." };
-  }
-
-  await prisma.studyHall.update({ where: { id: user.studyHallId }, data: parsed.data });
-
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/settings");
-  return { success: true, message: "تنظیمات اعلان‌ها با موفقیت ذخیره شد." };
+export async function updateNotificationPreferences(_formData: FormData): Promise<ActionResult> {
+  // Schema v2: StudyHall no longer has notification preference columns
+  // (renewalRemindersEnabled, expiryRemindersEnabled, reminderDaysBefore).
+  // This function is kept exported to avoid breaking any import sites while
+  // the UI replaces this form with a coming-soon banner.
+  return { success: false, error: "این قابلیت هنوز پشتیبانی نمی‌شود." };
 }
 
 export async function updateStudyHallSettings(formData: FormData): Promise<ActionResult> {
@@ -259,12 +243,33 @@ export async function completeOnboarding(formData: FormData): Promise<ActionResu
     return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات سالن مطالعه معتبر نیست." };
   }
 
+  // Sanitize slug: lowercase, spaces to hyphens, strip non-ASCII-alphanumeric, trim hyphens
+  const rawSlug = parsed.data.name
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  const slug = rawSlug || "hall";
+
+  // Check uniqueness — show a collision error instead of appending a random suffix
+  const slugTaken = await prisma.studyHall.findFirst({
+    where: { slug },
+    select: { id: true },
+  });
+  if (slugTaken) {
+    return {
+      success: false,
+      error: "آدرس عمومی سالن تکراری است. لطفاً نام دیگری برای سالن انتخاب کنید.",
+    };
+  }
+
   await prisma.$transaction(async (tx: TransactionClient) => {
     // 1. Create the StudyHall
     const studyhall = await tx.studyHall.create({
       data: {
         name: parsed.data.name,
-        slug: parsed.data.name.toLowerCase().replace(/\s+/g, "-"), // Basic slug generation
+        slug,
         gender: parsed.data.gender === "male" ? "MALE" : "FEMALE",
         address: parsed.data.address,
       },
@@ -319,6 +324,8 @@ export async function completeOnboarding(formData: FormData): Promise<ActionResu
   redirect("/dashboard");
 }
 
+// Schema v2: publicPageEnabled, heroImage, galleryImages have no backing columns.
+// Only slug is persisted.
 const publicPageSchema = z.object({
   slug: z
     .string()
@@ -330,9 +337,6 @@ const publicPageSchema = z.object({
       /^[a-z0-9-]+$/,
       "آدرس عمومی فقط می‌تواند شامل حروف انگلیسی کوچک، اعداد و خط تیره باشد."
     ),
-  publicPageEnabled: z.coerce.boolean(),
-  heroImage: z.string().url().nullable().optional(),
-  galleryImages: z.string().array().max(8, "حداکثر ۸ تصویر مجاز است.").optional(),
 });
 
 export async function updatePublicPageSettings(
@@ -344,51 +348,34 @@ export async function updatePublicPageSettings(
     return { success: false, error: "فقط مدیر سالن اجازه ویرایش صفحه عمومی را دارد." };
   }
 
-  // galleryImages is a JSON array encoded in a hidden field
-  let galleryImages: string[] = [];
-  try {
-    const raw = formData.get("galleryImages");
-    if (raw) galleryImages = JSON.parse(raw.toString());
-  } catch {
-    // ignore malformed JSON — default to empty
-  }
-
   const parsed = publicPageSchema.safeParse({
     slug: formData.get("slug"),
-    publicPageEnabled: formData.get("publicPageEnabled") === "on",
-    heroImage: formData.get("heroImage") || null,
-    galleryImages,
   });
 
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? "اطلاعات صفحه عمومی معتبر نیست.",
+      error: parsed.error.issues[0]?.message ?? "آدرس عمومی معتبر نیست.",
     };
   }
 
-  // Check slug uniqueness excluding current hall
-  if (parsed.data.slug) {
-    const existing = await prisma.studyHall.findFirst({
-      where: { slug: parsed.data.slug, id: { not: user.studyHallId } },
-      select: { id: true },
-    });
-    if (existing) {
-      return { success: false, error: "این آدرس عمومی قبلاً توسط سالن دیگری انتخاب شده است." };
-    }
+  // Check slug uniqueness excluding the current hall
+  const existing = await prisma.studyHall.findFirst({
+    where: { slug: parsed.data.slug, id: { not: user.studyHallId } },
+    select: { id: true },
+  });
+  if (existing) {
+    return { success: false, error: "این آدرس عمومی قبلاً توسط سالن دیگری انتخاب شده است. لطفاً آدرس دیگری انتخاب کنید." };
   }
 
   await prisma.studyHall.update({
     where: { id: user.studyHallId },
-    data: {
-      slug: parsed.data.slug,
-      isActive: parsed.data.publicPageEnabled, // Mapping publicPageEnabled to isActive for now
-    },
+    data: { slug: parsed.data.slug },
   });
 
   revalidatePath("/dashboard/settings");
-  if (parsed.data.slug) revalidatePath(`/${parsed.data.slug}`);
-  return { success: true, message: "تنظیمات صفحه عمومی با موفقیت ذخیره شد." };
+  revalidatePath(`/${parsed.data.slug}`);
+  return { success: true, message: "آدرس عمومی سالن با موفقیت ذخیره شد." };
 }
 
 export async function createStaff(formData: FormData): Promise<ActionResult> {

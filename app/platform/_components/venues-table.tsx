@@ -139,7 +139,7 @@ export function VenuesTable({ venues }: VenuesTableProps) {
                   <TableCell className="text-muted-foreground">
                     {venue.lead ? (
                       <span className="text-sm">
-                        {venue.lead.name ?? venue.lead.venueName ?? "—"}
+                        {venue.lead.fullName ?? venue.lead.studyhallName ?? "—"}
                       </span>
                     ) : (
                       <span className="text-muted-foreground/50">—</span>

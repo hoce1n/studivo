@@ -77,7 +77,7 @@ export default function OnboardingForm({ action }: Props) {
               required
             />
             <FieldDescription>
-              برای هر عدد، یک ردیف Seat با studyhallId همین سالن ساخته می‌شود.
+              تعداد صندلی‌هایی که در سالن در دسترس خواهند بود.
             </FieldDescription>
           </Field>
 

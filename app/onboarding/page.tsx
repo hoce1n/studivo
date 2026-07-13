@@ -25,7 +25,7 @@ const perks = [
   {
     icon: Armchair,
     title: "نقشه زنده صندلی‌ها",
-    description: "برای هر صندلی یک ردیف یکتا با شماره مخصوص ساخته می‌شود.",
+    description: "صندلی‌های سالن با شماره یکتا ثبت و در داشبورد قابل مدیریت هستند.",
   },
   {
     icon: Users,
@@ -112,8 +112,7 @@ export default async function OnboardingPage() {
               <div className="flex items-start gap-3 rounded-2xl bg-primary-foreground/10 p-4 text-xs leading-6">
                 <Info className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  هر صندلی با شماره یکتا و مرز داده مخصوص همین سالن ساخته
-                  می‌شود.
+                  تمام داده‌های سالن کاملاً از سالن‌های دیگر جدا و ایمن نگهداری می‌شوند.
                 </span>
               </div>
             </div>
@@ -122,8 +121,7 @@ export default async function OnboardingPage() {
               <CardHeader className="px-0 pt-0">
                 <CardTitle className="text-xl">مشخصات اولیه سالن</CardTitle>
                 <CardDescription>
-                  این اطلاعات برای ساخت StudyHall، ذخیره آدرس و نوع سالن، و ایجاد Seatهای اولیه استفاده
-                  می‌شود.
+                  در این مرحله مشخصات پایه سالن، تعداد صندلی‌ها و شهریه ماهانه را وارد کنید.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-0 pb-0">

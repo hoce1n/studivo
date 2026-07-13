@@ -11,13 +11,7 @@ type TenantStudyHallContext = {
   monthlyFee: number;
   gender: "male" | "female";
   address: string;
-  reminderDaysBefore: number;
-  renewalRemindersEnabled: boolean;
-  expiryRemindersEnabled: boolean;
   slug: string;
-  publicPageEnabled: boolean;
-  heroImage: string | null;
-  galleryImages: string[];
 };
 
 export type TenantContext = {
@@ -115,13 +109,7 @@ export async function getTenantContext(userId: string): Promise<TenantContext | 
     monthlyFee,
     gender: mapGenderToLegacy(assignment.studyHall.gender),
     address: assignment.studyHall.address ?? "",
-    reminderDaysBefore: 3,
-    renewalRemindersEnabled: true,
-    expiryRemindersEnabled: true,
     slug: assignment.studyHall.slug,
-    publicPageEnabled: true,
-    heroImage: null,
-    galleryImages: [],
   } satisfies TenantStudyHallContext;
 
   return {

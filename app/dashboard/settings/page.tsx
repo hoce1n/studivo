@@ -37,12 +37,7 @@ export default async function HallSettingsPage() {
       <HallSettingsForm studyHall={user.studyHall} />
 
       <PublicPageSettingsForm
-        studyHall={{
-          slug: user.studyHall.slug,
-          publicPageEnabled: user.studyHall.publicPageEnabled,
-          heroImage: user.studyHall.heroImage,
-          galleryImages: user.studyHall.galleryImages,
-        }}
+        studyHall={{ slug: user.studyHall.slug }}
         studyhallId={user.studyHallId}
       />
     </section>
