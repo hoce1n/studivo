@@ -7,7 +7,7 @@ import type { ActionResult } from "@/app/actions/audit";
 import { requireTenantContext } from "@/app/actions/auth";
 
 // ---------------------------------------------------------------------------
-// Types
+// Types (Maintained for UI compatibility)
 // ---------------------------------------------------------------------------
 export type RevenueTransaction = {
   id: string;
@@ -51,33 +51,9 @@ export type OccupancyRevenueStats = {
   potentialMonthlyRevenue: number;
 };
 
-type SubscriptionMoneyRow = {
-  id: string;
-  monthlyFeeAtSubscription: number | null;
-  paymentDate: Date | null;
-  updatedAt: Date;
-  user: { name: string; phoneNumber: string | null };
-  seat: { seatNumber: number };
-  studyhall: { monthlyFee: number };
-};
-
-type OverdueSubscriptionRow = {
-  id: string;
-  startDate: Date;
-  endDate: Date;
-  monthlyFeeAtSubscription: number | null;
-  user: { name: string; phoneNumber: string | null };
-  seat: { seatNumber: number };
-  studyhall: { monthlyFee: number };
-};
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function amountFor(row: { monthlyFeeAtSubscription: number | null; studyhall: { monthlyFee: number } }) {
-  return row.monthlyFeeAtSubscription ?? row.studyhall.monthlyFee ?? 0;
-}
-
 function inclusiveEndOfDay(date: Date) {
   const value = new Date(date);
   value.setHours(23, 59, 59, 999);
@@ -103,6 +79,7 @@ const dateRangeSchema = z
 // ---------------------------------------------------------------------------
 // fetchRevenueReport
 // Fetches revenue data for a given date range.
+// Migrated to Schema v2: Payment-centric.
 // ---------------------------------------------------------------------------
 export async function fetchRevenueReport(startDate: Date, endDate: Date): Promise<ActionResult<RevenueReport>> {
   const user = await requireTenantContext();
@@ -116,34 +93,39 @@ export async function fetchRevenueReport(startDate: Date, endDate: Date): Promis
   const rangeEnd = inclusiveEndOfDay(parsed.data.endDate);
 
   try {
-    const rows = (await prisma.subscription.findMany({
+    const payments = await prisma.payment.findMany({
       where: {
-        studyhallId: user.studyHallId,
-        paymentStatus: "paid",
-        OR: [
-          { paymentDate: { gte: rangeStart, lte: rangeEnd } },
-          { paymentDate: null, updatedAt: { gte: rangeStart, lte: rangeEnd } },
-        ],
+        membership: { studyHallId: user.studyHallId },
+        status: "COMPLETED",
+        paidAt: { gte: rangeStart, lte: rangeEnd },
       },
-      select: {
-        id: true,
-        monthlyFeeAtSubscription: true,
-        paymentDate: true,
-        updatedAt: true,
-        user: { select: { name: true, phoneNumber: true } },
-        seat: { select: { seatNumber: true } },
-        studyhall: { select: { monthlyFee: true } },
+      include: {
+        membership: {
+          include: {
+            user: { select: { name: true, phoneNumber: true } },
+            seatAssignments: {
+              orderBy: { startsAt: "desc" },
+              take: 1,
+              include: { seat: { select: { number: true } } },
+            },
+          },
+        },
       },
-      orderBy: [{ paymentDate: "desc" }, { updatedAt: "desc" }],
-    })) as SubscriptionMoneyRow[];
+      orderBy: { paidAt: "desc" },
+    });
 
-    const transactions = rows.map((row) => ({
-      id: row.id,
-      amount: amountFor(row),
-      paymentDate: row.paymentDate,
-      fallbackDate: row.updatedAt,
-      user: row.user,
-      seat: row.seat,
+    const transactions: RevenueTransaction[] = payments.map((p) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      paymentDate: p.paidAt,
+      fallbackDate: p.createdAt,
+      user: {
+        name: p.membership.user.name,
+        phoneNumber: p.membership.user.phoneNumber,
+      },
+      seat: {
+        seatNumber: Number(p.membership.seatAssignments[0]?.seat.number ?? 0),
+      },
     }));
 
     return {
@@ -162,38 +144,46 @@ export async function fetchRevenueReport(startDate: Date, endDate: Date): Promis
 
 // ---------------------------------------------------------------------------
 // fetchOverduePayments
-// Fetches subscriptions with unpaid status that are past their end date.
+// Fetches memberships that are active but have no completed payments.
+// Migrated to Schema v2.
 // ---------------------------------------------------------------------------
 export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymentsReport>> {
   const user = await requireTenantContext();
 
   try {
-    const rows = (await prisma.subscription.findMany({
+    // Overdue definition in Schema v2:
+    // Memberships that are ACTIVE but have no COMPLETED payments.
+    const memberships = await prisma.membership.findMany({
       where: {
-        studyhallId: user.studyHallId,
-        paymentStatus: "unpaid",
-        status: "active",
-        endDate: { lt: new Date() },
+        studyHallId: user.studyHallId,
+        status: "ACTIVE",
+        payments: {
+          none: { status: "COMPLETED" },
+        },
       },
-      select: {
-        id: true,
-        startDate: true,
-        endDate: true,
-        monthlyFeeAtSubscription: true,
+      include: {
         user: { select: { name: true, phoneNumber: true } },
-        seat: { select: { seatNumber: true } },
-        studyhall: { select: { monthlyFee: true } },
+        seatAssignments: {
+          orderBy: { startsAt: "desc" },
+          take: 1,
+          include: { seat: { select: { number: true } } },
+        },
       },
-      orderBy: { endDate: "asc" },
-    })) as OverdueSubscriptionRow[];
+      orderBy: { endsAt: "asc" },
+    });
 
-    const overdueSubscriptions = rows.map((row) => ({
-      id: row.id,
-      startDate: row.startDate,
-      endDate: row.endDate,
-      amount: amountFor(row),
-      user: row.user,
-      seat: row.seat,
+    const overdueSubscriptions: OverduePayment[] = memberships.map((m) => ({
+      id: m.id,
+      startDate: m.startsAt,
+      endDate: m.endsAt,
+      amount: Number(m.planPrice),
+      user: {
+        name: m.user.name,
+        phoneNumber: m.user.phoneNumber,
+      },
+      seat: {
+        seatNumber: Number(m.seatAssignments[0]?.seat.number ?? 0),
+      },
     }));
 
     return {
@@ -211,6 +201,7 @@ export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymen
 // ---------------------------------------------------------------------------
 // fetchOccupancyRevenueStats
 // Fetches current occupancy and potential revenue stats.
+// Migrated to Schema v2.
 // ---------------------------------------------------------------------------
 export async function fetchOccupancyRevenueStats(): Promise<ActionResult<OccupancyRevenueStats>> {
   const user = await requireTenantContext();
@@ -218,7 +209,7 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
   try {
     const studyHall = await prisma.studyHall.findFirst({
       where: { id: user.studyHallId },
-      select: { totalSeats: true, monthlyFee: true },
+      select: { totalSeats: true, membershipPlans: { select: { price: true }, take: 1 } },
     });
 
     if (!studyHall) {
@@ -228,49 +219,67 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [activeSubscriptions, paidActiveSubscriptions, allPaidRows, monthlyPaidRows, activePaidRows] = await Promise.all([
-      prisma.subscription.count({
-        where: { studyhallId: user.studyHallId, status: "active", endDate: { gte: now } },
+    const [
+      activeMembershipsCount,
+      paidActiveMembershipsCount,
+      totalRevenueSum,
+      monthlyRevenueSum,
+      activeRevenueSum
+    ] = await Promise.all([
+      // Total active memberships (occupancy)
+      prisma.membership.count({
+        where: { studyHallId: user.studyHallId, status: "ACTIVE" },
       }),
-      prisma.subscription.count({
-        where: { studyhallId: user.studyHallId, status: "active", paymentStatus: "paid", endDate: { gte: now } },
-      }),
-      prisma.subscription.findMany({
-        where: { studyhallId: user.studyHallId, paymentStatus: "paid" },
-        select: { monthlyFeeAtSubscription: true, studyhall: { select: { monthlyFee: true } } },
-      }),
-      prisma.subscription.findMany({
+      // Paid active memberships
+      prisma.membership.count({
         where: {
-          studyhallId: user.studyHallId,
-          paymentStatus: "paid",
-          OR: [
-            { paymentDate: { gte: monthStart, lte: now } },
-            { paymentDate: null, updatedAt: { gte: monthStart, lte: now } },
-          ],
+          studyHallId: user.studyHallId,
+          status: "ACTIVE",
+          payments: { some: { status: "COMPLETED" } },
         },
-        select: { monthlyFeeAtSubscription: true, studyhall: { select: { monthlyFee: true } } },
       }),
-      prisma.subscription.findMany({
-        where: { studyhallId: user.studyHallId, status: "active", paymentStatus: "paid", endDate: { gte: now } },
-        select: { monthlyFeeAtSubscription: true, studyhall: { select: { monthlyFee: true } } },
+      // Total revenue (all completed payments)
+      prisma.payment.aggregate({
+        where: { membership: { studyHallId: user.studyHallId }, status: "COMPLETED" },
+        _sum: { amount: true },
+      }),
+      // Monthly revenue (completed payments in current month)
+      prisma.payment.aggregate({
+        where: {
+          membership: { studyHallId: user.studyHallId },
+          status: "COMPLETED",
+          paidAt: { gte: monthStart, lte: now },
+        },
+        _sum: { amount: true },
+      }),
+      // Active revenue (completed payments for currently active memberships)
+      prisma.payment.aggregate({
+        where: {
+          membership: { studyHallId: user.studyHallId, status: "ACTIVE" },
+          status: "COMPLETED",
+        },
+        _sum: { amount: true },
       }),
     ]);
 
     const totalSeats = studyHall.totalSeats;
-    const occupancyRate = totalSeats ? Math.round((activeSubscriptions / totalSeats) * 100) : 0;
+    const occupancyRate = totalSeats ? Math.round((activeMembershipsCount / totalSeats) * 100) : 0;
+
+    // Fallback for monthly fee if no plan is found (though onboarding ensures it)
+    const defaultMonthlyFee = Number(studyHall.membershipPlans[0]?.price ?? 0);
 
     return {
       success: true,
       data: {
         totalSeats,
-        activeSubscriptions,
-        paidActiveSubscriptions,
-        unpaidActiveSubscriptions: activeSubscriptions - paidActiveSubscriptions,
+        activeSubscriptions: activeMembershipsCount,
+        paidActiveSubscriptions: paidActiveMembershipsCount,
+        unpaidActiveSubscriptions: activeMembershipsCount - paidActiveMembershipsCount,
         occupancyRate,
-        totalRevenue: (allPaidRows as any[]).reduce((sum, row) => sum + amountFor(row), 0),
-        monthlyRevenue: (monthlyPaidRows as any[]).reduce((sum, row) => sum + amountFor(row), 0),
-        activeRevenue: (activePaidRows as any[]).reduce((sum, row) => sum + amountFor(row), 0),
-        potentialMonthlyRevenue: totalSeats * studyHall.monthlyFee,
+        totalRevenue: Number(totalRevenueSum._sum.amount ?? 0),
+        monthlyRevenue: Number(monthlyRevenueSum._sum.amount ?? 0),
+        activeRevenue: Number(activeRevenueSum._sum.amount ?? 0),
+        potentialMonthlyRevenue: totalSeats * defaultMonthlyFee,
       },
     };
   } catch (error) {
