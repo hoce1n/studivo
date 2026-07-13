@@ -87,6 +87,7 @@ export async function sendVerificationCode(
 ): Promise<void> {
   if (process.env.NODE_ENV === "development") {
     console.log(`[DEV OTP] ${purpose ?? "verification"} code for ${mobile}: ${code}`);
+    return;
   }
 
   const { apiKey, templateId } = getSmsConfig();
