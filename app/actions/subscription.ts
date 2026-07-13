@@ -22,7 +22,10 @@ function calculateDaysDifference(newEndDate: Date, currentEndDate: Date) {
  * Renews a membership (legacy subscriptionId used as membershipId).
  * Migrated to Schema v2 Membership model.
  */
-export async function renewSubscription(subscriptionId: string, endDate: string): Promise<ActionResult<{ isRealRenewal: boolean; daysDifference: number }>> {
+export async function renewSubscription(
+  subscriptionId: string,
+  endDate: string,
+): Promise<ActionResult<{ isRealRenewal: boolean; daysDifference: number }>> {
   const user = await requireTenantContext();
   const parsed = renewSchema.safeParse({ subscriptionId, endDate });
 
@@ -41,7 +44,6 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
 
   try {
     renewalResult = await prisma.$transaction(async (tx: TransactionClient) => {
-      // Find current active membership using the provided ID (mapped from legacy subscriptionId)
       const current = await tx.membership.findFirst({
         where: { id: parsed.data.subscriptionId, studyHallId: user.studyHallId, status: "ACTIVE" },
         select: {
@@ -70,7 +72,6 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
       const isRealRenewal = daysDifference > 7;
 
       if (isRealRenewal) {
-        // Handle seat assignment for the new membership
         const currentSeatId = current.seatAssignments[0]?.seatId;
 
         if (currentSeatId) {
@@ -89,18 +90,15 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
           }
         }
 
-        // Close current membership
         await tx.membership.update({ where: { id: current.id }, data: { status: "EXPIRED" } });
 
-        // Close current seat assignment
         if (current.seatAssignments[0]) {
-            await tx.seatAssignment.updateMany({
-                where: { membershipId: current.id, endsAt: null },
-                data: { endsAt: now }
-            });
+          await tx.seatAssignment.updateMany({
+            where: { membershipId: current.id, endsAt: null },
+            data: { endsAt: now },
+          });
         }
 
-        // Create new membership
         const newMembership = await tx.membership.create({
           data: {
             userId: current.userId,
@@ -116,30 +114,23 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
           },
         });
 
-        // Assign seat to new membership
         if (currentSeatId) {
-            await tx.seatAssignment.create({
-                data: {
-                    membershipId: newMembership.id,
-                    seatId: currentSeatId,
-                    startsAt: now,
-                }
-            });
+          await tx.seatAssignment.create({
+            data: {
+              membershipId: newMembership.id,
+              seatId: currentSeatId,
+              startsAt: now,
+            },
+          });
         }
       } else {
-        // Just update the end date
         await tx.membership.update({ where: { id: current.id }, data: { endsAt: newEndDate } });
 
-        // Update seat assignment end date if applicable
         await tx.seatAssignment.updateMany({
-            where: { membershipId: current.id, endsAt: { not: null } },
-            data: { endsAt: newEndDate }
+          where: { membershipId: current.id, endsAt: { not: null } },
+          data: { endsAt: newEndDate },
         });
       }
-
-      // Note: In Schema v2, AuditLog has a different structure.
-      // I'll skip creating the audit log for now to avoid breaking the transaction
-      // until I fully map the new AuditLog entity.
 
       return { isRealRenewal, daysDifference };
     });
@@ -158,76 +149,216 @@ export async function renewSubscription(subscriptionId: string, endDate: string)
   };
 }
 
-const updatePaymentStatusSchema = z.object({
-  subscriptionId: z.string().min(1, "شناسه اشتراک معتبر نیست."),
-  status: z.enum(["paid", "unpaid"]),
+// ---------------------------------------------------------------------------
+// registerPayment
+// Replaces the legacy "paid/unpaid toggle" (updatePaymentStatus) with a proper
+// payment workflow. Each call creates an immutable Payment record.
+// To cancel a payment, use voidPayment instead of toggling status.
+// ---------------------------------------------------------------------------
+
+const PAYMENT_METHODS = ["CASH", "POS", "CARD_TO_CARD", "ONLINE"] as const;
+
+export const PAYMENT_METHOD_LABELS: Record<(typeof PAYMENT_METHODS)[number], string> = {
+  CASH: "نقدی",
+  POS: "کارت‌خوان",
+  CARD_TO_CARD: "کارت به کارت",
+  ONLINE: "آنلاین",
+};
+
+const registerPaymentSchema = z.object({
+  membershipId: z.string().min(1, "شناسه اشتراک معتبر نیست."),
+  amount: z.coerce
+    .number()
+    .min(1, "مبلغ پرداخت باید بیشتر از صفر باشد."),
+  method: z.enum(PAYMENT_METHODS, {
+    error: "روش پرداخت را انتخاب کنید.",
+  }),
+  note: z.string().trim().max(300, "یادداشت نمی‌تواند بیشتر از ۳۰۰ کاراکتر باشد.").optional(),
 });
 
-/**
- * Updates payment status (legacy subscriptionId used as membershipId).
- * Migrated to Schema v2 Payment model.
- */
-export async function updatePaymentStatus(subscriptionId: string, status: "paid" | "unpaid"): Promise<ActionResult> {
+export async function registerPayment(formData: FormData): Promise<ActionResult<{ paymentId: string }>> {
   const user = await requireTenantContext();
-  const parsed = updatePaymentStatusSchema.safeParse({ subscriptionId, status });
+
+  const parsed = registerPaymentSchema.safeParse({
+    membershipId: formData.get("membershipId"),
+    amount: formData.get("amount"),
+    method: formData.get("method"),
+    note: formData.get("note") || undefined,
+  });
 
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات وضعیت پرداخت معتبر نیست." };
+    return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات پرداخت معتبر نیست." };
+  }
+
+  try {
+    const membership = await prisma.membership.findFirst({
+      where: { id: parsed.data.membershipId, studyHallId: user.studyHallId },
+      select: { id: true, status: true },
+    });
+
+    if (!membership) {
+      return { success: false, error: "اشتراک مورد نظر پیدا نشد." };
+    }
+
+    const payment = await prisma.$transaction(async (tx: TransactionClient) => {
+      const created = await tx.payment.create({
+        data: {
+          membershipId: membership.id,
+          amount: parsed.data.amount,
+          method: parsed.data.method,
+          status: "COMPLETED",
+          paidAt: new Date(),
+          note: parsed.data.note ?? null,
+          createdById: user.id,
+        },
+        select: { id: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          studyHallId: user.studyHallId,
+          actorId: user.id,
+          action: "CREATE",
+          entityType: "PAYMENT",
+          entityId: created.id,
+          metadata: {
+            membershipId: membership.id,
+            amount: parsed.data.amount,
+            method: parsed.data.method,
+          },
+        },
+      });
+
+      return created;
+    });
+
+    revalidateOperationalPaths();
+
+    return {
+      success: true,
+      message: "پرداخت با موفقیت ثبت شد.",
+      data: { paymentId: payment.id },
+    };
+  } catch (error) {
+    return actionError(error, "ثبت پرداخت ناموفق بود.");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// voidPayment
+// Voids an existing COMPLETED payment (immutable audit trail preserved).
+// ---------------------------------------------------------------------------
+
+const voidPaymentSchema = z.object({
+  paymentId: z.string().min(1, "شناسه پرداخت معتبر نیست."),
+  reason: z.string().trim().max(300, "دلیل ابطال نمی‌تواند بیشتر از ۳۰۰ کاراکتر باشد.").optional(),
+});
+
+export async function voidPayment(formData: FormData): Promise<ActionResult> {
+  const user = await requireTenantContext();
+
+  const parsed = voidPaymentSchema.safeParse({
+    paymentId: formData.get("paymentId"),
+    reason: formData.get("reason") || undefined,
+  });
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات ابطال پرداخت معتبر نیست." };
   }
 
   try {
     await prisma.$transaction(async (tx: TransactionClient) => {
-      const currentMembership = await tx.membership.findFirst({
-        where: { id: parsed.data.subscriptionId, studyHallId: user.studyHallId },
-        select: {
-          id: true,
-          planPrice: true,
-          payments: {
-            where: { status: "COMPLETED" },
-            take: 1,
-          }
+      const payment = await tx.payment.findFirst({
+        where: {
+          id: parsed.data.paymentId,
+          membership: { studyHallId: user.studyHallId },
+          status: "COMPLETED",
+        },
+        select: { id: true, membershipId: true },
+      });
+
+      if (!payment) {
+        throw new Error("پرداخت مورد نظر پیدا نشد یا قبلاً باطل شده است.");
+      }
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "VOIDED",
+          voidedAt: new Date(),
+          voidedById: user.id,
+          voidReason: parsed.data.reason ?? "باطل شده توسط مدیر",
         },
       });
 
-      if (!currentMembership) {
-        throw new Error("اشتراک مورد نظر پیدا نشد.");
-      }
-
-      const hasPaid = currentMembership.payments.length > 0;
-
-      if (parsed.data.status === "paid" && !hasPaid) {
-        // Create a completed payment
-        await tx.payment.create({
-          data: {
-            membershipId: currentMembership.id,
-            amount: currentMembership.planPrice,
-            method: "CASH", // Default to CASH for now
-            status: "COMPLETED",
-            paidAt: new Date(),
-            createdById: user.id,
-          },
-        });
-      } else if (parsed.data.status === "unpaid" && hasPaid) {
-        // Void existing payments
-        await tx.payment.updateMany({
-          where: { membershipId: currentMembership.id, status: "COMPLETED" },
-          data: {
-            status: "VOIDED",
-            voidedAt: new Date(),
-            voidedById: user.id,
-            voidReason: "تغییر وضعیت به پرداخت نشده توسط مدیر",
-          },
-        });
-      }
+      await tx.auditLog.create({
+        data: {
+          studyHallId: user.studyHallId,
+          actorId: user.id,
+          action: "VOID",
+          entityType: "PAYMENT",
+          entityId: payment.id,
+          metadata: { reason: parsed.data.reason ?? null },
+        },
+      });
     });
+
+    revalidateOperationalPaths();
+    return { success: true, message: "پرداخت با موفقیت باطل شد." };
   } catch (error) {
-    return actionError(error, "تغییر وضعیت پرداخت ناموفق بود.");
+    return actionError(error, "ابطال پرداخت ناموفق بود.");
   }
+}
 
-  revalidateOperationalPaths();
+// ---------------------------------------------------------------------------
+// fetchMembershipPayments
+// Returns the payment history for a single membership (for the payment panel).
+// ---------------------------------------------------------------------------
 
-  return {
-    success: true,
-    message: "وضعیت پرداخت با موفقیت به‌روزرسانی شد.",
-  };
+export type MembershipPayment = {
+  id: string;
+  amount: number;
+  method: string;
+  status: "COMPLETED" | "VOIDED";
+  paidAt: Date | null;
+  note: string | null;
+  createdBy: { name: string };
+};
+
+export async function fetchMembershipPayments(membershipId: string): Promise<ActionResult<MembershipPayment[]>> {
+  const user = await requireTenantContext();
+
+  try {
+    const payments = await prisma.payment.findMany({
+      where: {
+        membershipId,
+        membership: { studyHallId: user.studyHallId },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        amount: true,
+        method: true,
+        status: true,
+        paidAt: true,
+        note: true,
+        createdBy: { select: { name: true } },
+      },
+    });
+
+    return {
+      success: true,
+      data: payments.map((p) => ({
+        id: p.id,
+        amount: Number(p.amount),
+        method: p.method,
+        status: p.status as "COMPLETED" | "VOIDED",
+        paidAt: p.paidAt,
+        note: p.note,
+        createdBy: { name: p.createdBy.name },
+      })),
+    };
+  } catch (error) {
+    return actionError(error, "خطا در دریافت سابقه پرداخت‌ها.");
+  }
 }

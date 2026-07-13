@@ -24,6 +24,8 @@ export type StudyHallSettingsData = {
   monthlyFee: number;
   gender: string;
   address: string;
+  phoneNumber?: string | null;
+  description?: string | null;
 };
 
 const studyHallSettingsClientSchema = z.object({
@@ -42,6 +44,17 @@ const studyHallSettingsClientSchema = z.object({
     .trim()
     .min(5, "آدرس سالن را کامل‌تر وارد کنید.")
     .max(300, "آدرس نمی‌تواند بیشتر از ۳۰۰ کاراکتر باشد."),
+  phoneNumber: z
+    .string()
+    .trim()
+    .regex(/^0\d{9,10}$/, "شماره تلفن سالن معتبر نیست.")
+    .optional()
+    .or(z.literal("")),
+  description: z
+    .string()
+    .trim()
+    .max(500, "توضیحات نمی‌تواند بیشتر از ۵۰۰ کاراکتر باشد.")
+    .optional(),
 });
 
 function genderLabel(gender?: string) {
@@ -60,6 +73,8 @@ export function HallSettingsForm({ studyHall }: { studyHall: StudyHallSettingsDa
       monthlyFee: formData.get("monthlyFee"),
       gender: formData.get("gender"),
       address: formData.get("address") ?? "",
+      phoneNumber: formData.get("phoneNumber") ?? "",
+      description: formData.get("description") ?? "",
     });
 
     if (!parsed.success) {
@@ -173,6 +188,19 @@ export function HallSettingsForm({ studyHall }: { studyHall: StudyHallSettingsDa
                 </div>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="studyhall-phone">شماره تلفن سالن (اختیاری)</Label>
+                <Input
+                  id="studyhall-phone"
+                  name="phoneNumber"
+                  type="tel"
+                  inputMode="tel"
+                  dir="ltr"
+                  defaultValue={studyHall.phoneNumber ?? ""}
+                  placeholder="مثلاً ۰۲۱۱۲۳۴۵۶۷۸"
+                  maxLength={12}
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="studyhall-address">آدرس سالن</Label>
                 <div className="relative">
                   <MapPin className="pointer-events-none absolute right-3 top-3 size-4 text-muted-foreground" />
@@ -187,6 +215,18 @@ export function HallSettingsForm({ studyHall }: { studyHall: StudyHallSettingsDa
                     required
                   />
                 </div>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="studyhall-description">توضیحات سالن (اختیاری)</Label>
+                <textarea
+                  id="studyhall-description"
+                  name="description"
+                  defaultValue={studyHall.description ?? ""}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="معرفی کوتاه از سالن مطالعه برای صفحه عمومی"
+                  className="border-input bg-background ring-offset-background focus-visible:ring-ring w-full rounded-2xl border px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
               </div>
               <div className="flex justify-end">
                 <Button type="submit" disabled={pending} className="min-w-40">
