@@ -49,11 +49,11 @@ export async function requireScopedUser() {
   const user = await requireUser();
 
   // In Schema v2, studyhallId is provided by the TenantContext resolved via StaffAssignment.
-  if (!user.studyHallId) {
+  if (!user.studyhallId) {
     redirect("/onboarding");
   }
 
-  return { ...user, studyHallId: user.studyHallId };
+  return user as TenantPrincipal & TenantContext;
 }
 
 export async function requireTenantContext() {
@@ -203,7 +203,8 @@ export async function completeOnboarding(formData: FormData): Promise<ActionResu
   const user = await requireUser();
 
   // In Schema v2, onboarding status is checked by the presence of a StaffAssignment.
-  if (user.studyHallId) {
+  const context = await getTenantContext(user.id);
+  if (context) {
     redirect("/dashboard");
   }
 
