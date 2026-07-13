@@ -25,7 +25,7 @@ export default async function LogsPage({ searchParams }: { searchParams: Promise
   const user = await requireOwnerUser();
 
   const logs = await prisma.auditLog.findMany({
-    where: { studyhallId: user.studyHallId },
+    where: { studyHallId: user.studyHallId },
     orderBy: { createdAt: "desc" },
     skip: (page - 1) * take,
     take,
@@ -33,11 +33,11 @@ export default async function LogsPage({ searchParams }: { searchParams: Promise
       user: {
         select: {
           name: true,
-          // Note: In Schema v2, user.role is legacy.
-          // For display purposes in audit logs, we might need to resolve their role in the studyhall
-          // or just show the legacy role if it's still populated.
-          // Since we are not changing the DB yet, we keep it but acknowledge it's legacy.
-          role: true
+          staffAssignments: {
+            where: { studyHallId: user.studyHallId },
+            select: { role: true },
+            take: 1
+          }
         }
       }
     }
@@ -70,7 +70,7 @@ export default async function LogsPage({ searchParams }: { searchParams: Promise
             </div>
             <p className="mt-2 font-medium">{details}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              ثبت‌کننده: {log.user.name} · {log.user.role === "admin" ? "مدیر" : "مراقب"}
+              ثبت‌کننده: {log.user.name} · {log.user.staffAssignments[0]?.role === "OWNER" ? "مدیر" : "مراقب"}
             </p>
           </div>;
         }) : <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">هنوز رویدادی ثبت نشده است.</div>}

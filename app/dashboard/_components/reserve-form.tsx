@@ -469,10 +469,10 @@ export function ReserveForm({
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="name">نام و نام خانوادگی</FieldLabel>
+                    <FieldLabel htmlFor="memberName">نام و نام خانوادگی</FieldLabel>
                     <Input
-                      id="name"
-                      name="name"
+                      id="memberName"
+                      name="memberName"
                       defaultValue={returningMember?.name ?? ""}
                       placeholder="نام دانش‌آموز"
                       required

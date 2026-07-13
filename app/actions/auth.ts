@@ -192,7 +192,46 @@ export async function updateStudyHallSettings(formData: FormData): Promise<Actio
     return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات تنظیمات سالن معتبر نیست." };
   }
 
-  await prisma.studyHall.update({ where: { id: user.studyHallId }, data: parsed.data });
+  await prisma.$transaction(async (tx: TransactionClient) => {
+    // 1. Update StudyHall basic info
+    const studyHall = await tx.studyHall.update({
+      where: { id: user.studyHallId },
+      data: {
+        name: parsed.data.name,
+        gender: parsed.data.gender === "male" ? "MALE" : "FEMALE",
+        address: parsed.data.address,
+      },
+    });
+
+    // 2. Sync MembershipPlan price
+    await tx.membershipPlan.updateMany({
+      where: { studyHallId: user.studyHallId, isActive: true },
+      data: { price: parsed.data.monthlyFee },
+    });
+
+    // 3. Sync Seats (Simple additive/subtractive logic)
+    const currentSeatsCount = await tx.seat.count({
+      where: { section: { studyHallId: user.studyHallId } },
+    });
+
+    if (parsed.data.totalSeats > currentSeatsCount) {
+      // Add missing seats
+      const section = await tx.section.findFirst({
+        where: { studyHallId: user.studyHallId, isActive: true },
+        select: { id: true },
+      });
+
+      if (section) {
+        await tx.seat.createMany({
+          data: Array.from({ length: parsed.data.totalSeats - currentSeatsCount }, (_, i) => ({
+            number: (currentSeatsCount + i + 1).toString(),
+            sectionId: section.id,
+            isActive: true,
+          })),
+        });
+      }
+    }
+  });
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/settings");

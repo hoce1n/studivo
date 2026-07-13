@@ -101,6 +101,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
   // Transform members for UI compatibility
   const transformedMembers = members.map((member) => {
     const latest = member.memberships[0];
+    const isPaid = latest?.payments.some((p) => p.status === "COMPLETED");
     return {
       id: member.id,
       name: member.name,
@@ -108,7 +109,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
       latest: latest ? {
         status: latest.status === "ACTIVE" ? "active" : "inactive",
         endDate: latest.endsAt,
-        paymentStatus: latest.payments.length > 0 ? "paid" : "unpaid",
+        paymentStatus: isPaid ? "paid" : "unpaid",
         seatNumber: latest.seatAssignments[0]?.seat.number ?? "—",
       } : null,
     };
@@ -119,14 +120,17 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
     id: selectedMemberRaw.id,
     name: selectedMemberRaw.name,
     phoneNumber: selectedMemberRaw.phoneNumber,
-    memberships: selectedMemberRaw.memberships.map((m) => ({
-      id: m.id,
-      status: m.status === "ACTIVE" ? "active" : m.status === "EXPIRED" ? "expired" : "cancelled",
-      startDate: m.startsAt,
-      endDate: m.endsAt,
-      paymentStatus: m.payments.length > 0 ? "paid" : "unpaid",
-      seatNumber: m.seatAssignments[0]?.seat.number ?? "—",
-    })),
+    memberships: selectedMemberRaw.memberships.map((m) => {
+      const isPaid = m.payments.some((p) => p.status === "COMPLETED");
+      return {
+        id: m.id,
+        status: m.status === "ACTIVE" ? "active" : m.status === "EXPIRED" ? "expired" : "cancelled",
+        startDate: m.startsAt,
+        endDate: m.endsAt,
+        paymentStatus: isPaid ? "paid" : "unpaid",
+        seatNumber: m.seatAssignments[0]?.seat.number ?? "—",
+      };
+    }),
   } : null;
 
   return (

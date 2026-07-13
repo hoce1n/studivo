@@ -174,7 +174,19 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
           }
       });
 
-      // 8. Create Audit Log (Skipping for now to avoid AuditAction enum mismatch in transaction)
+      // 8. Create Audit Log
+      await tx.auditLog.create({
+        data: {
+          studyHallId: user.studyHallId,
+          actorId: user.id,
+          action: "CREATE",
+          entityType: "MEMBERSHIP",
+          entityId: createdMembership.id,
+          metadata: {
+            message: `رزرو صندلی ${parsed.data.seatNumber} برای ${parsed.data.memberName}`,
+          },
+        },
+      });
     });
   } catch (error) {
     return actionError(error, "رزرو صندلی ناموفق بود.");
@@ -227,7 +239,19 @@ export async function releaseSeat(subscriptionId: string): Promise<ActionResult>
           });
       }
 
-      // Audit log skipped
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          studyHallId: user.studyHallId,
+          actorId: user.id,
+          action: "DELETE",
+          entityType: "MEMBERSHIP",
+          entityId: currentMembership.id,
+          metadata: {
+            message: `تخلیه صندلی ${currentMembership.seatAssignments[0]?.seat.number} توسط ${currentMembership.user.name}`,
+          },
+        },
+      });
     });
   } catch (error) {
     return actionError(error, "تخلیه صندلی ناموفق بود.");
@@ -317,7 +341,19 @@ export async function swapSeat(subscriptionId: string, newSeatNumber: number): P
           }
       });
 
-      // Audit log skipped
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          studyHallId: user.studyHallId,
+          actorId: user.id,
+          action: "UPDATE",
+          entityType: "SEAT_ASSIGNMENT",
+          entityId: currentMembership.id,
+          metadata: {
+            message: `جابجایی ${currentMembership.user.name} از صندلی ${currentMembership.seatAssignments[0]?.seat.number} به ${parsed.data.newSeatNumber}`,
+          },
+        },
+      });
     });
   } catch (error) {
     return actionError(error, "جابجایی صندلی ناموفق بود.");
