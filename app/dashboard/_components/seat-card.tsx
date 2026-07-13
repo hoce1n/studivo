@@ -2,20 +2,40 @@
 
 import { cn } from "@/lib/utils";
 
+/**
+ * SeatCardProps defines the data structure for the SeatCard component.
+ *
+ * Note for Schema v2:
+ * - The `subscription` prop name is kept for UI compatibility.
+ * - In Schema v2, this object represents a `Membership` entity.
+ * - `subscription.id` corresponds to `Membership.id`.
+ * - `paymentStatus` is derived from the existence of completed `Payment` records for the membership.
+ */
 export type SeatCardProps = {
   seatNumber: string;
   statusLabel: string;
   className: string;
   dotClass: string;
   subscription?: {
+    /** The ID of the Membership (Schema v2) */
     id: string;
     memberName: string;
     phoneNumber: string;
     endDate: string;
+    /**
+     * Mapping from Schema v2:
+     * "paid" if membership has at least one COMPLETED payment, else "unpaid".
+     */
     paymentStatus: string;
   };
 };
 
+/**
+ * SeatCard displays the current status and assignment details of a study hall seat.
+ *
+ * This component is optimized for the dashboard's live seat map and maintains
+ * legacy terminology ("subscription") while operating on Schema v2 data models.
+ */
 export function SeatCard({
   seatNumber,
   statusLabel,
