@@ -18,23 +18,116 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
   // Use requireTenantContext which handles authentication and tenant scoping.
   const user = await requireTenantContext();
 
-  const [members, selectedMember] = await Promise.all([
+  const [members, selectedMemberRaw] = await Promise.all([
     prisma.user.findMany({
       where: {
-        studyhallId: user.studyHallId,
-        role: "member",
-        subscriptions: filter === "active" ? { some: { status: "active" } } : { none: { status: "active" } },
+        memberships: {
+          some: {
+            studyHallId: user.studyHallId,
+            status: filter === "active" ? "ACTIVE" : { not: "ACTIVE" },
+          },
+        },
       },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, name: true, phoneNumber: true, subscriptions: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, endDate: true, paymentStatus: true, seat: { select: { seatNumber: true } } } } },
+      select: {
+        id: true,
+        name: true,
+        phoneNumber: true,
+        memberships: {
+          where: { studyHallId: user.studyHallId },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            status: true,
+            endsAt: true,
+            payments: {
+              where: { status: "COMPLETED" },
+              take: 1,
+            },
+            seatAssignments: {
+              orderBy: { startsAt: "desc" },
+              take: 1,
+              select: {
+                seat: {
+                  select: { number: true },
+                },
+              },
+            },
+          },
+        },
+      },
     }),
     params.memberId
       ? prisma.user.findFirst({
-          where: { id: params.memberId, studyhallId: user.studyHallId, role: "member" },
-          select: { id: true, name: true, phoneNumber: true, subscriptions: { orderBy: { createdAt: "desc" }, include: { seat: { select: { seatNumber: true } } } } },
+          where: {
+            id: params.memberId,
+            memberships: {
+              some: { studyHallId: user.studyHallId },
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            memberships: {
+              where: { studyHallId: user.studyHallId },
+              orderBy: { createdAt: "desc" },
+              select: {
+                id: true,
+                status: true,
+                startsAt: true,
+                endsAt: true,
+                payments: {
+                  where: { status: "COMPLETED" },
+                  take: 1,
+                },
+                seatAssignments: {
+                  orderBy: { startsAt: "desc" },
+                  take: 1,
+                  select: {
+                    seat: {
+                      select: { number: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
         })
       : Promise.resolve(null),
   ]);
+
+  // Transform members for UI compatibility
+  const transformedMembers = members.map((member) => {
+    const latest = member.memberships[0];
+    return {
+      id: member.id,
+      name: member.name,
+      phoneNumber: member.phoneNumber,
+      latest: latest ? {
+        status: latest.status === "ACTIVE" ? "active" : "inactive",
+        endDate: latest.endsAt,
+        paymentStatus: latest.payments.length > 0 ? "paid" : "unpaid",
+        seatNumber: latest.seatAssignments[0]?.seat.number ?? "—",
+      } : null,
+    };
+  });
+
+  // Transform selected member for UI compatibility
+  const selectedMember = selectedMemberRaw ? {
+    id: selectedMemberRaw.id,
+    name: selectedMemberRaw.name,
+    phoneNumber: selectedMemberRaw.phoneNumber,
+    memberships: selectedMemberRaw.memberships.map((m) => ({
+      id: m.id,
+      status: m.status === "ACTIVE" ? "active" : m.status === "EXPIRED" ? "expired" : "cancelled",
+      startDate: m.startsAt,
+      endDate: m.endsAt,
+      paymentStatus: m.payments.length > 0 ? "paid" : "unpaid",
+      seatNumber: m.seatAssignments[0]?.seat.number ?? "—",
+    })),
+  } : null;
 
   return (
     <section className="grid gap-6 p-4 md:grid-cols-[0.9fr_1.1fr] md:p-6">
@@ -48,8 +141,8 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
-          {members.map((member) => {
-            const latest = member.subscriptions[0];
+          {transformedMembers.map((member) => {
+            const latest = member.latest;
             return <Link key={member.id} href={`/dashboard/members?status=${filter}&memberId=${member.id}`} className="block rounded-2xl border p-3 transition-colors hover:bg-muted/60">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -61,7 +154,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                 <Badge variant={latest?.status === "active" ? "success" : "muted"}>{latest?.status === "active" ? "فعال" : "آرشیوی"}</Badge>
               </div>
               <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><Phone className="size-3.5" />{member.phoneNumber ?? "بدون تلفن"}</div>
-              {latest ? <div className="mt-1 text-xs text-muted-foreground">آخرین صندلی: {latest.seat.seatNumber} · تا {formatDate(latest.endDate)}</div> : null}
+              {latest ? <div className="mt-1 text-xs text-muted-foreground">آخرین صندلی: {latest.seatNumber} · تا {formatDate(latest.endDate)}</div> : null}
             </Link>;
           })}
         </CardContent>
@@ -77,10 +170,10 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
             <div className="rounded-2xl bg-muted/50 p-4"><div className="font-semibold">{selectedMember.name}</div><div className="text-sm text-muted-foreground" dir="ltr">{selectedMember.phoneNumber}</div></div>
             <Button asChild className="w-full"><Link href={`/dashboard?memberId=${selectedMember.id}`}><Armchair className="size-4" />رزرو مجدد بدون ورود دوباره اطلاعات</Link></Button>
             <div className="space-y-3">
-              {selectedMember.subscriptions.map((subscription) => <div key={subscription.id} className="rounded-2xl border p-3 text-sm">
-                <div className="flex items-center justify-between gap-2"><span className="font-medium">صندلی {subscription.seat.seatNumber}</span><Badge variant={subscription.status === "active" ? "success" : "muted"}>{subscription.status === "active" ? "فعال" : subscription.status === "expired" ? "منقضی" : "لغوشده"}</Badge></div>
-                <div className="mt-2 flex items-center gap-2 text-muted-foreground"><CalendarClock className="size-4" />{formatDate(subscription.startDate)} تا {formatDate(subscription.endDate)}</div>
-                <div className="mt-1 text-muted-foreground">وضعیت پرداخت: {subscription.paymentStatus === "paid" ? "پرداخت‌شده" : "پرداخت‌نشده"}</div>
+              {selectedMember.memberships.map((membership) => <div key={membership.id} className="rounded-2xl border p-3 text-sm">
+                <div className="flex items-center justify-between gap-2"><span className="font-medium">صندلی {membership.seatNumber}</span><Badge variant={membership.status === "active" ? "success" : "muted"}>{membership.status === "active" ? "فعال" : membership.status === "expired" ? "منقضی" : "لغوشده"}</Badge></div>
+                <div className="mt-2 flex items-center gap-2 text-muted-foreground"><CalendarClock className="size-4" />{formatDate(membership.startDate)} تا {formatDate(membership.endDate)}</div>
+                <div className="mt-1 text-muted-foreground">وضعیت پرداخت: {membership.paymentStatus === "paid" ? "پرداخت‌شده" : "پرداخت‌نشده"}</div>
               </div>)}
             </div>
           </div> : <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">برای مشاهده سابقه کامل، روی نام یک عضو کلیک کنید.</div>}
