@@ -170,6 +170,9 @@ model StudyHall {
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+  publicPageEnabled Boolean  @default(false)
+  heroImage         String? // Vercel Blob public URL
+  galleryImages     String[] @default([])
 
   membershipPlans  MembershipPlan[]
   memberships      Membership[]
