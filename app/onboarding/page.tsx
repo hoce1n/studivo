@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
+import { getTenantContext } from "@/lib/tenant-context";
 
 const perks = [
   {
@@ -47,14 +48,15 @@ export default async function OnboardingPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session?.user.id },
-    select: { studyhallId: true, phoneNumber: true },
+    select: { id: true, phoneNumber: true },
   });
 
   if (!user?.phoneNumber) {
     redirect("/verify-phone");
   }
 
-  if (user?.studyhallId) {
+  const context = await getTenantContext(user.id);
+  if (context) {
     redirect("/dashboard");
   }
 

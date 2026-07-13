@@ -5,6 +5,7 @@ import { Logo } from "@/app/(marketing)/_components/navbar/logo";
 import { VerifyPhoneForm } from "@/app/(auth)/verify-phone/_components/verify-phone-form";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
+import { getTenantContext } from "@/lib/tenant-context";
 
 export default async function VerifyPhonePage() {
   const session = await getSession();
@@ -15,7 +16,7 @@ export default async function VerifyPhonePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { phoneNumber: true, studyhallId: true },
+    select: { phoneNumber: true },
   });
 
   if (!user) {
@@ -23,7 +24,8 @@ export default async function VerifyPhonePage() {
   }
 
   if (user.phoneNumber) {
-    redirect(user.studyhallId ? "/dashboard" : "/onboarding");
+    const context = await getTenantContext(user.id);
+    redirect(context ? "/dashboard" : "/onboarding");
   }
 
   return (

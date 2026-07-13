@@ -168,7 +168,7 @@ export type VenueRow = {
   gender: string;
   totalSeats: number;
   createdAt: Date;
-  lead: { id: string; name: string | null; venueName: string | null } | null;
+  lead: { id: string; fullName: string | null; studyhallName: string | null } | null;
   _count: { activeSubscriptions: number };
 };
 
@@ -203,7 +203,7 @@ export async function getVenues(): Promise<VenueRow[]> {
       totalSeats: true,
       createdAt: true,
       lead: {
-        select: { id: true, name: true, venueName: true },
+        select: { id: true, fullName: true, studyhallName: true },
       },
       subscriptions: {
         where: { status: "active" },
@@ -218,7 +218,13 @@ export async function getVenues(): Promise<VenueRow[]> {
     gender: h.gender,
     totalSeats: h.totalSeats,
     createdAt: h.createdAt,
-    lead: h.lead ?? null,
+    lead: h.lead
+      ? {
+          id: h.lead.id,
+          name: h.lead.fullName,
+          venueName: h.lead.studyhallName,
+        }
+      : null,
     _count: { activeSubscriptions: h.subscriptions.length },
   }));
 }
@@ -240,9 +246,9 @@ export async function getVenueById(id: string): Promise<VenueDetail | null> {
       lead: {
         select: {
           id: true,
-          name: true,
-          phone: true,
-          venueName: true,
+          fullName: true,
+          phoneNumber: true,
+          studyhallName: true,
           status: true,
         },
       },
@@ -267,7 +273,15 @@ export async function getVenueById(id: string): Promise<VenueDetail | null> {
     monthlyFee: hall.monthlyFee,
     createdAt: hall.createdAt,
     updatedAt: hall.updatedAt,
-    lead: hall.lead ?? null,
+    lead: hall.lead
+      ? {
+          id: hall.lead.id,
+          name: hall.lead.fullName,
+          phone: hall.lead.phoneNumber,
+          venueName: hall.lead.studyhallName,
+          status: hall.lead.status,
+        }
+      : null,
     _count: {
       activeSubscriptions: hall.subscriptions.length,
       users: hall.users.length,
@@ -333,10 +347,10 @@ export async function convertLeadToStudyHall(
     select: {
       id: true,
       status: true,
-      studyhallId: true,
-      name: true,
-      venueName: true,
-      phone: true,
+      convertedStudyHallId: true,
+      fullName: true,
+      studyhallName: true,
+      phoneNumber: true,
       email: true,
     },
   });
@@ -344,7 +358,7 @@ export async function convertLeadToStudyHall(
   if (!lead) {
     return { success: false, error: "لید یافت نشد." };
   }
-  if (lead.studyhallId) {
+  if (lead.convertedStudyHallId) {
     return {
       success: false,
       error: "این لید قبلاً به سالن مطالعه تبدیل شده است.",
@@ -354,8 +368,8 @@ export async function convertLeadToStudyHall(
   // Derive a StudyHall name: prefer the prospect's stated venue name, fall back
   // to the contact name, or use the generic default.
   const hallName =
-    lead.venueName?.trim() ||
-    (lead.name ? `سالن ${lead.name}` : "سالن مطالعه");
+    lead.studyhallName?.trim() ||
+    (lead.fullName ? `سالن ${lead.fullName}` : "سالن مطالعه");
 
   const studyhallId = await prisma.$transaction(async (tx: TransactionClient) => {
     // 1. Create the StudyHall with sensible defaults. totalSeats is 0 because
@@ -370,9 +384,8 @@ export async function convertLeadToStudyHall(
     await tx.lead.update({
       where: { id: leadId },
       data: {
-        status: "CUSTOMER",
-        convertedAt: new Date(),
-        studyhallId: studyhall.id,
+        status: "CONVERTED",
+        convertedStudyHallId: studyhall.id,
       },
     });
 
@@ -382,36 +395,46 @@ export async function convertLeadToStudyHall(
     //    yet — this stub just ensures the user row exists and is linked.
     //    A real invite flow (password-reset link, OTP, etc.) is a future task.
     if (lead.email) {
+      let userId: string;
       const existingUser = await tx.user.findUnique({
         where: { email: lead.email },
-        select: { id: true, studyhallId: true },
+        select: { id: true },
       });
 
       if (!existingUser) {
-        // Insert a minimal user row. Better Auth will fill in the Account row
-        // when the venue owner actually signs up via the invite link.
         const nanoid = () =>
           Math.random().toString(36).slice(2) +
           Math.random().toString(36).slice(2);
+        userId = nanoid();
         await tx.user.create({
           data: {
-            id: nanoid(),
-            name: lead.name ?? lead.venueName ?? "مدیر سالن",
+            id: userId,
+            name: lead.fullName ?? lead.studyhallName ?? "مدیر سالن",
             email: lead.email,
             emailVerified: false,
-            role: "admin",
-            phoneNumber: lead.phone ?? null,
-            studyhallId: studyhall.id,
+            phoneNumber: lead.phoneNumber ?? null,
           },
         });
-      } else if (!existingUser.studyhallId) {
-        // User exists (e.g. tried to sign up before) but isn't linked yet.
-        await tx.user.update({
-          where: { id: existingUser.id },
-          data: { role: "admin", studyhallId: studyhall.id },
+      } else {
+        userId = existingUser.id;
+      }
+
+      // Check if user already has a StaffAssignment for this hall or any hall
+      const existingAssignment = await tx.staffAssignment.findFirst({
+        where: { userId },
+      });
+
+      if (!existingAssignment) {
+        await tx.staffAssignment.create({
+          data: {
+            userId,
+            studyHallId: studyhall.id,
+            role: "OWNER",
+            startDate: new Date(),
+            isActive: true,
+          },
         });
       }
-      // If existingUser already has a studyhallId, leave them untouched.
     }
 
     return studyhall.id;

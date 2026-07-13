@@ -68,10 +68,10 @@ export async function submitLead(formData: FormData): Promise<SubmitDemoResult> 
     const lead = await prisma.$transaction(async (tx) => {
       const createdLead = await tx.lead.create({
         data: {
-          name,
-          phone,
-          venueName,
-          message: message ?? null,
+          fullName: name,
+          phoneNumber: phone,
+          studyhallName: venueName,
+          notes: message ?? null,
           source: "MARKETING_SITE",
           status: "NEW",
         },
