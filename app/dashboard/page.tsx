@@ -24,10 +24,9 @@ import { prisma } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { StudyHallSeatsMap } from "@/app/dashboard/_components/study-hall-seats-map";
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
+import { isTenantOwner } from "@/lib/tenant-context";
 
 const dayInMs = 24 * 60 * 60 * 1000;
-
-type SeatStatus = "available" | "reserved" | "renewal" | "expired";
 
 function getSeatStatus(endDate?: Date): SeatStatus {
   if (!endDate) {
@@ -46,6 +45,8 @@ function getSeatStatus(endDate?: Date): SeatStatus {
 
   return "reserved";
 }
+
+type SeatStatus = "available" | "reserved" | "renewal" | "expired";
 
 const statusCopy: Record<
   SeatStatus,
@@ -177,7 +178,7 @@ export default async function Page({ searchParams }: PageProps) {
   const lostRevenue = stats.available * (user.studyHall.monthlyFee ?? 0);
   const monthlyRevenue = occupied * (user.studyHall.monthlyFee ?? 0);
 
-  const isAdmin = user.role === "admin";
+  const isAdmin = isTenantOwner(user);
   const roleLabel = isAdmin ? "مدیر" : "مراقب";
 
   const summaryCards = [
