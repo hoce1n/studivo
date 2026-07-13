@@ -48,11 +48,12 @@ export async function requireUser(): Promise<TenantPrincipal> {
 export async function requireScopedUser() {
   const user = await requireUser();
 
-  if (!user.studyhallId) {
+  // In Schema v2, studyhallId is provided by the TenantContext resolved via StaffAssignment.
+  if (!user.studyHallId) {
     redirect("/onboarding");
   }
 
-  return { ...user, studyhallId: user.studyhallId };
+  return { ...user, studyHallId: user.studyHallId };
 }
 
 export async function requireTenantContext() {
@@ -149,7 +150,7 @@ export async function updateProfileDetails(formData: FormData): Promise<ActionRe
 }
 
 export async function updateNotificationPreferences(formData: FormData): Promise<ActionResult> {
-  const user = await requireScopedUser();
+  const user = await requireTenantContext();
 
   if (!isTenantOwner(user)) {
     return { success: false, error: "فقط مدیر سالن اجازه تغییر تنظیمات اعلان‌ها را دارد." };
@@ -165,7 +166,7 @@ export async function updateNotificationPreferences(formData: FormData): Promise
     return { success: false, error: parsed.error.issues[0]?.message ?? "تنظیمات اعلان‌ها معتبر نیست." };
   }
 
-  await prisma.studyHall.update({ where: { id: user.studyhallId }, data: parsed.data });
+  await prisma.studyHall.update({ where: { id: user.studyHallId }, data: parsed.data });
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/settings");
@@ -173,7 +174,7 @@ export async function updateNotificationPreferences(formData: FormData): Promise
 }
 
 export async function updateStudyHallSettings(formData: FormData): Promise<ActionResult> {
-  const user = await requireScopedUser();
+  const user = await requireTenantContext();
 
   if (!isTenantOwner(user)) {
     return { success: false, error: "فقط مدیر سالن اجازه تغییر تنظیمات سالن را دارد." };
@@ -191,7 +192,7 @@ export async function updateStudyHallSettings(formData: FormData): Promise<Actio
     return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات تنظیمات سالن معتبر نیست." };
   }
 
-  await prisma.studyHall.update({ where: { id: user.studyhallId }, data: parsed.data });
+  await prisma.studyHall.update({ where: { id: user.studyHallId }, data: parsed.data });
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/settings");
@@ -201,7 +202,8 @@ export async function updateStudyHallSettings(formData: FormData): Promise<Actio
 export async function completeOnboarding(formData: FormData): Promise<ActionResult> {
   const user = await requireUser();
 
-  if (user.studyhallId) {
+  // In Schema v2, onboarding status is checked by the presence of a StaffAssignment.
+  if (user.studyHallId) {
     redirect("/dashboard");
   }
 
@@ -218,17 +220,58 @@ export async function completeOnboarding(formData: FormData): Promise<ActionResu
   }
 
   await prisma.$transaction(async (tx: TransactionClient) => {
+    // 1. Create the StudyHall
     const studyhall = await tx.studyHall.create({
-      data: parsed.data,
+      data: {
+        name: parsed.data.name,
+        slug: parsed.data.name.toLowerCase().replace(/\s+/g, "-"), // Basic slug generation
+        gender: parsed.data.gender === "male" ? "MALE" : "FEMALE",
+        address: parsed.data.address,
+      },
       select: { id: true },
     });
 
-    await tx.user.update({ where: { id: user.id }, data: { role: "admin", studyhallId: studyhall.id } });
+    // 2. Create the StaffAssignment (New Schema v2 way)
+    // This replaces updating legacy User.role and User.studyhallId
+    await tx.staffAssignment.create({
+      data: {
+        userId: user.id,
+        studyHallId: studyhall.id,
+        role: "OWNER",
+        startDate: new Date(),
+        isActive: true,
+      },
+    });
+
+    // 3. Create a default Section (Required by Schema v2)
+    const section = await tx.section.create({
+      data: {
+        studyHallId: studyhall.id,
+        name: "بخش اصلی",
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    // 4. Create the seats
     await tx.seat.createMany({
       data: Array.from({ length: parsed.data.totalSeats }, (_, index) => ({
-        seatNumber: index + 1,
-        studyhallId: studyhall.id,
+        number: (index + 1).toString(),
+        sectionId: section.id,
+        isActive: true,
       })),
+    });
+
+    // 5. Create a default MembershipPlan (Required for legacy compatibility)
+    await tx.membershipPlan.create({
+      data: {
+        studyHallId: studyhall.id,
+        name: "پلن ماهانه",
+        durationDays: 30,
+        price: parsed.data.monthlyFee,
+        hasFixedSeat: true,
+        isActive: true,
+      },
     });
   });
 
@@ -255,7 +298,7 @@ const publicPageSchema = z.object({
 export async function updatePublicPageSettings(
   formData: FormData
 ): Promise<ActionResult> {
-  const user = await requireScopedUser();
+  const user = await requireTenantContext();
 
   if (!isTenantOwner(user)) {
     return { success: false, error: "فقط مدیر سالن اجازه ویرایش صفحه عمومی را دارد." };
@@ -287,7 +330,7 @@ export async function updatePublicPageSettings(
   // Check slug uniqueness excluding current hall
   if (parsed.data.slug) {
     const existing = await prisma.studyHall.findFirst({
-      where: { slug: parsed.data.slug, id: { not: user.studyhallId } },
+      where: { slug: parsed.data.slug, id: { not: user.studyHallId } },
       select: { id: true },
     });
     if (existing) {
@@ -296,12 +339,10 @@ export async function updatePublicPageSettings(
   }
 
   await prisma.studyHall.update({
-    where: { id: user.studyhallId },
+    where: { id: user.studyHallId },
     data: {
       slug: parsed.data.slug,
-      publicPageEnabled: parsed.data.publicPageEnabled,
-      heroImage: parsed.data.heroImage ?? null,
-      galleryImages: parsed.data.galleryImages ?? [],
+      isActive: parsed.data.publicPageEnabled, // Mapping publicPageEnabled to isActive for now
     },
   });
 
@@ -311,7 +352,7 @@ export async function updatePublicPageSettings(
 }
 
 export async function createStaff(formData: FormData): Promise<ActionResult> {
-  const user = await requireScopedUser();
+  const user = await requireTenantContext();
 
   if (!isTenantOwner(user)) {
     return { success: false, error: "فقط مدیر سالن اجازه تعریف همکار جدید را دارد." };
@@ -329,7 +370,7 @@ export async function createStaff(formData: FormData): Promise<ActionResult> {
   }
 
   await prisma.$transaction(async (tx: TransactionClient) => {
-    await auth.api.signUpEmail({
+    const signUpResult = await auth.api.signUpEmail({
       body: {
         email: parsed.data.email,
         password: parsed.data.password,
@@ -337,9 +378,25 @@ export async function createStaff(formData: FormData): Promise<ActionResult> {
       },
     });
 
+    if (!signUpResult.user) {
+        throw new Error("Failed to create user account.");
+    }
+
+    // Update the identity fields on the user record
     await tx.user.update({
-      where: { email: parsed.data.email },
-      data: { role: "staff", studyhallId: user.studyhallId, phoneNumber: parsed.data.phoneNumber },
+      where: { id: signUpResult.user.id },
+      data: { phoneNumber: parsed.data.phoneNumber },
+    });
+
+    // Create the StaffAssignment (New Schema v2 way)
+    await tx.staffAssignment.create({
+      data: {
+        userId: signUpResult.user.id,
+        studyHallId: user.studyHallId,
+        role: "STAFF",
+        startDate: new Date(),
+        isActive: true,
+      },
     });
   });
 
