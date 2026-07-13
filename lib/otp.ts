@@ -1,12 +1,11 @@
 import { prisma } from "@/lib/db";
 import { sendVerificationCode } from "@/lib/sms";
+import { OtpPurpose } from "@/lib/generated/prisma";
 
 export const OTP_PURPOSE = {
-  PASSWORD_RESET: "password_reset",
-  SIGNUP: "signup",
+  PASSWORD_RESET: OtpPurpose.LOGIN, // Re-mapping to available Schema v2 enums
+  SIGNUP: OtpPurpose.VERIFY_PHONE,
 } as const;
-
-export type OtpPurpose = (typeof OTP_PURPOSE)[keyof typeof OTP_PURPOSE];
 
 const OTP_EXPIRY_MINUTES = 5;
 
@@ -37,7 +36,7 @@ export async function createOtpVerification({
     },
   });
 
-  await sendVerificationCode(phoneNumber, code);
+  await sendVerificationCode(phoneNumber, code, purpose);
 
   return { code, expiresAt };
 }

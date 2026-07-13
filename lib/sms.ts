@@ -83,7 +83,12 @@ export const SMS_SEND_FAILURE_MESSAGE =
 export async function sendVerificationCode(
   mobile: string,
   code: string,
+  purpose?: string,
 ): Promise<void> {
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[DEV OTP] ${purpose ?? "verification"} code for ${mobile}: ${code}`);
+  }
+
   const { apiKey, templateId } = getSmsConfig();
 
   const body: SmsIrVerifyRequest = {
