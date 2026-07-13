@@ -67,7 +67,7 @@ export type ReserveFormSeat = {
   reserveSeatNumber: number;
   status: SeatStatus;
   subscription?: {
-    id: string;
+    id: string; // This is the Membership ID in Schema v2
     memberName: string;
     phoneNumber: string;
     endDate: string;
@@ -437,48 +437,44 @@ export function ReserveForm({
               اطلاعات {returningMember.name} از آرشیو اعضا آماده شده؛ فقط صندلی و تاریخ‌های اشتراک را تأیید کنید.
             </div>
           ) : null}
+
           {isAvailable ? (
             <ActionForm
-              key={currentSeat?.id ?? "empty"}
               action={reserveSeat}
-              successMessage="رزرو صندلی با موفقیت ثبت شد."
-              resetOnSuccess
               onSuccess={handleSuccess}
+              className="mt-6"
             >
               {(pending) => (
                 <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="phoneNumber">شماره تلفن</FieldLabel>
-                    <Input
-                      id="phoneNumber"
-                      name="phoneNumber"
-                      inputMode="tel"
-                      placeholder="09123456789"
-                      autoFocus
-                      defaultValue={returningMember?.phoneNumber ?? ""}
-                      required
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="memberName">نام دانش‌آموز</FieldLabel>
-                    <Input
-                      id="memberName"
-                      name="memberName"
-                      placeholder="نام و نام خانوادگی"
-                      defaultValue={returningMember?.name ?? ""}
-                      required
-                    />
-                  </Field>
                   <Field>
                     <FieldLabel htmlFor="seatNumber">شماره صندلی</FieldLabel>
                     <Input
                       id="seatNumber"
                       name="seatNumber"
-                      type="number"
-                      min="1"
-                      max={maxSeats}
-                      value={reservationSeatNumber}
+                      defaultValue={reservationSeatNumber}
+                      placeholder="مثلاً ۱"
+                      required
                       readOnly
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="phoneNumber">تلفن دانش‌آموز</FieldLabel>
+                    <Input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      defaultValue={returningMember?.phoneNumber ?? ""}
+                      placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                      required
+                      inputMode="tel"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="name">نام و نام خانوادگی</FieldLabel>
+                    <Input
+                      id="name"
+                      name="name"
+                      defaultValue={returningMember?.name ?? ""}
+                      placeholder="نام دانش‌آموز"
                       required
                     />
                   </Field>
