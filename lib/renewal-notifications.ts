@@ -65,7 +65,7 @@ export async function sendRenewalReminders() {
   const memberships = await prisma.membership.findMany({
     where: {
       status: "ACTIVE",
-      OR: [{ endDate: { lt: now } }, { endDate: { lte: renewalCutoff } }],
+      OR: [{ endsAt: { lt: now } }, { endsAt: { lte: renewalCutoff } }],
     },
     include: {
       studyHall: {
@@ -91,7 +91,7 @@ export async function sendRenewalReminders() {
 
   const candidates: ReminderCandidate[] = memberships.flatMap((membership) => {
     const daysLeft = Math.ceil(
-      (membership.endDate.getTime() - now.getTime()) / dayInMs,
+      (membership.endsAt.getTime() - now.getTime()) / dayInMs,
     );
     const kind = daysLeft < 0 ? "expired" : "renewal";
 
