@@ -29,8 +29,13 @@ async function requirePushUser() {
     where: { id: session.user.id },
     select: {
       id: true,
-      studyhallId: true,
-      role: true,
+      // Schema v2: user role/studyhallId is resolved via StaffAssignment
+      staffAssignments: {
+        where: { isActive: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { studyHallId: true, role: true },
+      },
     },
   });
 
@@ -38,14 +43,22 @@ async function requirePushUser() {
     return { ok: false as const, error: "کاربر یافت نشد." };
   }
 
-  if (!user.studyhallId) {
+  const activeAssignment = user.staffAssignments[0];
+  if (!activeAssignment) {
     return {
       ok: false as const,
       error: "ابتدا سالن خود را راه‌اندازی کنید تا اعلان‌ها فعال شوند.",
     };
   }
 
-  return { ok: true as const, user: { ...user, studyhallId: user.studyhallId } };
+  return {
+    ok: true as const,
+    user: {
+      id: user.id,
+      studyhallId: activeAssignment.studyHallId,
+      role: activeAssignment.role as string,
+    },
+  };
 }
 
 export async function subscribeUser(
@@ -64,24 +77,32 @@ export async function subscribeUser(
   const requestHeaders = await headers();
   const userAgent = requestHeaders.get("user-agent");
 
-  await prisma.pushSubscription.upsert({
-    where: { endpoint: parsed.data.endpoint },
-    create: {
-      userId: authResult.user.id,
-      studyhallId: authResult.user.studyhallId,
-      endpoint: parsed.data.endpoint,
-      p256dh: parsed.data.keys.p256dh,
-      auth: parsed.data.keys.auth,
-      userAgent,
-    },
-    update: {
-      userId: authResult.user.id,
-      studyhallId: authResult.user.studyhallId,
-      p256dh: parsed.data.keys.p256dh,
-      auth: parsed.data.keys.auth,
-      userAgent,
-    },
+  // Schema v2: PushSubscription has no unique endpoint field; use findFirst+create/update.
+  const existing = await prisma.pushSubscription.findFirst({
+    where: { userId: authResult.user.id, endpoint: parsed.data.endpoint },
+    select: { id: true },
   });
+
+  if (existing) {
+    await prisma.pushSubscription.update({
+      where: { id: existing.id },
+      data: {
+        p256dh: parsed.data.keys.p256dh,
+        auth: parsed.data.keys.auth,
+        userAgent,
+      },
+    });
+  } else {
+    await prisma.pushSubscription.create({
+      data: {
+        userId: authResult.user.id,
+        endpoint: parsed.data.endpoint,
+        p256dh: parsed.data.keys.p256dh,
+        auth: parsed.data.keys.auth,
+        userAgent,
+      },
+    });
+  }
 
   return {
     success: true,
@@ -175,13 +196,18 @@ export async function getPushSubscriptionStatus(): Promise<{
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
-      role: true,
+      // Schema v2: role is resolved via StaffAssignment
+      staffAssignments: {
+        where: { isActive: true },
+        take: 1,
+        select: { role: true },
+      },
       pushSubscriptions: { select: { id: true }, take: 1 },
     },
   });
 
   return {
     subscribed: (user?.pushSubscriptions.length ?? 0) > 0,
-    role: user?.role ?? null,
+    role: user?.staffAssignments[0]?.role ?? null,
   };
 }

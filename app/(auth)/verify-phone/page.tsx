@@ -16,7 +16,7 @@ export default async function VerifyPhonePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { phoneNumber: true },
+    select: { id: true, phoneNumber: true },
   });
 
   if (!user) {

@@ -72,7 +72,7 @@ export async function submitLead(formData: FormData): Promise<SubmitDemoResult> 
           phoneNumber: phone,
           studyhallName: venueName,
           notes: message ?? null,
-          source: "MARKETING_SITE",
+          source: "WEBSITE",
           status: "NEW",
         },
       });
@@ -80,7 +80,7 @@ export async function submitLead(formData: FormData): Promise<SubmitDemoResult> 
       await tx.demoRequest.create({
         data: {
           leadId: createdLead.id,
-          status: "requested",
+          status: "PENDING",
         },
       });
 

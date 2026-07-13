@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { sendVerificationCode } from "@/lib/sms";
-import { OtpPurpose } from "@/lib/generated/prisma";
+import { OtpPurpose } from "@/lib/generated/prisma/client";
 
 export const OTP_PURPOSE = {
   PASSWORD_RESET: OtpPurpose.LOGIN, // Re-mapping to available Schema v2 enums

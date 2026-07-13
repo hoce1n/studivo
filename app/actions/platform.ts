@@ -33,10 +33,10 @@ export async function requireSuperAdmin() {
 
 export type LeadRow = {
   id: string;
-  name: string | null;
-  phone: string | null;
+  name: string | null;   // mapped from fullName
+  phone: string | null;  // mapped from phoneNumber
   email: string | null;
-  venueName: string | null;
+  venueName: string | null; // mapped from studyhallName
   status: string;
   source: string;
   createdAt: Date;
@@ -52,7 +52,7 @@ export type LeadFilters = {
 export async function getLeads(filters: LeadFilters = {}): Promise<LeadRow[]> {
   await requirePlatformUser();
 
-  return prisma.lead.findMany({
+  const leads = await prisma.lead.findMany({
     where: {
       ...(filters.status && filters.status !== "ALL"
         ? { status: filters.status as never }
@@ -64,10 +64,10 @@ export async function getLeads(filters: LeadFilters = {}): Promise<LeadRow[]> {
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
-      name: true,
-      phone: true,
+      fullName: true,
+      phoneNumber: true,
       email: true,
-      venueName: true,
+      studyhallName: true,
       status: true,
       source: true,
       createdAt: true,
@@ -75,6 +75,19 @@ export async function getLeads(filters: LeadFilters = {}): Promise<LeadRow[]> {
       _count: { select: { demoRequests: true } },
     },
   });
+
+  return leads.map((l) => ({
+    id: l.id,
+    name: l.fullName,
+    phone: l.phoneNumber,
+    email: l.email,
+    venueName: l.studyhallName,
+    status: l.status,
+    source: l.source,
+    createdAt: l.createdAt,
+    owner: l.owner,
+    _count: l._count,
+  }));
 }
 
 export type LeadDetail = {
@@ -83,21 +96,21 @@ export type LeadDetail = {
   phone: string | null;
   email: string | null;
   venueName: string | null;
-  message: string | null;
+  message: string | null;  // mapped from notes
   status: string;
   source: string;
-  lostReason: string | null;
-  studyhallId: string | null;
-  convertedAt: Date | null;
+  lostReason: string | null; // not in v2 schema — always null
+  studyhallId: string | null; // mapped from convertedStudyHallId
+  convertedAt: Date | null;   // not in v2 schema — always null
   createdAt: Date;
   updatedAt: Date;
   owner: { id: string; name: string } | null;
   demoRequests: {
     id: string;
     status: string;
-    preferredTime: string | null;
+    preferredTime: string | null; // not in v2 schema — always null
     scheduledAt: Date | null;
-    notes: string | null;
+    notes: string | null; // mapped from note
     createdAt: Date;
   }[];
 };
@@ -105,20 +118,18 @@ export type LeadDetail = {
 export async function getLeadById(id: string): Promise<LeadDetail | null> {
   await requirePlatformUser();
 
-  return prisma.lead.findUnique({
+  const lead = await prisma.lead.findUnique({
     where: { id },
     select: {
       id: true,
-      name: true,
-      phone: true,
+      fullName: true,
+      phoneNumber: true,
       email: true,
-      venueName: true,
-      message: true,
+      studyhallName: true,
+      notes: true,
       status: true,
       source: true,
-      lostReason: true,
-      studyhallId: true,
-      convertedAt: true,
+      convertedStudyHallId: true,
       createdAt: true,
       updatedAt: true,
       owner: { select: { id: true, name: true } },
@@ -127,14 +138,40 @@ export async function getLeadById(id: string): Promise<LeadDetail | null> {
         select: {
           id: true,
           status: true,
-          preferredTime: true,
           scheduledAt: true,
-          notes: true,
+          note: true,
           createdAt: true,
         },
       },
     },
   });
+
+  if (!lead) return null;
+
+  return {
+    id: lead.id,
+    name: lead.fullName,
+    phone: lead.phoneNumber,
+    email: lead.email,
+    venueName: lead.studyhallName,
+    message: lead.notes,
+    status: lead.status,
+    source: lead.source,
+    lostReason: null,          // removed in v2
+    studyhallId: lead.convertedStudyHallId,
+    convertedAt: null,         // removed in v2
+    createdAt: lead.createdAt,
+    updatedAt: lead.updatedAt,
+    owner: lead.owner,
+    demoRequests: lead.demoRequests.map((d) => ({
+      id: d.id,
+      status: d.status,
+      preferredTime: null,     // removed in v2
+      scheduledAt: d.scheduledAt,
+      notes: d.note,
+      createdAt: d.createdAt,
+    })),
+  };
 }
 
 export type PlatformStats = {
@@ -149,10 +186,14 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
 
+  // Schema v2 LeadStatus: NEW, CONTACTED, DEMO_SCHEDULED, DEMO_COMPLETED,
+  // NEGOTIATION, CONVERTED, LOST
   const [total, newThisWeek, inDemo] = await Promise.all([
     prisma.lead.count(),
     prisma.lead.count({ where: { createdAt: { gte: weekAgo } } }),
-    prisma.lead.count({ where: { status: "DEMO" } }),
+    prisma.lead.count({
+      where: { status: { in: ["DEMO_SCHEDULED", "DEMO_COMPLETED"] } },
+    }),
   ]);
 
   return { total, newThisWeek, inDemo };
@@ -176,7 +217,7 @@ export type VenueDetail = {
   id: string;
   name: string;
   gender: string;
-  address: string;
+  address: string | null;
   totalSeats: number;
   monthlyFee: number;
   createdAt: Date;
@@ -194,19 +235,30 @@ export type VenueDetail = {
 export async function getVenues(): Promise<VenueRow[]> {
   await requirePlatformUser();
 
+  // Schema v2: StudyHall has sections → seats; no totalSeats denorm field.
+  // Derive totalSeats by counting seats across all sections.
   const halls = await prisma.studyHall.findMany({
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
       name: true,
       gender: true,
-      totalSeats: true,
       createdAt: true,
-      lead: {
+      leads: {
+        take: 1,
+        orderBy: { createdAt: "desc" },
         select: { id: true, fullName: true, studyhallName: true },
       },
-      subscriptions: {
-        where: { status: "active" },
+      sections: {
+        select: {
+          seats: {
+            where: { isActive: true },
+            select: { id: true },
+          },
+        },
+      },
+      memberships: {
+        where: { status: "ACTIVE" },
         select: { id: true },
       },
     },
@@ -216,22 +268,25 @@ export async function getVenues(): Promise<VenueRow[]> {
     id: h.id,
     name: h.name,
     gender: h.gender,
-    totalSeats: h.totalSeats,
+    totalSeats: h.sections.reduce((sum, s) => sum + s.seats.length, 0),
     createdAt: h.createdAt,
-    lead: h.lead
+    lead: h.leads[0]
       ? {
-          id: h.lead.id,
-          name: h.lead.fullName,
-          venueName: h.lead.studyhallName,
+          id: h.leads[0].id,
+          fullName: h.leads[0].fullName,
+          studyhallName: h.leads[0].studyhallName,
         }
       : null,
-    _count: { activeSubscriptions: h.subscriptions.length },
+    _count: { activeSubscriptions: h.memberships.length },
   }));
 }
 
 export async function getVenueById(id: string): Promise<VenueDetail | null> {
   await requirePlatformUser();
 
+  // Schema v2: no totalSeats or monthlyFee on StudyHall.
+  // Derive them: totalSeats from sections→seats; monthlyFee from lowest active
+  // MembershipPlan price (0 if none exist yet).
   const hall = await prisma.studyHall.findUnique({
     where: { id },
     select: {
@@ -239,11 +294,11 @@ export async function getVenueById(id: string): Promise<VenueDetail | null> {
       name: true,
       gender: true,
       address: true,
-      totalSeats: true,
-      monthlyFee: true,
       createdAt: true,
       updatedAt: true,
-      lead: {
+      leads: {
+        take: 1,
+        orderBy: { createdAt: "desc" },
         select: {
           id: true,
           fullName: true,
@@ -252,39 +307,60 @@ export async function getVenueById(id: string): Promise<VenueDetail | null> {
           status: true,
         },
       },
-      subscriptions: {
-        where: { status: "active" },
+      sections: {
+        select: {
+          seats: {
+            where: { isActive: true },
+            select: { id: true },
+          },
+        },
+      },
+      membershipPlans: {
+        where: { isActive: true },
+        orderBy: { price: "asc" },
+        take: 1,
+        select: { price: true },
+      },
+      memberships: {
+        where: { status: "ACTIVE" },
         select: { id: true },
       },
-      users: {
-        select: { id: true },
+      staffAssignments: {
+        where: { isActive: true },
+        select: { userId: true },
+        distinct: ["userId"],
       },
     },
   });
 
   if (!hall) return null;
 
+  const totalSeats = hall.sections.reduce((sum, s) => sum + s.seats.length, 0);
+  const monthlyFee = hall.membershipPlans[0]
+    ? Number(hall.membershipPlans[0].price)
+    : 0;
+
   return {
     id: hall.id,
     name: hall.name,
     gender: hall.gender,
     address: hall.address,
-    totalSeats: hall.totalSeats,
-    monthlyFee: hall.monthlyFee,
+    totalSeats,
+    monthlyFee,
     createdAt: hall.createdAt,
     updatedAt: hall.updatedAt,
-    lead: hall.lead
+    lead: hall.leads[0]
       ? {
-          id: hall.lead.id,
-          name: hall.lead.fullName,
-          phone: hall.lead.phoneNumber,
-          venueName: hall.lead.studyhallName,
-          status: hall.lead.status,
+          id: hall.leads[0].id,
+          name: hall.leads[0].fullName,
+          phone: hall.leads[0].phoneNumber,
+          venueName: hall.leads[0].studyhallName,
+          status: hall.leads[0].status,
         }
       : null,
     _count: {
-      activeSubscriptions: hall.subscriptions.length,
-      users: hall.users.length,
+      activeSubscriptions: hall.memberships.length,
+      users: hall.staffAssignments.length,
     },
   };
 }
@@ -295,7 +371,16 @@ export async function getVenueById(id: string): Promise<VenueDetail | null> {
 
 const updateStatusSchema = z.object({
   leadId: z.string().cuid(),
-  status: z.enum(["NEW", "CONTACTED", "DEMO", "TRIAL", "CUSTOMER", "LOST"]),
+  // Schema v2 LeadStatus enum values
+  status: z.enum([
+    "NEW",
+    "CONTACTED",
+    "DEMO_SCHEDULED",
+    "DEMO_COMPLETED",
+    "NEGOTIATION",
+    "CONVERTED",
+    "LOST",
+  ]),
   lostReason: z.string().trim().max(500).optional(),
 });
 
@@ -317,14 +402,11 @@ export async function updateLeadStatus(
     };
   }
 
-  const { leadId, status, lostReason } = parsed.data;
+  const { leadId, status } = parsed.data;
 
   await prisma.lead.update({
     where: { id: leadId },
-    data: {
-      status,
-      lostReason: status === "LOST" ? (lostReason ?? null) : null,
-    },
+    data: { status },
   });
 
   revalidatePath("/platform");
@@ -372,15 +454,27 @@ export async function convertLeadToStudyHall(
     (lead.fullName ? `سالن ${lead.fullName}` : "سالن مطالعه");
 
   const studyhallId = await prisma.$transaction(async (tx: TransactionClient) => {
-    // 1. Create the StudyHall with sensible defaults. totalSeats is 0 because
-    //    the venue hasn't configured their space yet — the admin can update it
-    //    after logging in. All other settings follow StudyHall model defaults.
+    // 1. Create the StudyHall. Schema v2 requires slug, gender.
+    //    Use a sanitised slug derived from fullName/studyhallName; fall back
+    //    to a random suffix to avoid unique-constraint collisions.
+    const baseSlug = (lead.studyhallName ?? lead.fullName ?? "studyhall")
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      .slice(0, 50) || "studyhall";
+    const slug = `${baseSlug}-${Date.now()}`;
+
     const studyhall = await tx.studyHall.create({
-      data: { name: hallName },
+      data: {
+        name: hallName,
+        slug,
+        gender: "MALE", // default — owner updates this after onboarding
+        isActive: true,
+      },
       select: { id: true },
     });
 
-    // 2. Link the lead back to the new studyhall and mark it converted.
+    // 2. Link the lead back to the new studyhall and mark it CONVERTED.
     await tx.lead.update({
       where: { id: leadId },
       data: {
@@ -390,10 +484,7 @@ export async function convertLeadToStudyHall(
     });
 
     // 3. Placeholder admin user: if the lead has an email, create a dormant
-    //    User record scoped to the new StudyHall so they can be invited later.
-    //    We do NOT call auth.api.signUpEmail here because there is no password
-    //    yet — this stub just ensures the user row exists and is linked.
-    //    A real invite flow (password-reset link, OTP, etc.) is a future task.
+    //    User record and a StaffAssignment so they can be invited later.
     if (lead.email) {
       let userId: string;
       const existingUser = await tx.user.findUnique({
@@ -419,7 +510,6 @@ export async function convertLeadToStudyHall(
         userId = existingUser.id;
       }
 
-      // Check if user already has a StaffAssignment for this hall or any hall
       const existingAssignment = await tx.staffAssignment.findFirst({
         where: { userId },
       });
