@@ -209,12 +209,29 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
   try {
     const studyHall = await prisma.studyHall.findFirst({
       where: { id: user.studyHallId },
-      select: { totalSeats: true, membershipPlans: { select: { price: true }, take: 1 } },
+      select: {
+        sections: {
+          select: {
+            seats: {
+              where: { isActive: true },
+              select: { id: true },
+            },
+          },
+        },
+        membershipPlans: {
+          where: { isActive: true },
+          orderBy: { price: "asc" },
+          take: 1,
+          select: { price: true },
+        },
+      },
     });
 
     if (!studyHall) {
       return { success: false, error: "سالن مطالعه یافت نشد." };
     }
+
+    const totalSeats = studyHall.sections.reduce((sum, s) => sum + s.seats.length, 0);
 
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -262,7 +279,6 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
       }),
     ]);
 
-    const totalSeats = studyHall.totalSeats;
     const occupancyRate = totalSeats ? Math.round((activeMembershipsCount / totalSeats) * 100) : 0;
 
     // Fallback for monthly fee if no plan is found (though onboarding ensures it)

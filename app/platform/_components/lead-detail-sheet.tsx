@@ -24,8 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { updateLeadStatus, convertLeadToStudyHall } from "@/app/actions/platform";
 import type { LeadDetail } from "@/app/actions/platform";
@@ -33,9 +31,10 @@ import type { LeadDetail } from "@/app/actions/platform";
 export const STATUS_LABELS: Record<string, string> = {
   NEW: "جدید",
   CONTACTED: "تماس گرفته شده",
-  DEMO: "دمو",
-  TRIAL: "آزمایشی",
-  CUSTOMER: "مشتری",
+  DEMO_SCHEDULED: "دمو برنامه‌ریزی شده",
+  DEMO_COMPLETED: "دمو برگزار شده",
+  NEGOTIATION: "مذاکره",
+  CONVERTED: "تبدیل شده",
   LOST: "از دست رفته",
 };
 
@@ -45,20 +44,32 @@ export const STATUS_VARIANTS: Record<
 > = {
   NEW: "default",
   CONTACTED: "secondary",
-  DEMO: "warning",
-  TRIAL: "outline",
-  CUSTOMER: "success",
+  DEMO_SCHEDULED: "warning",
+  DEMO_COMPLETED: "warning",
+  NEGOTIATION: "outline",
+  CONVERTED: "success",
   LOST: "destructive",
 };
 
 export const SOURCE_LABELS: Record<string, string> = {
-  MARKETING_SITE: "سایت بازاریابی",
+  WEBSITE: "وب‌سایت",
+  INSTAGRAM: "اینستاگرام",
+  TELEGRAM: "تلگرام",
   REFERRAL: "معرفی",
-  DIRECT: "مستقیم",
+  PHONE: "تماس تلفنی",
+  MANUAL: "دستی",
   OTHER: "سایر",
 };
 
-const ALL_STATUSES = ["NEW", "CONTACTED", "DEMO", "TRIAL", "CUSTOMER", "LOST"];
+const ALL_STATUSES = [
+  "NEW",
+  "CONTACTED",
+  "DEMO_SCHEDULED",
+  "DEMO_COMPLETED",
+  "NEGOTIATION",
+  "CONVERTED",
+  "LOST",
+];
 
 function formatDateTime(date: Date | string) {
   return new Intl.DateTimeFormat("fa-IR", {
@@ -85,11 +96,11 @@ function DemoRequestList({ demos }: { demos: LeadDetail["demoRequests"] }) {
         >
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium">
-              {demo.status === "requested"
-                ? "درخواست ارسال شده"
-                : demo.status === "scheduled"
+              {demo.status === "PENDING"
+                ? "در انتظار"
+                : demo.status === "SCHEDULED"
                   ? "برنامه‌ریزی شده"
-                  : demo.status === "completed"
+                  : demo.status === "COMPLETED"
                     ? "برگزار شده"
                     : "لغو شده"}
             </span>
@@ -97,11 +108,6 @@ function DemoRequestList({ demos }: { demos: LeadDetail["demoRequests"] }) {
               {formatDateTime(demo.createdAt)}
             </span>
           </div>
-          {demo.preferredTime && (
-            <p className="text-xs text-muted-foreground">
-              زمان پیشنهادی: {demo.preferredTime}
-            </p>
-          )}
           {demo.scheduledAt && (
             <p className="text-xs text-muted-foreground">
               زمان برنامه‌ریزی شده: {formatDateTime(demo.scheduledAt)}
@@ -132,9 +138,6 @@ export function LeadDetailSheet({
   const [selectedStatus, setSelectedStatus] = React.useState<string>(
     lead?.status ?? "NEW"
   );
-  const [lostReason, setLostReason] = React.useState<string>(
-    lead?.lostReason ?? ""
-  );
   // Tracks the studyhallId after a successful conversion in this session.
   // Distinct from lead.studyhallId so the success panel shows even before the
   // sheet is closed and re-opened with fresh data.
@@ -148,7 +151,6 @@ export function LeadDetailSheet({
   React.useEffect(() => {
     if (lead) {
       setSelectedStatus(lead.status);
-      setLostReason(lead.lostReason ?? "");
       setConvertedStudyhallId(lead.studyhallId ?? null);
     }
   }, [lead]);
@@ -158,9 +160,6 @@ export function LeadDetailSheet({
     const formData = new FormData();
     formData.set("leadId", lead.id);
     formData.set("status", selectedStatus);
-    if (selectedStatus === "LOST" && lostReason.trim()) {
-      formData.set("lostReason", lostReason.trim());
-    }
     startStatusTransition(async () => {
       const result = await updateLeadStatus(formData);
       if (result.success) {
@@ -286,21 +285,6 @@ export function LeadDetailSheet({
                 </SelectContent>
               </Select>
 
-              {selectedStatus === "LOST" && (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="lostReason" className="text-xs">
-                    دلیل از دست دادن (اختیاری)
-                  </Label>
-                  <Input
-                    id="lostReason"
-                    value={lostReason}
-                    onChange={(e) => setLostReason(e.target.value)}
-                    placeholder="مثلاً: رقیب قیمت کمتری داد"
-                    maxLength={500}
-                  />
-                </div>
-              )}
-
               <Button
                 onClick={handleStatusUpdate}
                 disabled={isPendingStatus || selectedStatus === lead.status}
@@ -358,7 +342,7 @@ export function LeadDetailSheet({
                         variant="outline"
                         size="sm"
                         onClick={handleConvert}
-                        disabled={isPendingConvert || lead.status === "CUSTOMER"}
+                        disabled={isPendingConvert || lead.status === "CONVERTED"}
                       >
                         {isPendingConvert
                           ? "در حال پردازش..."

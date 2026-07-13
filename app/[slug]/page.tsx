@@ -38,20 +38,44 @@ import { cn } from "@/lib/utils";
 // Data
 // ---------------------------------------------------------------------------
 async function getVenueBySlug(slug: string) {
-  return prisma.studyHall.findFirst({
-    where: { slug, publicPageEnabled: true },
+  const hall = await prisma.studyHall.findFirst({
+    where: { slug, isActive: true },
     select: {
       id: true,
       name: true,
       gender: true,
       address: true,
-      totalSeats: true,
-      monthlyFee: true,
-      heroImage: true,
-      galleryImages: true,
       createdAt: true,
+      sections: {
+        select: {
+          seats: {
+            where: { isActive: true },
+            select: { id: true },
+          },
+        },
+      },
+      membershipPlans: {
+        where: { isActive: true },
+        orderBy: { price: "asc" },
+        take: 1,
+        select: { price: true },
+      },
     },
   });
+
+  if (!hall) return null;
+
+  return {
+    id: hall.id,
+    name: hall.name,
+    gender: hall.gender,
+    address: hall.address,
+    createdAt: hall.createdAt,
+    totalSeats: hall.sections.reduce((sum, s) => sum + s.seats.length, 0),
+    monthlyFee: hall.membershipPlans[0] ? Number(hall.membershipPlans[0].price) : 0,
+    heroImage: null as string | null,
+    galleryImages: [] as string[],
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -159,7 +183,7 @@ export default async function VenuePublicPage({
 
   if (!hall) notFound();
 
-  const mapsUrl = buildMapsUrl(hall.address);
+  const mapsUrl = buildMapsUrl(hall.address ?? "");
   const monthlyFeeDisplay =
     hall.monthlyFee > 0
       ? hall.monthlyFee.toLocaleString("fa-IR")
@@ -383,7 +407,7 @@ export default async function VenuePublicPage({
 
       <StickyCtaBar
         venueName={hall.name}
-        address={hall.address}
+        address={hall.address ?? ""}
         mapsUrl={mapsUrl}
       />
     </main>

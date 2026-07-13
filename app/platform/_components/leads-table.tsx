@@ -34,8 +34,24 @@ function formatDate(date: Date | string) {
   );
 }
 
-const ALL_STATUSES = ["NEW", "CONTACTED", "DEMO", "TRIAL", "CUSTOMER", "LOST"];
-const ALL_SOURCES = ["MARKETING_SITE", "REFERRAL", "DIRECT", "OTHER"];
+const ALL_STATUSES = [
+  "NEW",
+  "CONTACTED",
+  "DEMO_SCHEDULED",
+  "DEMO_COMPLETED",
+  "NEGOTIATION",
+  "CONVERTED",
+  "LOST",
+];
+const ALL_SOURCES = [
+  "WEBSITE",
+  "INSTAGRAM",
+  "TELEGRAM",
+  "REFERRAL",
+  "PHONE",
+  "MANUAL",
+  "OTHER",
+];
 
 interface LeadsTableProps {
   leads: LeadRow[];
