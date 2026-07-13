@@ -284,7 +284,7 @@ export default async function Page({ searchParams }: PageProps) {
             seatNumber: formatNumber(Number(seat.number)),
             reserveSeatNumber: Number(seat.number),
             status: seat.status,
-            subscription: seat.activeAssignment
+              subscription: seat.activeAssignment
               ? {
                   id: seat.activeAssignment.membership.id,
                   memberName: seat.activeAssignment.membership.user.name ?? "بدون نام",
@@ -292,6 +292,7 @@ export default async function Page({ searchParams }: PageProps) {
                   endDate: formatDate(seat.activeAssignment.membership.endsAt),
                   startDateISO: seat.activeAssignment.membership.startsAt.toISOString(),
                   endDateISO: seat.activeAssignment.membership.endsAt.toISOString(),
+                  planPrice: Number(seat.activeAssignment.membership.planPrice),
                   paymentStatus: seat.activeAssignment.membership.payments.length > 0 ? "paid" : "unpaid",
                 }
               : undefined,
@@ -371,7 +372,7 @@ export default async function Page({ searchParams }: PageProps) {
               <CardHeader>
                 <CardTitle>مدیریت کارکنان</CardTitle>
                 <CardDescription>
-                  همکار با role=staff و studyhallId همین سالن ساخته می‌شود.
+                  اضافه کردن همکار جدید با دسترسی مراقب به این سالن.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

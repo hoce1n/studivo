@@ -4,14 +4,17 @@ import * as React from "react";
 import { toast } from "sonner";
 import {
   ArrowLeftRight,
+  Banknote,
   CalendarClock,
   CalendarIcon,
   CalendarPlus,
+  ChevronDown,
+  ChevronUp,
+  History,
   Loader,
   MessageSquare,
   Phone,
   Trash2,
-  History,
   User,
 } from "lucide-react";
 import { format } from "date-fns-jalali";
@@ -21,9 +24,12 @@ import {
   reserveSeat,
   swapSeat,
 } from "@/app/actions/seat";
-import { 
-  renewSubscription, 
-  updatePaymentStatus
+import {
+  renewSubscription,
+  registerPayment,
+  fetchMembershipPayments,
+  PAYMENT_METHOD_LABELS,
+  type MembershipPayment,
 } from "@/app/actions/subscription";
 
 import { ActionForm } from "@/components/action-form";
@@ -67,13 +73,15 @@ export type ReserveFormSeat = {
   reserveSeatNumber: number;
   status: SeatStatus;
   subscription?: {
-    id: string; // This is the Membership ID in Schema v2
+    id: string; // Membership ID in Schema v2
     memberName: string;
     phoneNumber: string;
     endDate: string;
     startDateISO: string;
     endDateISO: string;
-    paymentStatus: string;
+    /** planPrice in toman — pre-fills the payment amount field */
+    planPrice: number;
+    paymentStatus: "paid" | "unpaid";
   };
   history?: {
     id: string;
@@ -207,6 +215,190 @@ const statusLabels: Record<string, string> = {
   cancelled: "لغوشده",
 };
 
+const PAYMENT_METHODS = ["CASH", "POS", "CARD_TO_CARD", "ONLINE"] as const;
+
+// ---------------------------------------------------------------------------
+// PaymentPanel — inline payment registration and history
+// ---------------------------------------------------------------------------
+function PaymentPanel({
+  membershipId,
+  planPrice,
+  paymentStatus,
+}: {
+  membershipId: string;
+  planPrice: number;
+  paymentStatus: "paid" | "unpaid";
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [payments, setPayments] = React.useState<MembershipPayment[] | null>(null);
+  const [loadingHistory, setLoadingHistory] = React.useState(false);
+
+  async function loadHistory() {
+    setLoadingHistory(true);
+    const result = await fetchMembershipPayments(membershipId);
+    if (result.success) {
+      setPayments(result.data ?? null);
+    }
+    setLoadingHistory(false);
+  }
+
+  function handleToggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && payments === null) {
+      loadHistory();
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border">
+      {/* Header toggle */}
+      <button
+        type="button"
+        onClick={handleToggle}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium"
+      >
+        <div className="flex items-center gap-2">
+          <Banknote className="size-4 text-muted-foreground" />
+          <span>پرداخت</span>
+          <span
+            className={cn(
+              "size-2 rounded-full",
+              paymentStatus === "paid" ? "bg-emerald-500" : "bg-amber-500 animate-pulse",
+            )}
+            title={paymentStatus === "paid" ? "پرداخت شده" : "تسویه نشده"}
+          />
+        </div>
+        {open ? (
+          <ChevronUp className="size-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="size-4 text-muted-foreground" />
+        )}
+      </button>
+
+      {open && (
+        <div className="border-t px-4 pb-4 pt-3 space-y-4">
+          {/* Register payment form */}
+          <ActionForm
+            action={registerPayment}
+            successMessage="پرداخت با موفقیت ثبت شد."
+            onSuccess={() => {
+              loadHistory();
+            }}
+            className="space-y-3"
+          >
+            {(pending) => (
+              <>
+                <input type="hidden" name="membershipId" value={membershipId} />
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <label htmlFor={`amount-${membershipId}`} className="text-xs font-medium">
+                      مبلغ (تومان)
+                    </label>
+                    <Input
+                      id={`amount-${membershipId}`}
+                      name="amount"
+                      type="number"
+                      min={1}
+                      step={1000}
+                      defaultValue={planPrice}
+                      required
+                      className="h-9 text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor={`method-${membershipId}`} className="text-xs font-medium">
+                      روش پرداخت
+                    </label>
+                    <select
+                      id={`method-${membershipId}`}
+                      name="method"
+                      defaultValue="CASH"
+                      required
+                      className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-2xl border px-3 text-sm focus-visible:outline-none focus-visible:ring-2"
+                    >
+                      {PAYMENT_METHODS.map((m) => (
+                        <option key={m} value={m}>
+                          {PAYMENT_METHOD_LABELS[m]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor={`note-${membershipId}`} className="text-xs font-medium">
+                    یادداشت (اختیاری)
+                  </label>
+                  <Input
+                    id={`note-${membershipId}`}
+                    name="note"
+                    placeholder="مثلاً: پرداخت نقدی در سالن"
+                    maxLength={300}
+                    className="h-9 text-sm"
+                  />
+                </div>
+
+                <Button type="submit" size="sm" disabled={pending} className="w-full">
+                  {pending ? <Loader className="size-3 animate-spin" /> : "ثبت پرداخت"}
+                </Button>
+              </>
+            )}
+          </ActionForm>
+
+          {/* Payment history */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">سابقه پرداخت‌ها</p>
+            {loadingHistory ? (
+              <div className="flex justify-center py-4">
+                <Loader className="size-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : payments === null || payments.length === 0 ? (
+              <p className="rounded-2xl border border-dashed py-3 text-center text-xs text-muted-foreground">
+                پرداختی ثبت نشده است.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {payments.map((p) => (
+                  <div
+                    key={p.id}
+                    className={cn(
+                      "flex items-center justify-between gap-2 rounded-2xl border px-3 py-2 text-xs",
+                      p.status === "VOIDED" && "opacity-50 line-through",
+                    )}
+                  >
+                    <div className="space-y-0.5">
+                      <span className="font-medium">
+                        {p.amount.toLocaleString("fa-IR")} تومان
+                      </span>
+                      <div className="text-muted-foreground">
+                        {PAYMENT_METHOD_LABELS[p.method as keyof typeof PAYMENT_METHOD_LABELS] ?? p.method}
+                        {p.note ? ` · ${p.note}` : ""}
+                      </div>
+                    </div>
+                    <div className="text-left text-muted-foreground">
+                      {p.paidAt
+                        ? new Intl.DateTimeFormat("fa-IR", { dateStyle: "short" }).format(
+                            new Date(p.paidAt),
+                          )
+                        : "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ReserveForm
+// ---------------------------------------------------------------------------
 export function ReserveForm({
   maxSeats,
   open,
@@ -222,20 +414,15 @@ export function ReserveForm({
   returningMember?: { id: string; name: string; phoneNumber: string | null } | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [startDate, setStartDate] = React.useState<Date | undefined>(
-    getDefaultStartDate,
-  );
+  const [startDate, setStartDate] = React.useState<Date | undefined>(getDefaultStartDate);
   const [date, setDate] = React.useState<Date | undefined>(getDefaultEndDate);
-  const [renewDate, setRenewDate] = React.useState<Date | undefined>(
-    getDefaultEndDate,
-  );
+  const [renewDate, setRenewDate] = React.useState<Date | undefined>(getDefaultEndDate);
   const [swapSeatNumber, setSwapSeatNumber] = React.useState("");
   const [renewError, setRenewError] = React.useState<string | null>(null);
   const [swapError, setSwapError] = React.useState<string | null>(null);
   const [renewPending, startRenewTransition] = React.useTransition();
   const [swapPending, startSwapTransition] = React.useTransition();
   const [releasePending, startReleaseTransition] = React.useTransition();
-  const [paymentPending, startPaymentTransition] = React.useTransition();
 
   const [currentSeat, setCurrentSeat] = React.useState<ReserveFormSeat | null>(seat);
 
@@ -323,10 +510,7 @@ export function ReserveForm({
         setRenewDate(getDefaultEndDate());
         onOpenChange(false);
       } catch (error) {
-        const message = getActionErrorMessage(
-          error,
-          "تمدید اشتراک ناموفق بود.",
-        );
+        const message = getActionErrorMessage(error, "تمدید اشتراک ناموفق بود.");
         setRenewError(message);
         toast.error(message);
       }
@@ -338,11 +522,7 @@ export function ReserveForm({
 
     const cleanedSeatNumber = normalizeSeatNumber(swapSeatNumber);
     const parsedSeatNumber = Number(cleanedSeatNumber);
-    if (
-      !cleanedSeatNumber ||
-      Number.isNaN(parsedSeatNumber) ||
-      parsedSeatNumber < 1
-    ) {
+    if (!cleanedSeatNumber || Number.isNaN(parsedSeatNumber) || parsedSeatNumber < 1) {
       setSwapError("شماره صندلی مقصد معتبر نیست.");
       return;
     }
@@ -358,10 +538,7 @@ export function ReserveForm({
         setSwapSeatNumber("");
         onOpenChange(false);
       } catch (error) {
-        const message = getActionErrorMessage(
-          error,
-          "جابجایی صندلی ناموفق بود.",
-        );
+        const message = getActionErrorMessage(error, "جابجایی صندلی ناموفق بود.");
         setSwapError(message);
         toast.error(message);
       }
@@ -381,36 +558,6 @@ export function ReserveForm({
         onOpenChange(false);
       } catch (error) {
         toast.error(getActionErrorMessage(error, "تخلیه صندلی ناموفق بود."));
-      }
-    });
-  }
-
-  function handlePaymentStatusToggle() {
-    if (!subscription) return;
-
-    const nextStatus = subscription.paymentStatus === "paid" ? "unpaid" : "paid";
-    startPaymentTransition(async () => {
-      try {
-        const result = await updatePaymentStatus(subscription.id, nextStatus);
-        if (!result.success) {
-          throw new Error(result.error || "تغییر وضعیت پرداخت ناموفق بود.");
-        }
-        setCurrentSeat((previousSeat) =>
-          previousSeat
-            ? {
-                ...previousSeat,
-                subscription: previousSeat.subscription
-                  ? {
-                      ...previousSeat.subscription,
-                      paymentStatus: nextStatus,
-                    }
-                  : previousSeat.subscription,
-              }
-            : previousSeat,
-        );
-        toast.success(result.message || "وضعیت پرداخت با موفقیت به‌روزرسانی شد.");
-      } catch (error) {
-        toast.error(getActionErrorMessage(error, "تغییر وضعیت پرداخت ناموفق بود."));
       }
     });
   }
@@ -479,9 +626,7 @@ export function ReserveForm({
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="startDate">
-                      تاریخ شروع اشتراک
-                    </FieldLabel>
+                    <FieldLabel htmlFor="startDate">تاریخ شروع اشتراک</FieldLabel>
                     <input
                       id="startDate"
                       type="hidden"
@@ -522,9 +667,7 @@ export function ReserveForm({
                     </Popover>
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="endDate">
-                      تاریخ پایان اشتراک
-                    </FieldLabel>
+                    <FieldLabel htmlFor="endDate">تاریخ پایان اشتراک</FieldLabel>
                     <input
                       id="endDate"
                       type="hidden"
@@ -584,171 +727,144 @@ export function ReserveForm({
                 <TabsTrigger value="history">تاریخچه صندلی</TabsTrigger>
               </TabsList>
               <TabsContent value="current" className="space-y-4">
-              <div className="space-y-2 rounded-2xl bg-muted/50 p-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <User className="size-4 text-muted-foreground" />
-                  <span className="font-medium">{subscription.memberName}</span>
-                </div>
-                <div className="flex items-center gap-2" dir="ltr">
-                  <Phone className="size-4 text-muted-foreground" />
-                  <a
-                    href={`tel:${subscription.phoneNumber}`}
-                    className="font-mono"
-                  >
-                    {subscription.phoneNumber}
-                  </a>
-                </div>
-                <div className="flex items-center justify-between gap-2">
+                <div className="space-y-2 rounded-2xl bg-muted/50 p-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <User className="size-4 text-muted-foreground" />
+                    <span className="font-medium">{subscription.memberName}</span>
+                  </div>
+                  <div className="flex items-center gap-2" dir="ltr">
+                    <Phone className="size-4 text-muted-foreground" />
+                    <a href={`tel:${subscription.phoneNumber}`} className="font-mono">
+                      {subscription.phoneNumber}
+                    </a>
+                  </div>
                   <div className="flex items-center gap-2">
                     <CalendarClock className="size-4 text-muted-foreground" />
                     <span>پایان فعلی اشتراک: {subscription.endDate}</span>
                   </div>
                   <Button
                     type="button"
-                    variant={subscription.paymentStatus === "paid" ? "outline" : "default"}
+                    variant="outline"
                     size="sm"
-                    className={cn(
-                      "h-7 px-2 text-[10px]",
-                      subscription.paymentStatus === "paid"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                        : "bg-amber-500 text-white hover:bg-amber-600",
-                    )}
-                    onClick={handlePaymentStatusToggle}
-                    disabled={paymentPending}
+                    className="w-full justify-center gap-2 bg-background/80"
+                    onClick={handleSendStatusMessage}
                   >
-                    {paymentPending ? (
-                      <Loader className="size-3 animate-spin" />
-                    ) : subscription.paymentStatus === "paid" ? (
-                      "پرداخت شده"
-                    ) : (
-                      "تسویه نشده"
-                    )}
+                    <MessageSquare className="size-4" />
+                    ارسال پیامک اطلاع‌رسانی
                   </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-center gap-2 bg-background/80"
-                  onClick={handleSendStatusMessage}
-                >
-                  <MessageSquare className="size-4" />
-                  ارسال پیامک اطلاع‌رسانی
-                </Button>
-              </div>
 
-              <SubscriptionProgress
-                startDate={subscription.startDateISO}
-                endDate={subscription.endDateISO}
-                className="rounded-2xl border p-3"
-              />
+                <SubscriptionProgress
+                  startDate={subscription.startDateISO}
+                  endDate={subscription.endDateISO}
+                  className="rounded-2xl border p-3"
+                />
 
-              <div className="grid gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="justify-start">
-                      <CalendarPlus />
-                      {renewDate
-                        ? format(renewDate, "yyyy/MM/dd")
-                        : "تاریخ تمدید"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent>
-                    <Calendar
-                      className="w-full"
-                      mode="single"
-                      selected={renewDate}
-                      onSelect={setRenewDate}
-                      disabled={(date) => date < new Date()}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <div className="rounded-2xl border bg-muted/40 p-3 text-xs leading-6 text-muted-foreground">
-                  <div className="font-medium text-foreground">
-                    پایان فعلی: {subscription.endDate}
+                {/* Payment panel — replaces the legacy paid/unpaid toggle */}
+                <PaymentPanel
+                  membershipId={subscription.id}
+                  planPrice={subscription.planPrice}
+                  paymentStatus={subscription.paymentStatus}
+                />
+
+                <div className="grid gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="justify-start">
+                        <CalendarPlus />
+                        {renewDate ? format(renewDate, "yyyy/MM/dd") : "تاریخ تمدید"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent>
+                      <Calendar
+                        className="w-full"
+                        mode="single"
+                        selected={renewDate}
+                        onSelect={setRenewDate}
+                        disabled={(date) => date < new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <div className="rounded-2xl border bg-muted/40 p-3 text-xs leading-6 text-muted-foreground">
+                    <div className="font-medium text-foreground">
+                      پایان فعلی: {subscription.endDate}
+                    </div>
+                    <div>{smartRenewalPreview?.helpText}</div>
                   </div>
-                  <div>{smartRenewalPreview?.helpText}</div>
-                </div>
-                {renewError ? (
-                  <p className="text-xs text-destructive">{renewError}</p>
-                ) : null}
-                <Button
-                  onClick={handleRenew}
-                  disabled={renewPending || !renewDate}
-                >
-                  {renewPending ? (
-                    <Loader className="animate-spin" />
-                  ) : (
-                    <CalendarPlus />
-                  )}
-                  {smartRenewalPreview?.buttonText ?? "تمدید اشتراک"}
-                </Button>
-
-                <div className="flex gap-2">
-                  <Input
-                    value={swapSeatNumber}
-                    onChange={(event) => setSwapSeatNumber(event.target.value)}
-                    inputMode="numeric"
-                    placeholder="شماره صندلی مقصد"
-                    disabled={swapPending}
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleSwap}
-                    disabled={swapPending || !swapSeatNumber}
-                  >
-                    {swapPending ? (
+                  {renewError ? (
+                    <p className="text-xs text-destructive">{renewError}</p>
+                  ) : null}
+                  <Button onClick={handleRenew} disabled={renewPending || !renewDate}>
+                    {renewPending ? (
                       <Loader className="animate-spin" />
                     ) : (
-                      <ArrowLeftRight />
+                      <CalendarPlus />
                     )}
-                    انتقال
+                    {smartRenewalPreview?.buttonText ?? "تمدید اشتراک"}
                   </Button>
-                </div>
-                {swapError ? (
-                  <p className="text-xs text-destructive">{swapError}</p>
-                ) : null}
 
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={releasePending}>
-                      <Trash2 />
-                      تخلیه صندلی
+                  <div className="flex gap-2">
+                    <Input
+                      value={swapSeatNumber}
+                      onChange={(event) => setSwapSeatNumber(event.target.value)}
+                      inputMode="numeric"
+                      placeholder="شماره صندلی مقصد"
+                      disabled={swapPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleSwap}
+                      disabled={swapPending || !swapSeatNumber}
+                    >
+                      {swapPending ? (
+                        <Loader className="animate-spin" />
+                      ) : (
+                        <ArrowLeftRight />
+                      )}
+                      انتقال
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogMedia className="text-destructive">
+                  </div>
+                  {swapError ? (
+                    <p className="text-xs text-destructive">{swapError}</p>
+                  ) : null}
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" disabled={releasePending}>
                         <Trash2 />
-                      </AlertDialogMedia>
-                      <AlertDialogTitle>
-                        تخلیه صندلی {currentSeat?.seatNumber}؟
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        اشتراک فعال {subscription.memberName} لغو می‌شود و صندلی
-                        خالی خواهد شد.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel disabled={releasePending}>
-                        انصراف
-                      </AlertDialogCancel>
-                      <Button
-                        variant="destructive"
-                        onClick={handleRelease}
-                        disabled={releasePending}
-                      >
-                        {releasePending ? (
-                          <Loader className="animate-spin" />
-                        ) : (
-                          "بله، تخلیه کن"
-                        )}
+                        تخلیه صندلی
                       </Button>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogMedia className="text-destructive">
+                          <Trash2 />
+                        </AlertDialogMedia>
+                        <AlertDialogTitle>
+                          تخلیه صندلی {currentSeat?.seatNumber}؟
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          اشتراک فعال {subscription.memberName} لغو می‌شود و صندلی خالی خواهد شد.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={releasePending}>انصراف</AlertDialogCancel>
+                        <Button
+                          variant="destructive"
+                          onClick={handleRelease}
+                          disabled={releasePending}
+                        >
+                          {releasePending ? (
+                            <Loader className="animate-spin" />
+                          ) : (
+                            "بله، تخلیه کن"
+                          )}
+                        </Button>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </TabsContent>
               <TabsContent value="history">
                 <SeatHistoryTimeline history={currentSeat?.history ?? []} />

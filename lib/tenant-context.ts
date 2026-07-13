@@ -12,6 +12,8 @@ type TenantStudyHallContext = {
   gender: "male" | "female";
   address: string;
   slug: string;
+  phoneNumber: string | null;
+  description: string | null;
 };
 
 export type TenantContext = {
@@ -80,6 +82,8 @@ export async function getTenantContext(userId: string): Promise<TenantContext | 
           gender: true,
           address: true,
           slug: true,
+          phoneNumber: true,
+          description: true,
           sections: {
             where: { isActive: true },
             select: { _count: { select: { seats: true } } },
@@ -110,6 +114,8 @@ export async function getTenantContext(userId: string): Promise<TenantContext | 
     gender: mapGenderToLegacy(assignment.studyHall.gender),
     address: assignment.studyHall.address ?? "",
     slug: assignment.studyHall.slug,
+    phoneNumber: assignment.studyHall.phoneNumber ?? null,
+    description: assignment.studyHall.description ?? null,
   } satisfies TenantStudyHallContext;
 
   return {

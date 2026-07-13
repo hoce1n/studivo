@@ -101,6 +101,13 @@ const studyHallSettingsSchema = z.object({
     error: "نوع سالن را انتخاب کنید.",
   }),
   address: z.string().trim().min(5, "آدرس سالن را کامل‌تر وارد کنید.").max(300, "آدرس نمی‌تواند بیشتر از ۳۰۰ کاراکتر باشد."),
+  phoneNumber: z
+    .string()
+    .trim()
+    .regex(/^0\d{9,10}$/, "شماره تلفن سالن معتبر نیست.")
+    .optional()
+    .or(z.literal("")),
+  description: z.string().trim().max(500, "توضیحات نمی‌تواند بیشتر از ۵۰۰ کاراکتر باشد.").optional(),
 });
 
 const notificationPreferencesSchema = z.object({
@@ -170,6 +177,8 @@ export async function updateStudyHallSettings(formData: FormData): Promise<Actio
     monthlyFee: formData.get("monthlyFee"),
     gender: formData.get("gender"),
     address: formData.get("address") ?? "",
+    phoneNumber: formData.get("phoneNumber") ?? "",
+    description: formData.get("description") ?? "",
   });
 
   if (!parsed.success) {
@@ -184,6 +193,8 @@ export async function updateStudyHallSettings(formData: FormData): Promise<Actio
         name: parsed.data.name,
         gender: parsed.data.gender === "male" ? "MALE" : "FEMALE",
         address: parsed.data.address,
+        phoneNumber: parsed.data.phoneNumber || null,
+        description: parsed.data.description || null,
       },
     });
 
