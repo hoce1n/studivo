@@ -1,20 +1,12 @@
-import { redirect } from "next/navigation";
 import { Building2, Settings2 } from "lucide-react";
 
-import { requireUser } from "@/app/actions/auth";
+import { requireOwnerUser } from "@/app/actions/auth";
 import { HallSettingsForm } from "@/app/dashboard/settings/_components/hall-settings-form";
 import { PublicPageSettingsForm } from "@/app/dashboard/settings/_components/public-page-settings-form";
 
 export default async function HallSettingsPage() {
-  const user = await requireUser();
-
-  if (!user.studyhallId || !user.studyhall) {
-    redirect("/onboarding");
-  }
-
-  if (user.role !== "admin") {
-    redirect("/dashboard");
-  }
+  // Use requireOwnerUser which handles authentication, tenant scoping, and owner role check.
+  const user = await requireOwnerUser();
 
   return (
     <section className="flex flex-1 flex-col gap-6 p-4 md:p-6" dir="rtl">
@@ -37,21 +29,21 @@ export default async function HallSettingsPage() {
             </div>
           </div>
           <div className="rounded-2xl border bg-background px-4 py-3 text-sm font-bold text-muted-foreground">
-            {user.studyhall.name}
+            {user.studyHall.name}
           </div>
         </div>
       </section>
 
-      <HallSettingsForm studyHall={user.studyhall} />
+      <HallSettingsForm studyHall={user.studyHall} />
 
       <PublicPageSettingsForm
         studyHall={{
-          slug: user.studyhall.slug,
-          publicPageEnabled: user.studyhall.publicPageEnabled,
-          heroImage: user.studyhall.heroImage,
-          galleryImages: user.studyhall.galleryImages,
+          slug: user.studyHall.slug,
+          publicPageEnabled: user.studyHall.publicPageEnabled,
+          heroImage: user.studyHall.heroImage,
+          galleryImages: user.studyHall.galleryImages,
         }}
-        studyhallId={user.studyhallId}
+        studyhallId={user.studyHallId}
       />
     </section>
   );

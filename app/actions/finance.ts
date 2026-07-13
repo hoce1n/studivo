@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { actionError } from "@/app/actions/audit";
 import type { ActionResult } from "@/app/actions/audit";
-import { requireScopedUser } from "@/app/actions/auth";
+import { requireTenantContext } from "@/app/actions/auth";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,7 +105,7 @@ const dateRangeSchema = z
 // Fetches revenue data for a given date range.
 // ---------------------------------------------------------------------------
 export async function fetchRevenueReport(startDate: Date, endDate: Date): Promise<ActionResult<RevenueReport>> {
-  const user = await requireScopedUser();
+  const user = await requireTenantContext();
   const parsed = dateRangeSchema.safeParse({ startDate, endDate });
 
   if (!parsed.success) {
@@ -118,7 +118,7 @@ export async function fetchRevenueReport(startDate: Date, endDate: Date): Promis
   try {
     const rows = (await prisma.subscription.findMany({
       where: {
-        studyhallId: user.studyhallId,
+        studyhallId: user.studyHallId,
         paymentStatus: "paid",
         OR: [
           { paymentDate: { gte: rangeStart, lte: rangeEnd } },
@@ -165,12 +165,12 @@ export async function fetchRevenueReport(startDate: Date, endDate: Date): Promis
 // Fetches subscriptions with unpaid status that are past their end date.
 // ---------------------------------------------------------------------------
 export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymentsReport>> {
-  const user = await requireScopedUser();
+  const user = await requireTenantContext();
 
   try {
     const rows = (await prisma.subscription.findMany({
       where: {
-        studyhallId: user.studyhallId,
+        studyhallId: user.studyHallId,
         paymentStatus: "unpaid",
         status: "active",
         endDate: { lt: new Date() },
@@ -213,11 +213,11 @@ export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymen
 // Fetches current occupancy and potential revenue stats.
 // ---------------------------------------------------------------------------
 export async function fetchOccupancyRevenueStats(): Promise<ActionResult<OccupancyRevenueStats>> {
-  const user = await requireScopedUser();
+  const user = await requireTenantContext();
 
   try {
     const studyHall = await prisma.studyHall.findFirst({
-      where: { id: user.studyhallId },
+      where: { id: user.studyHallId },
       select: { totalSeats: true, monthlyFee: true },
     });
 
@@ -230,18 +230,18 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
 
     const [activeSubscriptions, paidActiveSubscriptions, allPaidRows, monthlyPaidRows, activePaidRows] = await Promise.all([
       prisma.subscription.count({
-        where: { studyhallId: user.studyhallId, status: "active", endDate: { gte: now } },
+        where: { studyhallId: user.studyHallId, status: "active", endDate: { gte: now } },
       }),
       prisma.subscription.count({
-        where: { studyhallId: user.studyhallId, status: "active", paymentStatus: "paid", endDate: { gte: now } },
+        where: { studyhallId: user.studyHallId, status: "active", paymentStatus: "paid", endDate: { gte: now } },
       }),
       prisma.subscription.findMany({
-        where: { studyhallId: user.studyhallId, paymentStatus: "paid" },
+        where: { studyhallId: user.studyHallId, paymentStatus: "paid" },
         select: { monthlyFeeAtSubscription: true, studyhall: { select: { monthlyFee: true } } },
       }),
       prisma.subscription.findMany({
         where: {
-          studyhallId: user.studyhallId,
+          studyhallId: user.studyHallId,
           paymentStatus: "paid",
           OR: [
             { paymentDate: { gte: monthStart, lte: now } },
@@ -251,7 +251,7 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
         select: { monthlyFeeAtSubscription: true, studyhall: { select: { monthlyFee: true } } },
       }),
       prisma.subscription.findMany({
-        where: { studyhallId: user.studyhallId, status: "active", paymentStatus: "paid", endDate: { gte: now } },
+        where: { studyhallId: user.studyHallId, status: "active", paymentStatus: "paid", endDate: { gte: now } },
         select: { monthlyFeeAtSubscription: true, studyhall: { select: { monthlyFee: true } } },
       }),
     ]);

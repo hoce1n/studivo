@@ -8,7 +8,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import { createStaff } from "@/app/actions/auth";
+import { createStaff, requireTenantContext } from "@/app/actions/auth";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/server";
 import { cn } from "@/lib/utils";
 import { StudyHallSeatsMap } from "@/app/dashboard/_components/study-hall-seats-map";
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
@@ -104,40 +103,12 @@ export default async function Page({ searchParams }: PageProps) {
   const sortBy = resolvedSearchParams?.sortBy;
   const returningMemberId = typeof resolvedSearchParams?.memberId === "string" ? resolvedSearchParams.memberId : undefined;
 
-  const session = await getSession();
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      name: true,
-      role: true,
-      studyhallId: true,
-      studyhall: {
-        select: {
-          id: true,
-          name: true,
-          totalSeats: true,
-          monthlyFee: true,
-        },
-      },
-    },
-  });
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  if (!user.studyhallId || !user.studyhall) {
-    redirect("/onboarding");
-  }
+  // Use requireTenantContext which handles authentication and tenant scoping.
+  const user = await requireTenantContext();
 
   const [seats, staff, membersCount, returningMember] = await Promise.all([
     prisma.seat.findMany({
-      where: { studyhallId: user.studyhallId },
+      where: { studyhallId: user.studyHallId },
       orderBy: { seatNumber: "asc" },
       include: {
         subscriptions: {
@@ -154,16 +125,16 @@ export default async function Page({ searchParams }: PageProps) {
       },
     }),
     prisma.user.findMany({
-      where: { studyhallId: user.studyhallId, role: "staff" },
+      where: { studyhallId: user.studyHallId, role: "staff" },
       orderBy: { createdAt: "desc" },
       select: { id: true, name: true, email: true },
     }),
     prisma.user.count({
-      where: { studyhallId: user.studyhallId, role: "member" },
+      where: { studyhallId: user.studyHallId, role: "member" },
     }),
     returningMemberId
       ? prisma.user.findFirst({
-          where: { id: returningMemberId, studyhallId: user.studyhallId, role: "member" },
+          where: { id: returningMemberId, studyhallId: user.studyHallId, role: "member" },
           select: { id: true, name: true, phoneNumber: true },
         })
       : Promise.resolve(null satisfies ReturningMember),
@@ -201,10 +172,10 @@ export default async function Page({ searchParams }: PageProps) {
   const occupancyRate = seats.length
     ? Math.round((occupied / seats.length) * 100)
     : 0;
-  const activeRevenue = stats.reserved * (user.studyhall.monthlyFee ?? 0); 
-  const atRiskRevenue = stats.renewal * (user.studyhall.monthlyFee ?? 0);  
-  const lostRevenue = stats.available * (user.studyhall.monthlyFee ?? 0);  
-  const monthlyRevenue = occupied * (user.studyhall.monthlyFee ?? 0); 
+  const activeRevenue = stats.reserved * (user.studyHall.monthlyFee ?? 0);
+  const atRiskRevenue = stats.renewal * (user.studyHall.monthlyFee ?? 0);
+  const lostRevenue = stats.available * (user.studyHall.monthlyFee ?? 0);
+  const monthlyRevenue = occupied * (user.studyHall.monthlyFee ?? 0);
 
   const isAdmin = user.role === "admin";
   const roleLabel = isAdmin ? "مدیر" : "مراقب";
@@ -315,7 +286,7 @@ export default async function Page({ searchParams }: PageProps) {
           }))}
           shouldSortByRenewal={shouldSortByRenewal}
           statusCopy={statusCopy}
-          studyHallName={user.studyhall.name}
+          studyHallName={user.studyHall.name}
           returningMember={returningMember}
           stats={{
             available: formatNumber(stats.available),
@@ -329,14 +300,14 @@ export default async function Page({ searchParams }: PageProps) {
           {isAdmin && (
             <Card className="gap-2 bg-primary text-primary-foreground relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
-              
+
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
                 <CardTitle className="text-sm font-medium text-primary-foreground/80">
                   درآمد ماهانه تخمینی
                 </CardTitle>
                 <CircleDollarSign className="size-4 text-primary-foreground/70" />
               </CardHeader>
-              
+
               <CardContent className="space-y-2">
                 <div className="text-2xl font-bold tracking-tight">
                   {formatNumber(monthlyRevenue)}{" "}
@@ -344,10 +315,10 @@ export default async function Page({ searchParams }: PageProps) {
                     تومان
                   </span>
                 </div>
-                
+
                 <p className="text-xs text-primary-foreground/70 border-b border-primary-foreground/10 pb-2">
                   بر اساس {formatNumber(occupied)} صندلی اشغال‌شده ×{" "}
-                  {formatNumber(user.studyhall.monthlyFee ?? 0)} تومان
+                  {formatNumber(user.studyHall.monthlyFee ?? 0)} تومان
                 </p>
 
                 <div className="pt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-primary-foreground/60">
@@ -404,7 +375,7 @@ export default async function Page({ searchParams }: PageProps) {
                     ))
                   ) : (
                     <p className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-                      هنوز همکاری تعریف نشده است.
+                      هنوز همکاری ثبت نشده است.
                     </p>
                   )}
                 </div>
@@ -413,31 +384,14 @@ export default async function Page({ searchParams }: PageProps) {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>دسترسی همکار</CardTitle>
+                <CardTitle>دسترسی محدود</CardTitle>
                 <CardDescription>
-                  شما به عنوان مراقب سالن، دسترسی کامل به نقشه زنده، ثبت نام
-                  دانش‌آموز جدید و تمدید یا تخلیه صندلی‌ها را دارید.
+                  شما به عنوان مراقب وارد شده‌اید. بخش مدیریت مالی و کارکنان فقط
+                  برای مدیر سالن در دسترس است.
                 </CardDescription>
               </CardHeader>
             </Card>
           )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CircleDollarSign className="size-4" /> مرزبندی داده
-              </CardTitle>
-              <CardDescription>
-                شناسه سالن: {user.studyhall.id}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm leading-7 text-muted-foreground">
-              تمام اطلاعات ثبت‌شده (شامل لیست همکاران، اعضا، صندلی‌ها و
-              تاریخچه‌ی اشتراک‌ها) کاملاً رمزگذاری شده و منحصراً متعلق به
-              این سالن مطالعه است. هیچ کاربر یا سالن دیگری به این داده‌ها
-              دسترسی ندارد.
-            </CardContent>
-          </Card>
         </div>
       </section>
     </>

@@ -1,20 +1,19 @@
-import { redirect } from "next/navigation";
 import { BookOpenText } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/server";
+import { requireOwnerUser } from "@/app/actions/auth";
 
 function formatDateTime(date: Date) {
   return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
-const actionLabels: Record<string, string> = { 
-  RESERVE_SEAT: "رزرو صندلی", 
-  SWAP_SEAT: "انتقال صندلی", 
-  RENEW_SUBSCRIPTION: "تمدید اشتراک", 
-  RELEASE_SEAT: "تخلیه صندلی" 
+const actionLabels: Record<string, string> = {
+  RESERVE_SEAT: "رزرو صندلی",
+  SWAP_SEAT: "انتقال صندلی",
+  RENEW_SUBSCRIPTION: "تمدید اشتراک",
+  RELEASE_SEAT: "تخلیه صندلی"
 };
 
 export default async function LogsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
@@ -22,33 +21,26 @@ export default async function LogsPage({ searchParams }: { searchParams: Promise
   const page = Math.max(1, Number(params.page ?? 1) || 1);
   const take = 25;
 
-  const session = await getSession();
-  if (!session?.user?.id) 
-    redirect("/login");
-  
-  const user = await prisma.user.findUnique({ 
-    where: { id: session.user.id }, 
-    select: { 
-      id: true, 
-      role: true, 
-      studyhallId: true, 
-      studyhall: { 
-        select: { name: true } 
-      } 
-    } 
-  });
-  
-  if (!user) redirect("/login");
+  // Use requireOwnerUser which handles authentication, tenant scoping, and owner role check.
+  const user = await requireOwnerUser();
 
-  if (!user.studyhallId || !user.studyhall) 
-    redirect("/onboarding");
-  
-  if (user.role !== "admin") redirect("/dashboard");
-
-  const logs = await prisma.auditLog.findMany({ 
-    where: { studyhallId: user.studyhallId }, 
-    orderBy: { createdAt: "desc" }, 
-    skip: (page - 1) * take, take, include: { user: { select: { name: true, role: true } } } 
+  const logs = await prisma.auditLog.findMany({
+    where: { studyhallId: user.studyHallId },
+    orderBy: { createdAt: "desc" },
+    skip: (page - 1) * take,
+    take,
+    include: {
+      user: {
+        select: {
+          name: true,
+          // Note: In Schema v2, user.role is legacy.
+          // For display purposes in audit logs, we might need to resolve their role in the studyhall
+          // or just show the legacy role if it's still populated.
+          // Since we are not changing the DB yet, we keep it but acknowledge it's legacy.
+          role: true
+        }
+      }
+    }
   });
 
   return (
@@ -62,7 +54,7 @@ export default async function LogsPage({ searchParams }: { searchParams: Promise
           ثبت غیرقابل‌حذف عملیات مهم پذیرش، تمدید، انتقال و تخلیه صندلی‌ها برای اعتماد مدیریتی.
         </CardDescription>
       </CardHeader>
-      <CardContent 
+      <CardContent
         className="space-y-3"
       >
         {logs.length ? logs.map((log) => {

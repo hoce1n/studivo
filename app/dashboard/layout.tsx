@@ -14,7 +14,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { requireUser } from "@/app/actions/auth";
+import { requireUser, requireTenantContext } from "@/app/actions/auth";
 import ThemeToggle from "../(marketing)/_components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 
@@ -35,16 +35,16 @@ export default async function Layout({
     redirect("/platform");
   }
 
-  if (!user.studyhallId || !user.studyhall) {
-    redirect("/onboarding");
-  }
+  // Use the new tenant context helper which resolves active StaffAssignment.
+  // This replaces the legacy !user.studyhallId || !user.studyhall check.
+  const context = await requireTenantContext();
 
   return (
     <SidebarProvider>
       <AppSidebar
         side="right"
-        userRole={user?.role}
-        studyhallName={user.studyhall.name}
+        userRole={context.role}
+        studyhallName={context.studyHall.name}
         activePath="/dashboard"
       />
       <SidebarInset>
@@ -59,7 +59,7 @@ export default async function Layout({
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
-                    <BreadcrumbPage>{user.studyhall.name}</BreadcrumbPage>
+                    <BreadcrumbPage>{context.studyHall.name}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>

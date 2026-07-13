@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Archive, Armchair, CalendarClock, Phone, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/server";
+import { requireTenantContext } from "@/app/actions/auth";
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(date);
@@ -15,18 +14,14 @@ function formatDate(date: Date) {
 export default async function MembersPage({ searchParams }: { searchParams: Promise<{ status?: string; memberId?: string }> }) {
   const params = await searchParams;
   const filter = params.status === "inactive" ? "inactive" : "active";
-  
-  const session = await getSession();
-  if (!session?.user?.id) redirect("/login");
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, name: true, role: true, studyhallId: true, studyhall: { select: { name: true } } } });
-  if (!user) redirect("/login");
-  if (!user.studyhallId || !user.studyhall) redirect("/onboarding");
+  // Use requireTenantContext which handles authentication and tenant scoping.
+  const user = await requireTenantContext();
 
   const [members, selectedMember] = await Promise.all([
     prisma.user.findMany({
       where: {
-        studyhallId: user.studyhallId,
+        studyhallId: user.studyHallId,
         role: "member",
         subscriptions: filter === "active" ? { some: { status: "active" } } : { none: { status: "active" } },
       },
@@ -35,7 +30,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
     }),
     params.memberId
       ? prisma.user.findFirst({
-          where: { id: params.memberId, studyhallId: user.studyhallId, role: "member" },
+          where: { id: params.memberId, studyhallId: user.studyHallId, role: "member" },
           select: { id: true, name: true, phoneNumber: true, subscriptions: { orderBy: { createdAt: "desc" }, include: { seat: { select: { seatNumber: true } } } } },
         })
       : Promise.resolve(null),
