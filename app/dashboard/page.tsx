@@ -99,6 +99,7 @@ interface PageProps {
 }
 
 type ReturningMember = { id: string; name: string; phoneNumber: string } | null;
+
 export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const sortBy = resolvedSearchParams?.sortBy;
@@ -109,16 +110,24 @@ export default async function Page({ searchParams }: PageProps) {
 
   const [seats, staff, membersCount, returningMember] = await Promise.all([
     prisma.seat.findMany({
-      where: { studyhallId: user.studyHallId },
-      orderBy: { seatNumber: "asc" },
+      where: { section: { studyHallId: user.studyHallId } },
+      orderBy: { number: "asc" },
       include: {
-        subscriptions: {
-          orderBy: { createdAt: "desc" },
+        assignments: {
+          orderBy: { startsAt: "desc" },
           include: {
-            user: {
-              select: {
-                name: true,
-                phoneNumber: true,
+            membership: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                    phoneNumber: true,
+                  },
+                },
+                payments: {
+                    where: { status: "COMPLETED" },
+                    take: 1
+                }
               },
             },
           },
@@ -126,27 +135,41 @@ export default async function Page({ searchParams }: PageProps) {
       },
     }),
     prisma.user.findMany({
-      where: { studyhallId: user.studyHallId, role: "staff" },
+      where: {
+          staffAssignments: {
+              some: { studyHallId: user.studyHallId, isActive: true }
+          }
+      },
       orderBy: { createdAt: "desc" },
       select: { id: true, name: true, email: true },
     }),
     prisma.user.count({
-      where: { studyhallId: user.studyHallId, role: "member" },
+      where: {
+          memberships: {
+              some: { studyHallId: user.studyHallId, status: "ACTIVE" }
+          }
+      },
     }),
     returningMemberId
       ? prisma.user.findFirst({
-          where: { id: returningMemberId, studyhallId: user.studyHallId, role: "member" },
+          where: {
+              id: returningMemberId,
+              memberships: {
+                  some: { studyHallId: user.studyHallId }
+              }
+          },
           select: { id: true, name: true, phoneNumber: true },
         })
       : Promise.resolve(null satisfies ReturningMember),
   ]);
 
   const initialSeatView = seats.map((seat) => {
-    const subscription = seat.subscriptions.find((item) => item.status === "active");
+    const activeAssignment = seat.assignments.find((item) => item.membership.status === "ACTIVE" && item.endsAt === null);
+
     return {
       ...seat,
-      subscription,
-      status: getSeatStatus(subscription?.endDate),
+      activeAssignment,
+      status: getSeatStatus(activeAssignment?.membership.endsAt),
     };
   });
 
@@ -154,11 +177,11 @@ export default async function Page({ searchParams }: PageProps) {
 
   const seatView = shouldSortByRenewal
     ? [...initialSeatView].sort((a, b) => {
-        const timeA = a.subscription ? new Date(a.subscription.endDate).getTime() : Infinity;
-        const timeB = b.subscription ? new Date(b.subscription.endDate).getTime() : Infinity;
+        const timeA = a.activeAssignment ? new Date(a.activeAssignment.membership.endsAt).getTime() : Infinity;
+        const timeB = b.activeAssignment ? new Date(b.activeAssignment.membership.endsAt).getTime() : Infinity;
 
         if (timeA !== timeB) return timeA - timeB;
-        return a.seatNumber - b.seatNumber;
+        return a.number.localeCompare(b.number, undefined, { numeric: true });
       })
     : initialSeatView;
 
@@ -258,31 +281,31 @@ export default async function Page({ searchParams }: PageProps) {
         <StudyHallSeatsMap
           seats={seatView.map((seat) => ({
             id: seat.id,
-            seatNumber: formatNumber(seat.seatNumber),
-            reserveSeatNumber: seat.seatNumber,
+            seatNumber: formatNumber(Number(seat.number)),
+            reserveSeatNumber: Number(seat.number),
             status: seat.status,
-            subscription: seat.subscription
+            subscription: seat.activeAssignment
               ? {
-                  id: seat.subscription.id,
-                  memberName: seat.subscription.user.name ?? "بدون نام",
-                  phoneNumber: seat.subscription.user.phoneNumber ?? "—",
-                  endDate: formatDate(seat.subscription.endDate),
-                  startDateISO: seat.subscription.startDate.toISOString(),
-                  endDateISO: seat.subscription.endDate.toISOString(),
-                  paymentStatus: seat.subscription.paymentStatus,
+                  id: seat.activeAssignment.membership.id,
+                  memberName: seat.activeAssignment.membership.user.name ?? "بدون نام",
+                  phoneNumber: seat.activeAssignment.membership.user.phoneNumber ?? "—",
+                  endDate: formatDate(seat.activeAssignment.membership.endsAt),
+                  startDateISO: seat.activeAssignment.membership.startsAt.toISOString(),
+                  endDateISO: seat.activeAssignment.membership.endsAt.toISOString(),
+                  paymentStatus: seat.activeAssignment.membership.payments.length > 0 ? "paid" : "unpaid",
                 }
               : undefined,
-            history: seat.subscriptions
-              .filter((item) => item.status !== "active")
+            history: seat.assignments
+              .filter((item) => !(item.membership.status === "ACTIVE" && item.endsAt === null))
               .slice(0, 8)
               .map((item) => ({
-                id: item.id,
-                memberName: item.user.name ?? "بدون نام",
-                phoneNumber: item.user.phoneNumber ?? "—",
-                startDate: formatDate(item.startDate),
-                endDate: formatDate(item.endDate),
-                status: item.status,
-                paymentStatus: item.paymentStatus,
+                id: item.membership.id,
+                memberName: item.membership.user.name ?? "بدون نام",
+                phoneNumber: item.membership.user.phoneNumber ?? "—",
+                startDate: formatDate(item.membership.startsAt),
+                endDate: formatDate(item.membership.endsAt),
+                status: item.membership.status === "ACTIVE" ? "active" : item.membership.status === "EXPIRED" ? "expired" : "cancelled",
+                paymentStatus: item.membership.payments.length > 0 ? "paid" : "unpaid",
               })),
           }))}
           shouldSortByRenewal={shouldSortByRenewal}
