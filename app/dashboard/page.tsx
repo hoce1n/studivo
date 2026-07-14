@@ -293,7 +293,7 @@ export default async function Page({ searchParams }: PageProps) {
                   startDateISO: seat.activeAssignment.membership.startsAt.toISOString(),
                   endDateISO: seat.activeAssignment.membership.endsAt.toISOString(),
                   planPrice: Number(seat.activeAssignment.membership.planPrice),
-                  paymentStatus: seat.activeAssignment.membership.payments.length > 0 ? "paid" : "unpaid",
+                  paymentStatus: seat.activeAssignment.membership.payments.some((p) => p.status === "COMPLETED") ? "paid" : "unpaid",
                 }
               : undefined,
             history: seat.assignments
@@ -306,7 +306,7 @@ export default async function Page({ searchParams }: PageProps) {
                 startDate: formatDate(item.membership.startsAt),
                 endDate: formatDate(item.membership.endsAt),
                 status: item.membership.status === "ACTIVE" ? "active" : item.membership.status === "EXPIRED" ? "expired" : "cancelled",
-                paymentStatus: item.membership.payments.length > 0 ? "paid" : "unpaid",
+                paymentStatus: item.membership.payments.some((p) => p.status === "COMPLETED") ? "paid" : "unpaid",
               })),
           }))}
           shouldSortByRenewal={shouldSortByRenewal}

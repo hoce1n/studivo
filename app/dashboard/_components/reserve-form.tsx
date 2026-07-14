@@ -16,6 +16,7 @@ import {
   Phone,
   Trash2,
   User,
+  X,
 } from "lucide-react";
 import { format } from "date-fns-jalali";
 
@@ -27,6 +28,7 @@ import {
 import {
   renewSubscription,
   registerPayment,
+  voidPayment,
   fetchMembershipPayments,
   PAYMENT_METHOD_LABELS,
   type MembershipPayment,
@@ -141,81 +143,132 @@ function getStatusMessage(
   }
 }
 
+/** Normalizes Persian (۰–۹) and Arabic-Indic (٠–٩) digits to ASCII for display. */
+function normalizeDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+}
+
 function normalizeSeatNumber(value: string | number | null | undefined) {
   if (value === null || value === undefined) return "";
-
-  return String(value)
-    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
-    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
-    .replace(/\D/g, "");
-}
-
-function SeatHistoryTimeline({ history }: { history: NonNullable<ReserveFormSeat["history"]> }) {
-  if (!history.length) {
-    return (
-      <div className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-        هنوز سابقه‌ای برای این صندلی ثبت نشده است.
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3 rounded-2xl border p-3">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <History className="size-4 text-muted-foreground" />
-        آرشیو امن اشغال این صندلی
-      </div>
-      <div className="space-y-3">
-        {history.map((item) => (
-          <div key={item.id} className="relative border-r pr-4 text-sm">
-            <span className="absolute -right-1.5 top-1.5 size-3 rounded-full bg-primary" aria-hidden />
-            <div className="font-medium">{item.memberName}</div>
-            <div className="text-xs text-muted-foreground" dir="ltr">{item.phoneNumber}</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {item.startDate} تا {item.endDate} · {statusLabels[item.status] ?? item.status}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function getSmartRenewalPreview(currentEndDateISO: string, selectedDate: Date | undefined) {
-  if (!selectedDate) {
-    return {
-      daysDifference: null,
-      isRealRenewal: false,
-      buttonText: "انتخاب تاریخ تمدید",
-      helpText: "تاریخ جدید را انتخاب کنید تا نوع عملیات مشخص شود.",
-    };
-  }
-
-  const currentEndDate = new Date(currentEndDateISO);
-  const adjustedDate = new Date(selectedDate);
-  adjustedDate.setHours(23, 59, 59, 999);
-  const daysDifference = Math.ceil(
-    (adjustedDate.getTime() - currentEndDate.getTime()) / (1000 * 60 * 60 * 24),
-  );
-  const isRealRenewal = daysDifference > 7;
-
-  return {
-    daysDifference,
-    isRealRenewal,
-    buttonText: isRealRenewal ? "ثبت تمدید واقعی" : "اصلاح تاریخ پایان",
-    helpText: isRealRenewal
-      ? `بیش از ۷ روز اختلاف دارد؛ سابقه فعلی بسته می‌شود و اشتراک جدید ساخته می‌شود (${daysDifference > 0 ? "+" : ""}${daysDifference} روز).`
-      : `اختلاف ۷ روز یا کمتر است؛ فقط تاریخ پایان همین اشتراک اصلاح می‌شود (${daysDifference > 0 ? "+" : ""}${daysDifference} روز).`,
-  };
+  return normalizeDigits(String(value)).replace(/\D/g, "");
 }
 
 const statusLabels: Record<string, string> = {
   active: "فعال",
+  ACTIVE: "فعال",
   expired: "منقضی",
+  EXPIRED: "منقضی",
   cancelled: "لغوشده",
+  CANCELLED: "لغوشده",
 };
 
 const PAYMENT_METHODS = ["CASH", "POS", "CARD_TO_CARD", "ONLINE"] as const;
+
+// ---------------------------------------------------------------------------
+// RenewalMode — the three explicit operator modes for end-date changes
+// ---------------------------------------------------------------------------
+type RenewalMode = "correct" | "extend" | "renew";
+
+const RENEWAL_MODE_LABELS: Record<RenewalMode, { label: string; description: string }> = {
+  correct: {
+    label: "تصحیح تاریخ",
+    description: "اصلاح اشتباه در تاریخ پایان — همین اشتراک به‌روز می‌شود.",
+  },
+  extend: {
+    label: "تمدید فعلی",
+    description: "افزودن روز به اشتراک جاری — تاریخ پایان به‌روز می‌شود.",
+  },
+  renew: {
+    label: "تمدید جدید",
+    description: "بستن اشتراک قبلی و ایجاد اشتراک جدید از امروز.",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// PaymentMethodSelect — theme-safe native select wrapper
+// ---------------------------------------------------------------------------
+function PaymentMethodSelect({
+  id,
+  name,
+  defaultValue = "CASH",
+}: {
+  id: string;
+  name: string;
+  defaultValue?: string;
+}) {
+  return (
+    <div className="relative">
+      <select
+        id={id}
+        name={name}
+        defaultValue={defaultValue}
+        required
+        className={cn(
+          "border-input bg-background text-foreground ring-offset-background",
+          "focus-visible:ring-ring",
+          "flex h-9 w-full appearance-none rounded-2xl border px-3 pr-3 pl-8 text-sm",
+          "focus-visible:outline-none focus-visible:ring-2",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+        )}
+        style={{ colorScheme: "normal" }}
+      >
+        {PAYMENT_METHODS.map((m) => (
+          <option
+            key={m}
+            value={m}
+            className="bg-background text-foreground"
+          >
+            {PAYMENT_METHOD_LABELS[m]}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+        aria-hidden
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AmountInput — numeric string input safe for Persian digits and large values
+// ---------------------------------------------------------------------------
+function AmountInput({
+  id,
+  name,
+  defaultValue,
+}: {
+  id: string;
+  name: string;
+  defaultValue: number;
+}) {
+  const [raw, setRaw] = React.useState(String(defaultValue));
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    // Accept only digits (ASCII after normalization) and commas
+    const normalized = normalizeDigits(e.target.value).replace(/[^\d]/g, "");
+    setRaw(normalized);
+  }
+
+  return (
+    <>
+      {/* Hidden field carries the clean ASCII value to FormData */}
+      <input type="hidden" name={name} value={raw} />
+      <Input
+        id={id}
+        value={raw === "" ? "" : Number(raw).toLocaleString("fa-IR")}
+        onChange={handleChange}
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="مبلغ به تومان"
+        className="h-9 text-sm"
+        dir="ltr"
+      />
+    </>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // PaymentPanel — inline payment registration and history
@@ -231,15 +284,25 @@ function PaymentPanel({
 }) {
   const [open, setOpen] = React.useState(false);
   const [payments, setPayments] = React.useState<MembershipPayment[] | null>(null);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = React.useState(false);
+  const [voidingId, setVoidingId] = React.useState<string | null>(null);
 
   async function loadHistory() {
     setLoadingHistory(true);
-    const result = await fetchMembershipPayments(membershipId);
-    if (result.success) {
-      setPayments(result.data ?? null);
+    setLoadError(null);
+    try {
+      const result = await fetchMembershipPayments(membershipId);
+      if (result.success) {
+        setPayments(result.data ?? []);
+      } else {
+        setLoadError(result.error ?? "خطا در دریافت سابقه پرداخت‌ها.");
+      }
+    } catch {
+      setLoadError("خطا در دریافت سابقه پرداخت‌ها.");
+    } finally {
+      setLoadingHistory(false);
     }
-    setLoadingHistory(false);
   }
 
   function handleToggle() {
@@ -249,6 +312,31 @@ function PaymentPanel({
       loadHistory();
     }
   }
+
+  async function handleVoid(paymentId: string) {
+    setVoidingId(paymentId);
+    try {
+      const fd = new FormData();
+      fd.set("paymentId", paymentId);
+      fd.set("reason", "باطل شده توسط مدیر");
+      const result = await voidPayment(fd);
+      if (result.success) {
+        toast.success("پرداخت باطل شد.");
+        loadHistory();
+      } else {
+        toast.error(result.error ?? "ابطال پرداخت ناموفق بود.");
+      }
+    } catch {
+      toast.error("ابطال پرداخت ناموفق بود.");
+    } finally {
+      setVoidingId(null);
+    }
+  }
+
+  const completedCount = payments?.filter((p) => p.status === "COMPLETED").length ?? 0;
+  const totalPaid = payments
+    ?.filter((p) => p.status === "COMPLETED")
+    .reduce((sum, p) => sum + p.amount, 0) ?? 0;
 
   return (
     <div className="rounded-2xl border">
@@ -264,7 +352,9 @@ function PaymentPanel({
           <span
             className={cn(
               "size-2 rounded-full",
-              paymentStatus === "paid" ? "bg-emerald-500" : "bg-amber-500 animate-pulse",
+              paymentStatus === "paid"
+                ? "bg-emerald-500"
+                : "bg-amber-500 animate-pulse",
             )}
             title={paymentStatus === "paid" ? "پرداخت شده" : "تسویه نشده"}
           />
@@ -293,43 +383,38 @@ function PaymentPanel({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
-                    <label htmlFor={`amount-${membershipId}`} className="text-xs font-medium">
+                    <label
+                      htmlFor={`amount-${membershipId}`}
+                      className="text-xs font-medium"
+                    >
                       مبلغ (تومان)
                     </label>
-                    <Input
+                    <AmountInput
                       id={`amount-${membershipId}`}
                       name="amount"
-                      type="number"
-                      min={1}
-                      step={1000}
                       defaultValue={planPrice}
-                      required
-                      className="h-9 text-sm"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label htmlFor={`method-${membershipId}`} className="text-xs font-medium">
+                    <label
+                      htmlFor={`method-${membershipId}`}
+                      className="text-xs font-medium"
+                    >
                       روش پرداخت
                     </label>
-                    <select
+                    <PaymentMethodSelect
                       id={`method-${membershipId}`}
                       name="method"
-                      defaultValue="CASH"
-                      required
-                      className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-2xl border px-3 text-sm focus-visible:outline-none focus-visible:ring-2"
-                    >
-                      {PAYMENT_METHODS.map((m) => (
-                        <option key={m} value={m}>
-                          {PAYMENT_METHOD_LABELS[m]}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor={`note-${membershipId}`} className="text-xs font-medium">
+                  <label
+                    htmlFor={`note-${membershipId}`}
+                    className="text-xs font-medium"
+                  >
                     یادداشت (اختیاری)
                   </label>
                   <Input
@@ -341,8 +426,17 @@ function PaymentPanel({
                   />
                 </div>
 
-                <Button type="submit" size="sm" disabled={pending} className="w-full">
-                  {pending ? <Loader className="size-3 animate-spin" /> : "ثبت پرداخت"}
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={pending}
+                  className="w-full"
+                >
+                  {pending ? (
+                    <Loader className="size-3 animate-spin" />
+                  ) : (
+                    "ثبت پرداخت"
+                  )}
                 </Button>
               </>
             )}
@@ -350,10 +444,32 @@ function PaymentPanel({
 
           {/* Payment history */}
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">سابقه پرداخت‌ها</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">
+                سابقه پرداخت‌ها
+              </p>
+              {completedCount > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  مجموع: {totalPaid.toLocaleString("fa-IR")} تومان
+                </span>
+              )}
+            </div>
+
             {loadingHistory ? (
-              <div className="flex justify-center py-4">
-                <Loader className="size-4 animate-spin text-muted-foreground" />
+              <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+                <Loader className="size-3.5 animate-spin" />
+                در حال بارگذاری...
+              </div>
+            ) : loadError ? (
+              <div className="flex items-center justify-between gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                <span>{loadError}</span>
+                <button
+                  type="button"
+                  onClick={loadHistory}
+                  className="underline underline-offset-2"
+                >
+                  تلاش مجدد
+                </button>
               </div>
             ) : payments === null || payments.length === 0 ? (
               <p className="rounded-2xl border border-dashed py-3 text-center text-xs text-muted-foreground">
@@ -365,25 +481,59 @@ function PaymentPanel({
                   <div
                     key={p.id}
                     className={cn(
-                      "flex items-center justify-between gap-2 rounded-2xl border px-3 py-2 text-xs",
-                      p.status === "VOIDED" && "opacity-50 line-through",
+                      "rounded-2xl border px-3 py-2.5 text-xs",
+                      p.status === "VOIDED" &&
+                        "opacity-50 bg-muted/30",
                     )}
                   >
-                    <div className="space-y-0.5">
-                      <span className="font-medium">
-                        {p.amount.toLocaleString("fa-IR")} تومان
-                      </span>
-                      <div className="text-muted-foreground">
-                        {PAYMENT_METHOD_LABELS[p.method as keyof typeof PAYMENT_METHOD_LABELS] ?? p.method}
-                        {p.note ? ` · ${p.note}` : ""}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={cn(
+                              "font-semibold tabular-nums",
+                              p.status === "VOIDED" && "line-through",
+                            )}
+                          >
+                            {p.amount.toLocaleString("fa-IR")} تومان
+                          </span>
+                          {p.status === "VOIDED" && (
+                            <span className="rounded px-1 py-0.5 bg-muted text-muted-foreground text-[10px] font-medium">
+                              باطل
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {PAYMENT_METHOD_LABELS[
+                            p.method as keyof typeof PAYMENT_METHOD_LABELS
+                          ] ?? p.method}
+                          {p.note ? ` · ${p.note}` : ""}
+                        </div>
+                        <div className="text-muted-foreground/70">
+                          {p.createdBy.name}
+                          {p.paidAt
+                            ? ` · ${new Intl.DateTimeFormat("fa-IR", {
+                                dateStyle: "short",
+                              }).format(new Date(p.paidAt))}`
+                            : ""}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-left text-muted-foreground">
-                      {p.paidAt
-                        ? new Intl.DateTimeFormat("fa-IR", { dateStyle: "short" }).format(
-                            new Date(p.paidAt),
-                          )
-                        : "—"}
+
+                      {p.status === "COMPLETED" && (
+                        <button
+                          type="button"
+                          title="ابطال پرداخت"
+                          disabled={voidingId === p.id}
+                          onClick={() => handleVoid(p.id)}
+                          className="shrink-0 rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
+                        >
+                          {voidingId === p.id ? (
+                            <Loader className="size-3 animate-spin" />
+                          ) : (
+                            <X className="size-3" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -392,6 +542,217 @@ function PaymentPanel({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RenewalPanel — three explicit operator modes replacing the opaque 7-day hint
+// ---------------------------------------------------------------------------
+function RenewalPanel({
+  subscription,
+  onSuccess,
+}: {
+  subscription: NonNullable<ReserveFormSeat["subscription"]>;
+  onSuccess: () => void;
+}) {
+  const [mode, setMode] = React.useState<RenewalMode>("extend");
+  const [renewDate, setRenewDate] = React.useState<Date | undefined>(
+    getDefaultEndDate,
+  );
+  const [error, setError] = React.useState<string | null>(null);
+  const [pending, startTransition] = React.useTransition();
+
+  const currentEndDate = new Date(subscription.endDateISO);
+
+  /** Days difference between picked date and current end — shown as info only */
+  const daysDelta = renewDate
+    ? Math.ceil(
+        (renewDate.getTime() - currentEndDate.getTime()) / (1000 * 60 * 60 * 24),
+      )
+    : null;
+
+  const calendarDisabled = React.useMemo(() => {
+    if (mode === "correct") {
+      // Allow any date after startsAt (past or future correction)
+      const startsAt = startOfDay(new Date(subscription.startDateISO));
+      return (day: Date) => startOfDay(day) <= startsAt;
+    }
+    if (mode === "extend") {
+      // Must be after current end date
+      return (day: Date) => startOfDay(day) <= startOfDay(currentEndDate);
+    }
+    // renew: must be in the future from today
+    return (day: Date) => startOfDay(day) < startOfDay(new Date());
+  }, [mode, subscription.startDateISO, currentEndDate]);
+
+  function handleSubmit() {
+    if (!renewDate) return;
+    const adjusted = new Date(renewDate);
+    adjusted.setHours(23, 59, 59, 999);
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await renewSubscription(
+          subscription.id,
+          adjusted.toISOString(),
+        );
+        if (!result.success) throw new Error(result.error);
+        toast.success(result.message ?? "عملیات با موفقیت انجام شد.");
+        onSuccess();
+      } catch (err) {
+        const msg = getActionErrorMessage(err, "عملیات ناموفق بود.");
+        setError(msg);
+        toast.error(msg);
+      }
+    });
+  }
+
+  const buttonLabels: Record<RenewalMode, string> = {
+    correct: "ثبت تصحیح تاریخ",
+    extend: "ثبت تمدید فعلی",
+    renew: "ثبت تمدید جدید",
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Mode selector */}
+      <div className="grid grid-cols-3 gap-1 rounded-2xl border bg-muted/30 p-1">
+        {(["correct", "extend", "renew"] as RenewalMode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => {
+              setMode(m);
+              setRenewDate(
+                m === "correct" ? currentEndDate : getDefaultEndDate(),
+              );
+              setError(null);
+            }}
+            className={cn(
+              "rounded-xl px-2 py-1.5 text-xs font-medium transition-colors",
+              mode === m
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {RENEWAL_MODE_LABELS[m].label}
+          </button>
+        ))}
+      </div>
+
+      {/* Mode description */}
+      <p className="text-xs text-muted-foreground leading-5">
+        {RENEWAL_MODE_LABELS[mode].description}
+      </p>
+
+      {/* Calendar picker */}
+      <div className="grid gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "w-full justify-start text-right font-normal",
+                !renewDate && "text-muted-foreground",
+              )}
+            >
+              <CalendarPlus className="ml-2 size-4 opacity-70" />
+              {renewDate ? format(renewDate, "yyyy/MM/dd") : "انتخاب تاریخ"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent>
+            <Calendar
+              className="w-full"
+              mode="single"
+              selected={renewDate}
+              onSelect={setRenewDate}
+              disabled={calendarDisabled}
+            />
+          </PopoverContent>
+        </Popover>
+
+        {/* Delta info */}
+        {renewDate && daysDelta !== null && (
+          <div className="rounded-2xl border bg-muted/40 px-3 py-2 text-xs leading-6 text-muted-foreground">
+            <span className="font-medium text-foreground">
+              پایان فعلی: {subscription.endDate}
+            </span>
+            {"  ·  "}
+            <span
+              className={cn(
+                daysDelta > 0
+                  ? "text-emerald-600"
+                  : daysDelta < 0
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+              )}
+            >
+              {daysDelta > 0 ? `+${daysDelta}` : daysDelta} روز
+            </span>
+          </div>
+        )}
+
+        {error && <p className="text-xs text-destructive">{error}</p>}
+
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={pending || !renewDate}
+        >
+          {pending ? (
+            <Loader className="animate-spin" />
+          ) : (
+            <CalendarPlus />
+          )}
+          {buttonLabels[mode]}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SeatHistoryTimeline
+// ---------------------------------------------------------------------------
+function SeatHistoryTimeline({
+  history,
+}: {
+  history: NonNullable<ReserveFormSeat["history"]>;
+}) {
+  if (!history.length) {
+    return (
+      <div className="rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+        هنوز سابقه‌ای برای این صندلی ثبت نشده است.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-2xl border p-3">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <History className="size-4 text-muted-foreground" />
+        آرشیو امن اشغال این صندلی
+      </div>
+      <div className="space-y-3">
+        {history.map((item) => (
+          <div key={item.id} className="relative border-r pr-4 text-sm">
+            <span
+              className="absolute -right-1.5 top-1.5 size-3 rounded-full bg-primary"
+              aria-hidden
+            />
+            <div className="font-medium">{item.memberName}</div>
+            <div className="text-xs text-muted-foreground" dir="ltr">
+              {item.phoneNumber}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {item.startDate} تا {item.endDate} ·{" "}
+              {statusLabels[item.status] ?? item.status}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -414,22 +775,22 @@ export function ReserveForm({
   returningMember?: { id: string; name: string; phoneNumber: string | null } | null;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [startDate, setStartDate] = React.useState<Date | undefined>(getDefaultStartDate);
+  const [startDate, setStartDate] = React.useState<Date | undefined>(
+    getDefaultStartDate,
+  );
   const [date, setDate] = React.useState<Date | undefined>(getDefaultEndDate);
-  const [renewDate, setRenewDate] = React.useState<Date | undefined>(getDefaultEndDate);
   const [swapSeatNumber, setSwapSeatNumber] = React.useState("");
-  const [renewError, setRenewError] = React.useState<string | null>(null);
   const [swapError, setSwapError] = React.useState<string | null>(null);
-  const [renewPending, startRenewTransition] = React.useTransition();
   const [swapPending, startSwapTransition] = React.useTransition();
   const [releasePending, startReleaseTransition] = React.useTransition();
 
-  const [currentSeat, setCurrentSeat] = React.useState<ReserveFormSeat | null>(seat);
+  const [currentSeat, setCurrentSeat] = React.useState<ReserveFormSeat | null>(
+    seat,
+  );
 
   React.useEffect(() => {
     if (seat) {
       setCurrentSeat(seat);
-      setRenewDate(getDefaultEndDate());
     }
   }, [seat]);
 
@@ -438,13 +799,6 @@ export function ReserveForm({
   );
   const isAvailable = currentSeat?.status === "available";
   const subscription = currentSeat?.subscription;
-  const smartRenewalPreview = React.useMemo(
-    () =>
-      subscription
-        ? getSmartRenewalPreview(subscription.endDateISO, renewDate)
-        : null,
-    [subscription, renewDate],
-  );
 
   const handleStartDateChange = (selectedDate: Date | undefined) => {
     if (selectedDate) {
@@ -480,60 +834,31 @@ export function ReserveForm({
 
   function handleSendStatusMessage() {
     if (!seat || !subscription) return;
-
     const message = getStatusMessage(
       seat.status,
       subscription.memberName,
       seat.seatNumber,
       studyHallName,
     );
-
     window.open(
       `sms:${subscription.phoneNumber}?body=${encodeURIComponent(message)}`,
       "_blank",
     );
   }
 
-  function handleRenew() {
-    if (!subscription || !renewDate) return;
-
-    const adjustedDate = new Date(renewDate);
-    adjustedDate.setHours(23, 59, 59, 999);
-    setRenewError(null);
-    startRenewTransition(async () => {
-      try {
-        const result = await renewSubscription(subscription.id, adjustedDate.toISOString());
-        if (!result.success) {
-          throw new Error(result.error || "تمدید اشتراک ناموفق بود.");
-        }
-        toast.success(result.message || "تمدید اشتراک با موفقیت ثبت شد.");
-        setRenewDate(getDefaultEndDate());
-        onOpenChange(false);
-      } catch (error) {
-        const message = getActionErrorMessage(error, "تمدید اشتراک ناموفق بود.");
-        setRenewError(message);
-        toast.error(message);
-      }
-    });
-  }
-
   function handleSwap() {
     if (!subscription) return;
-
     const cleanedSeatNumber = normalizeSeatNumber(swapSeatNumber);
     const parsedSeatNumber = Number(cleanedSeatNumber);
     if (!cleanedSeatNumber || Number.isNaN(parsedSeatNumber) || parsedSeatNumber < 1) {
       setSwapError("شماره صندلی مقصد معتبر نیست.");
       return;
     }
-
     setSwapError(null);
     startSwapTransition(async () => {
       try {
         const result = await swapSeat(subscription.id, parsedSeatNumber);
-        if (!result.success) {
-          throw new Error(result.error || "جابجایی صندلی ناموفق بود.");
-        }
+        if (!result.success) throw new Error(result.error || "جابجایی صندلی ناموفق بود.");
         toast.success(result.message || "دانش‌آموز با موفقیت به صندلی جدید منتقل شد.");
         setSwapSeatNumber("");
         onOpenChange(false);
@@ -547,13 +872,10 @@ export function ReserveForm({
 
   function handleRelease() {
     if (!subscription) return;
-
     startReleaseTransition(async () => {
       try {
         const result = await releaseSeat(subscription.id);
-        if (!result.success) {
-          throw new Error(result.error || "تخلیه صندلی ناموفق بود.");
-        }
+        if (!result.success) throw new Error(result.error || "تخلیه صندلی ناموفق بود.");
         toast.success(result.message || "صندلی با موفقیت تخلیه شد.");
         onOpenChange(false);
       } catch (error) {
@@ -581,7 +903,8 @@ export function ReserveForm({
         <div className="px-6 pb-6">
           {isAvailable && returningMember ? (
             <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-right text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
-              اطلاعات {returningMember.name} از آرشیو اعضا آماده شده؛ فقط صندلی و تاریخ‌های اشتراک را تأیید کنید.
+              اطلاعات {returningMember.name} از آرشیو اعضا آماده شده؛ فقط صندلی
+              و تاریخ‌های اشتراک را تأیید کنید.
             </div>
           ) : null}
 
@@ -713,7 +1036,9 @@ export function ReserveForm({
                   </Field>
                   <Button
                     type="submit"
-                    disabled={pending || !reservationSeatNumber || !startDate || !date}
+                    disabled={
+                      pending || !reservationSeatNumber || !startDate || !date
+                    }
                   >
                     {pending ? <Loader className="animate-spin" /> : "رزرو"}
                   </Button>
@@ -727,6 +1052,7 @@ export function ReserveForm({
                 <TabsTrigger value="history">تاریخچه صندلی</TabsTrigger>
               </TabsList>
               <TabsContent value="current" className="space-y-4">
+                {/* Member info */}
                 <div className="space-y-2 rounded-2xl bg-muted/50 p-3 text-sm">
                   <div className="flex items-center gap-2">
                     <User className="size-4 text-muted-foreground" />
@@ -754,55 +1080,31 @@ export function ReserveForm({
                   </Button>
                 </div>
 
+                {/* Subscription progress bar */}
                 <SubscriptionProgress
                   startDate={subscription.startDateISO}
                   endDate={subscription.endDateISO}
                   className="rounded-2xl border p-3"
                 />
 
-                {/* Payment panel — replaces the legacy paid/unpaid toggle */}
+                {/* Payment panel */}
                 <PaymentPanel
                   membershipId={subscription.id}
                   planPrice={subscription.planPrice}
                   paymentStatus={subscription.paymentStatus}
                 />
 
-                <div className="grid gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="justify-start">
-                        <CalendarPlus />
-                        {renewDate ? format(renewDate, "yyyy/MM/dd") : "تاریخ تمدید"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent>
-                      <Calendar
-                        className="w-full"
-                        mode="single"
-                        selected={renewDate}
-                        onSelect={setRenewDate}
-                        disabled={(date) => date < new Date()}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <div className="rounded-2xl border bg-muted/40 p-3 text-xs leading-6 text-muted-foreground">
-                    <div className="font-medium text-foreground">
-                      پایان فعلی: {subscription.endDate}
-                    </div>
-                    <div>{smartRenewalPreview?.helpText}</div>
-                  </div>
-                  {renewError ? (
-                    <p className="text-xs text-destructive">{renewError}</p>
-                  ) : null}
-                  <Button onClick={handleRenew} disabled={renewPending || !renewDate}>
-                    {renewPending ? (
-                      <Loader className="animate-spin" />
-                    ) : (
-                      <CalendarPlus />
-                    )}
-                    {smartRenewalPreview?.buttonText ?? "تمدید اشتراک"}
-                  </Button>
+                {/* Renewal panel */}
+                <div className="rounded-2xl border p-3 space-y-3">
+                  <p className="text-sm font-medium">تمدید اشتراک</p>
+                  <RenewalPanel
+                    subscription={subscription}
+                    onSuccess={() => onOpenChange(false)}
+                  />
+                </div>
 
+                {/* Swap + Release */}
+                <div className="grid gap-2">
                   <div className="flex gap-2">
                     <Input
                       value={swapSeatNumber}
@@ -825,9 +1127,9 @@ export function ReserveForm({
                       انتقال
                     </Button>
                   </div>
-                  {swapError ? (
+                  {swapError && (
                     <p className="text-xs text-destructive">{swapError}</p>
-                  ) : null}
+                  )}
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -845,11 +1147,14 @@ export function ReserveForm({
                           تخلیه صندلی {currentSeat?.seatNumber}؟
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                          اشتراک فعال {subscription.memberName} لغو می‌شود و صندلی خالی خواهد شد.
+                          اشتراک فعال {subscription.memberName} لغو می‌شود و
+                          صندلی خالی خواهد شد.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel disabled={releasePending}>انصراف</AlertDialogCancel>
+                        <AlertDialogCancel disabled={releasePending}>
+                          انصراف
+                        </AlertDialogCancel>
                         <Button
                           variant="destructive"
                           onClick={handleRelease}

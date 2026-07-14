@@ -14,6 +14,13 @@ const renewSchema = z.object({
   endDate: z.coerce.date(),
 });
 
+/** Normalizes Persian (۰–۹) and Arabic-Indic (٠–٩) digits to ASCII. */
+function normalizeDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+}
+
 function calculateDaysDifference(newEndDate: Date, currentEndDate: Date) {
   return Math.ceil((newEndDate.getTime() - currentEndDate.getTime()) / (1000 * 60 * 60 * 24));
 }
@@ -35,10 +42,6 @@ export async function renewSubscription(
 
   const newEndDate = parsed.data.endDate;
   const now = new Date();
-
-  if (newEndDate <= now) {
-    return { success: false, error: "تاریخ پایان اشتراک باید بعد از امروز باشد." };
-  }
 
   let renewalResult: { isRealRenewal: boolean; daysDifference: number } | null = null;
 
@@ -66,6 +69,14 @@ export async function renewSubscription(
 
       if (!current) {
         throw new Error("اشتراک فعالی برای تمدید پیدا نشد.");
+      }
+
+      // For correction mode: new end date must be after startsAt.
+      // For extension mode: any date after startsAt is allowed (including past
+      // dates to backfill a correction). We do NOT enforce future-only here
+      // because operators legitimately correct end dates that are already past.
+      if (newEndDate <= current.startsAt) {
+        throw new Error("تاریخ پایان باید بعد از تاریخ شروع اشتراک باشد.");
       }
 
       const daysDifference = calculateDaysDifference(newEndDate, current.endsAt);
@@ -179,9 +190,10 @@ const registerPaymentSchema = z.object({
 export async function registerPayment(formData: FormData): Promise<ActionResult<{ paymentId: string }>> {
   const user = await requireTenantContext();
 
+  const rawAmount = formData.get("amount");
   const parsed = registerPaymentSchema.safeParse({
     membershipId: formData.get("membershipId"),
-    amount: formData.get("amount"),
+    amount: rawAmount ? normalizeDigits(String(rawAmount).replace(/,/g, "")) : rawAmount,
     method: formData.get("method"),
     note: formData.get("note") || undefined,
   });
