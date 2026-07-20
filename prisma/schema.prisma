@@ -332,7 +332,7 @@ model Lead {
 model DemoRequest {
   id            String    @id @default(cuid())
   leadId        String
-  preferredTime String? // free-text preferred time from the prospect
+  preferredTime String?   // free-text preferred time from the prospect
   scheduledAt   DateTime? // set once the demo is actually booked
   status        String    @default("requested") // requested | scheduled | completed | cancelled
   notes         String?
