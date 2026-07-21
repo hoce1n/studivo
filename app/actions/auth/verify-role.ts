@@ -50,9 +50,9 @@ export async function requireScopedUser() {
 
   return {
     ...user,
-    studyhallId: activeAssignment.studyHallId,
+    studyHallId: activeAssignment.studyHallId,
     role: activeAssignment.role, // Returns 'OWNER' or 'STAFF'
-    studyhall: activeAssignment.studyHall,
+    studyHall: activeAssignment.studyHall,
   };
 }
 

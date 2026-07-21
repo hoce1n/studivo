@@ -52,6 +52,7 @@ export async function sendRenewalReminders() {
       id: true,
       endsAt: true,
       studyHallId: true,
+      studyHall: { select: { name: true } },
       user: { select: { name: true } },
     },
   });
@@ -65,7 +66,7 @@ export async function sendRenewalReminders() {
     return {
       membershipId: membership.id,
       studyHallId: membership.studyHallId,
-      studyHallName: "سالن مطالعه",
+      studyHallName: membership.studyHall.name,
       memberName: membership.user.name,
       endsAt: membership.endsAt,
       kind,
@@ -81,8 +82,19 @@ export async function sendRenewalReminders() {
   let pushDeliveries = 0;
 
   for (const candidate of candidates) {
-    // Find push subscriptions for users in the studyhall
+    // Find push subscriptions for active operators assigned to this study hall.
     const pushSubscriptions = await prisma.pushSubscription.findMany({
+      where: {
+        user: {
+          staffAssignments: {
+            some: {
+              studyHallId: candidate.studyHallId,
+              isActive: true,
+              role: { in: ["OWNER", "STAFF"] },
+            },
+          },
+        },
+      },
       select: {
         id: true,
         endpoint: true,

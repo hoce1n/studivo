@@ -23,6 +23,7 @@ export async function renewMembership(
   endsAt: string | Date
 ): Promise<ActionResult<{ isRealRenewal: boolean; daysDifference: number }>> {
   const user = await requireScopedUser();
+  const { studyHallId } = user;
   const parsed = renewMembershipSchema.safeParse({ membershipId, endsAt });
 
   if (!parsed.success) {
@@ -47,7 +48,7 @@ export async function renewMembership(
       const current = await tx.membership.findFirst({
         where: {
           id: parsed.data.membershipId,
-          studyHallId: user.studyhallId,
+          studyHallId,
         },
         select: {
           id: true,
@@ -84,7 +85,7 @@ export async function renewMembership(
         const newMembership = await tx.membership.create({
           data: {
             userId: current.userId,
-            studyHallId: user.studyhallId,
+            studyHallId,
             membershipPlanId: current.membershipPlanId,
             status: "ACTIVE",
             startsAt: now,
@@ -126,7 +127,7 @@ export async function renewMembership(
 
       await tx.auditLog.create({
         data: {
-          studyHallId: user.studyhallId,
+          studyHallId,
           actorId: user.id,
           action: "UPDATE",
           entityType: "MEMBERSHIP",

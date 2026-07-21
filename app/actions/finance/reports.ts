@@ -38,6 +38,7 @@ export async function fetchRevenueReport(
   endDate: Date
 ): Promise<ActionResult<RevenueReport>> {
   const user = await requireScopedUser();
+  const { studyHallId } = user;
   const parsed = dateRangeSchema.safeParse({ startDate, endDate });
 
   if (!parsed.success) {
@@ -51,7 +52,7 @@ export async function fetchRevenueReport(
     const payments = await prisma.payment.findMany({
       where: {
         membership: {
-          studyHallId: user.studyhallId,
+          studyHallId,
         },
         status: "COMPLETED",
         paidAt: {
@@ -109,12 +110,13 @@ export async function fetchRevenueReport(
  */
 export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymentsReport>> {
   const user = await requireScopedUser();
+  const { studyHallId } = user;
   const now = new Date();
 
   try {
     const memberships = await prisma.membership.findMany({
       where: {
-        studyHallId: user.studyhallId,
+        studyHallId,
         status: "ACTIVE",
         endsAt: { lt: now },
         // Finds memberships where no COMPLETED payment exists matching the full price
@@ -169,6 +171,7 @@ export async function fetchOverduePayments(): Promise<ActionResult<OverduePaymen
  */
 export async function fetchOccupancyRevenueStats(): Promise<ActionResult<OccupancyRevenueStats>> {
   const user = await requireScopedUser();
+  const { studyHallId } = user;
 
   try {
     const now = new Date();
@@ -177,7 +180,7 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
     // 1. Total active seats
     const totalSeats = await prisma.seat.count({
       where: {
-        section: { studyHallId: user.studyhallId },
+        section: { studyHallId },
         isActive: true,
       },
     });
@@ -185,7 +188,7 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
     // 2. Active memberships count
     const activeMemberships = await prisma.membership.count({
       where: {
-        studyHallId: user.studyhallId,
+        studyHallId,
         status: "ACTIVE",
         endsAt: { gte: now },
       },
@@ -194,7 +197,7 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
     // 3. Paid active memberships count
     const paidActiveMemberships = await prisma.membership.count({
       where: {
-        studyHallId: user.studyhallId,
+        studyHallId,
         status: "ACTIVE",
         endsAt: { gte: now },
         payments: {
@@ -206,12 +209,12 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
     // 4. Financial totals using Payment model
     const [allPayments, monthlyPayments, activePayments] = await Promise.all([
       prisma.payment.findMany({
-        where: { membership: { studyHallId: user.studyhallId }, status: "COMPLETED" },
+        where: { membership: { studyHallId }, status: "COMPLETED" },
         select: { amount: true },
       }),
       prisma.payment.findMany({
         where: {
-          membership: { studyHallId: user.studyhallId },
+          membership: { studyHallId },
           status: "COMPLETED",
           paidAt: { gte: monthStart, lte: now },
         },
@@ -220,7 +223,7 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
       prisma.payment.findMany({
         where: {
           membership: {
-            studyHallId: user.studyhallId,
+            studyHallId,
             status: "ACTIVE",
             endsAt: { gte: now },
           },

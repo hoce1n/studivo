@@ -19,6 +19,7 @@ const recordPaymentSchema = z.object({
  */
 export async function recordPayment(formData: FormData): Promise<ActionResult> {
   const user = await requireScopedUser();
+  const { studyHallId } = user;
 
   const parsed = recordPaymentSchema.safeParse({
     membershipId: formData.get("membershipId"),
@@ -39,7 +40,7 @@ export async function recordPayment(formData: FormData): Promise<ActionResult> {
   try {
     await prisma.$transaction(async (tx) => {
       const membership = await tx.membership.findFirst({
-        where: { id: membershipId, studyHallId: user.studyhallId },
+        where: { id: membershipId, studyHallId },
         select: {
           id: true,
           user: { select: { name: true } },
@@ -64,7 +65,7 @@ export async function recordPayment(formData: FormData): Promise<ActionResult> {
 
       await tx.auditLog.create({
         data: {
-          studyHallId: user.studyhallId,
+          studyHallId,
           actorId: user.id,
           action: "CREATE",
           entityType: "PAYMENT",
@@ -99,6 +100,7 @@ export async function voidPayment(
   voidReason: string
 ): Promise<ActionResult> {
   const user = await requireScopedUser();
+  const { studyHallId } = user;
 
   const parsed = voidPaymentSchema.safeParse({ paymentId, voidReason });
   if (!parsed.success) {
@@ -113,7 +115,7 @@ export async function voidPayment(
       const payment = await tx.payment.findFirst({
         where: {
           id: parsed.data.paymentId,
-          membership: { studyHallId: user.studyhallId },
+          membership: { studyHallId },
           status: "COMPLETED",
         },
       });
@@ -134,7 +136,7 @@ export async function voidPayment(
 
       await tx.auditLog.create({
         data: {
-          studyHallId: user.studyhallId,
+          studyHallId,
           actorId: user.id,
           action: "VOID",
           entityType: "PAYMENT",

@@ -10,7 +10,7 @@ export type ActionResult =
   | { success: true; message: string }
   | { success: false; error: string };
 
-  const publicPageSchema = z.object({
+const publicPageSchema = z.object({
   slug: z
     .string()
     .min(3, "اسلاگ باید حداقل ۳ کاراکتر باشد")
@@ -89,7 +89,7 @@ export async function updateStudyHallSettings(
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/settings");
     return { success: true, message: "تنظیمات سالن با موفقیت به‌روزرسانی شد." };
-  } catch (error) {
+  } catch {
     return { success: false, error: "خطا در به‌روزرسانی تنظیمات سالن." };
   }
 }
@@ -167,7 +167,7 @@ export async function updatePublicPageSettings(
       success: true,
       message: "تنظیمات صفحه عمومی با موفقیت ذخیره شد.",
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: "خطایی هنگام به روزرسانی تنظیمات صفحه عمومی رخ داد.",
