@@ -1,17 +1,8 @@
 import { redirect } from "next/navigation";
+import { CircleDollarSign } from "lucide-react";
 
-import {
-  CalendarClock,
-  CheckCircle2,
-  CircleDollarSign,
-  Map,
-  UsersRound,
-} from "lucide-react";
-
-import { createStaff } from "@/app/actions/auth";
-
+import { createStaff } from "@/app/actions/members/mutations";
 import { Badge } from "@/components/ui/badge";
-
 import {
   Card,
   CardContent,
@@ -22,29 +13,21 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
-import { cn } from "@/lib/utils";
 import { StudyHallSeatsMap } from "@/app/dashboard/_components/study-hall-seats-map";
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
+import { DashboardStats } from "@/app/dashboard/_components/dashboard-stats";
+import { RevenueCard } from "@/app/dashboard/_components/revenue-card";
 
-const dayInMs = 24 * 60 * 60 * 1000;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 type SeatStatus = "available" | "reserved" | "renewal" | "expired";
 
-function getSeatStatus(endDate?: Date): SeatStatus {
-  if (!endDate) {
-    return "available";
-  }
+function getSeatStatus(endsAt?: Date): SeatStatus {
+  if (!endsAt) return "available";
 
-  const diffDays = Math.ceil((endDate.getTime() - Date.now()) / dayInMs);
-
-  if (diffDays < 0) {
-    return "expired";
-  }
-
-  if (diffDays <= 3) {
-    return "renewal";
-  }
-
+  const diffDays = Math.ceil((endsAt.getTime() - Date.now()) / DAY_IN_MS);
+  if (diffDays < 0) return "expired";
+  if (diffDays <= 3) return "renewal";
   return "reserved";
 }
 
@@ -94,15 +77,18 @@ function formatDate(date: Date) {
 function formatNumber(value: number) {
   return new Intl.NumberFormat("fa-IR").format(value);
 }
+
 interface PageProps {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined}>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-type ReturningMember = { id: string; name: string; phoneNumber: string } | null;
 export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const sortBy = resolvedSearchParams?.sortBy;
-  const returningMemberId = typeof resolvedSearchParams?.memberId === "string" ? resolvedSearchParams.memberId : undefined;
+  const returningMemberId =
+    typeof resolvedSearchParams?.memberId === "string"
+      ? resolvedSearchParams.memberId
+      : undefined;
 
   const session = await getSession();
   if (!session?.user?.id) {
@@ -114,67 +100,83 @@ export default async function Page({ searchParams }: PageProps) {
     select: {
       id: true,
       name: true,
-      role: true,
-      studyhallId: true,
-      studyhall: {
+      staffAssignments: {
+        where: { isActive: true },
         select: {
-          id: true,
-          name: true,
-          totalSeats: true,
-          monthlyFee: true,
+          role: true,
+          studyHallId: true,
+          studyHall: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
+        take: 1,
       },
     },
   });
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  if (!user.studyhallId || !user.studyhall) {
+  const assignment = user?.staffAssignments[0];
+  if (!user || !assignment || !assignment.studyHall) {
     redirect("/onboarding");
   }
 
-  const [seats, staff, membersCount, returningMember] = await Promise.all([
-    prisma.seat.findMany({
-      where: { studyhallId: user.studyhallId },
-      orderBy: { seatNumber: "asc" },
-      include: {
-        subscriptions: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            user: {
-              select: {
-                name: true,
-                phoneNumber: true,
+  const studyHall = assignment.studyHall;
+  const studyHallId = assignment.studyHallId;
+  const role = assignment.role;
+
+  const [seats, staffAssignments, membersCount, returningMember] =
+    await Promise.all([
+      prisma.seat.findMany({
+        where: { section: { studyHallId } },
+        orderBy: { number: "asc" },
+        include: {
+          assignments: {
+            where: { endsAt: null },
+            include: {
+              membership: {
+                include: {
+                  user: {
+                    select: { name: true, phoneNumber: true },
+                  },
+                },
               },
             },
           },
         },
-      },
-    }),
-    prisma.user.findMany({
-      where: { studyhallId: user.studyhallId, role: "staff" },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, email: true },
-    }),
-    prisma.user.count({
-      where: { studyhallId: user.studyhallId, role: "member" },
-    }),
-    returningMemberId
-      ? prisma.user.findFirst({
-          where: { id: returningMemberId, studyhallId: user.studyhallId, role: "member" },
-          select: { id: true, name: true, phoneNumber: true },
-        })
-      : Promise.resolve(null satisfies ReturningMember),
-  ]);
+      }),
+      prisma.staffAssignment.findMany({
+        where: { studyHallId, isActive: true },
+        orderBy: { createdAt: "desc" },
+        select: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      }),
+      prisma.membership.count({
+        where: { studyHallId, status: "ACTIVE" },
+      }),
+      returningMemberId
+        ? prisma.user.findFirst({
+            where: { id: returningMemberId },
+            select: { id: true, name: true, phoneNumber: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+  const staff = staffAssignments.map((s) => s.user);
 
   const initialSeatView = seats.map((seat) => {
-    const subscription = seat.subscriptions.find((item) => item.status === "active");
+    const currentAssignment = seat.assignments[0];
+    const membership = currentAssignment?.membership;
+    const seatNum = parseInt(seat.number, 10) || 0;
     return {
       ...seat,
-      subscription,
-      status: getSeatStatus(subscription?.endDate),
+      seatNumber: seatNum,
+      membership,
+      status: getSeatStatus(membership?.endsAt),
     };
   });
 
@@ -182,71 +184,51 @@ export default async function Page({ searchParams }: PageProps) {
 
   const seatView = shouldSortByRenewal
     ? [...initialSeatView].sort((a, b) => {
-        const timeA = a.subscription ? new Date(a.subscription.endDate).getTime() : Infinity;
-        const timeB = b.subscription ? new Date(b.subscription.endDate).getTime() : Infinity;
-
+        const timeA = a.membership
+          ? new Date(a.membership.endsAt).getTime()
+          : Infinity;
+        const timeB = b.membership
+          ? new Date(b.membership.endsAt).getTime()
+          : Infinity;
         if (timeA !== timeB) return timeA - timeB;
         return a.seatNumber - b.seatNumber;
       })
     : initialSeatView;
 
   const stats = {
-    available: seatView.filter((seat) => seat.status === "available").length,
-    reserved: seatView.filter((seat) => seat.status === "reserved").length,
-    renewal: seatView.filter((seat) => seat.status === "renewal").length,
-    expired: seatView.filter((seat) => seat.status === "expired").length,
+    available: seatView.filter((s) => s.status === "available").length,
+    reserved: seatView.filter((s) => s.status === "reserved").length,
+    renewal: seatView.filter((s) => s.status === "renewal").length,
+    expired: seatView.filter((s) => s.status === "expired").length,
   };
 
   const occupied = stats.reserved + stats.renewal;
   const occupancyRate = seats.length
     ? Math.round((occupied / seats.length) * 100)
     : 0;
-  const activeRevenue = stats.reserved * (user.studyhall.monthlyFee ?? 0); 
-  const atRiskRevenue = stats.renewal * (user.studyhall.monthlyFee ?? 0);  
-  const lostRevenue = stats.available * (user.studyhall.monthlyFee ?? 0);  
-  const monthlyRevenue = occupied * (user.studyhall.monthlyFee ?? 0); 
 
-  const isAdmin = user.role === "admin";
-  const roleLabel = isAdmin ? "مدیر" : "مراقب";
+  // Calculate revenue from active memberships planPrice (Decimal to Number)
+  let activeRevenue = 0;
+  let atRiskRevenue = 0;
 
-  const summaryCards = [
-    {
-      title: "کل صندلی‌ها",
-      value: formatNumber(seats.length),
-      hint: `${formatNumber(occupied)} صندلی اشغال شده`,
-      icon: Map,
-      iconClass: "text-muted-foreground",
-    },
-    {
-      title: "صندلی خالی",
-      value: formatNumber(stats.available),
-      hint: "آماده پذیرش",
-      icon: CheckCircle2,
-      iconClass: "text-emerald-600",
-    },
-    {
-      title: "هشدار تمدید",
-      value: formatNumber(stats.renewal + stats.expired),
-      hint: `${formatNumber(stats.renewal)} نزدیک پایان · ${formatNumber(stats.expired)} منقضی`,
-      icon: CalendarClock,
-      iconClass: "text-amber-600",
-    },
-    {
-      title: "اعضا",
-      value: formatNumber(membersCount),
-      hint: `${formatNumber(staff.length)} همکار فعال`,
-      icon: UsersRound,
-      iconClass: "text-muted-foreground",
-    },
-  ];
+  seatView.forEach((s) => {
+    if (s.membership) {
+      const price = Number(s.membership.planPrice) || 0;
+      if (s.status === "reserved") activeRevenue += price;
+      if (s.status === "renewal") atRiskRevenue += price;
+    }
+  });
+
+  const monthlyRevenue = activeRevenue + atRiskRevenue;
+
+  const isOwner = role === "OWNER";
+  const roleLabel = isOwner ? "مدیر سالن" : "مراقب سالن";
 
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-xl font-bold md:text-2xl">
-            سلام {user.name}
-          </h1>
+          <h1 className="text-xl font-bold md:text-2xl">سلام {user.name}</h1>
           <p className="text-sm text-muted-foreground">
             نمای کلی سالن مطالعه و وضعیت لحظه‌ای صندلی‌ها
           </p>
@@ -263,59 +245,41 @@ export default async function Page({ searchParams }: PageProps) {
         </div>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {summaryCards.map((card) => (
-          <Card key={card.title} className="gap-2">
-            <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {card.title}
-              </CardTitle>
-              <card.icon className={cn("size-4", card.iconClass)} />
-            </CardHeader>
-            <CardContent className="space-y-1">
-              <div className="text-2xl font-bold tracking-tight">
-                {card.value}
-              </div>
-              <p className="text-xs text-muted-foreground">{card.hint}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
+      <DashboardStats
+        seatsCount={seats.length}
+        occupiedCount={occupied}
+        availableCount={stats.available}
+        renewalCount={stats.renewal}
+        expiredCount={stats.expired}
+        membersCount={membersCount}
+        staffCount={staff.length}
+      />
 
       <section id="map" className="grid gap-6 xl:grid-cols-[1.6fr_0.9fr]">
         <StudyHallSeatsMap
           seats={seatView.map((seat) => ({
             id: seat.id,
-            seatNumber: formatNumber(seat.seatNumber),
+            seatAssignmentId: seat.assignments[0]?.id,
+            seatNumber: seat.number,
             reserveSeatNumber: seat.seatNumber,
             status: seat.status,
-            subscription: seat.subscription
+            membership: seat.membership
               ? {
-                  id: seat.subscription.id,
-                  memberName: seat.subscription.user.name ?? "بدون نام",
-                  phoneNumber: seat.subscription.user.phoneNumber ?? "—",
-                  endDate: formatDate(seat.subscription.endDate),
-                  startDateISO: seat.subscription.startDate.toISOString(),
-                  endDateISO: seat.subscription.endDate.toISOString(),
-                  paymentStatus: seat.subscription.paymentStatus,
+                  id: seat.membership.id,
+                  memberName: seat.membership.user.name ?? "بدون نام",
+                  phoneNumber: seat.membership.user.phoneNumber ?? "—",
+                  endDate: formatDate(seat.membership.endsAt),
+                  startDateISO: seat.membership.startsAt.toISOString(),
+                  endDateISO: seat.membership.endsAt.toISOString(),
+                  planPrice: seat.membership.planPrice as unknown as number,
+                  paymentStatus: "PAID",
                 }
               : undefined,
-            history: seat.subscriptions
-              .filter((item) => item.status !== "active")
-              .slice(0, 8)
-              .map((item) => ({
-                id: item.id,
-                memberName: item.user.name ?? "بدون نام",
-                phoneNumber: item.user.phoneNumber ?? "—",
-                startDate: formatDate(item.startDate),
-                endDate: formatDate(item.endDate),
-                status: item.status,
-                paymentStatus: item.paymentStatus,
-              })),
+            history: [],
           }))}
           shouldSortByRenewal={shouldSortByRenewal}
           statusCopy={statusCopy}
-          studyHallName={user.studyhall.name}
+          studyHallName={studyHall.name}
           returningMember={returningMember}
           stats={{
             available: formatNumber(stats.available),
@@ -326,57 +290,21 @@ export default async function Page({ searchParams }: PageProps) {
         />
 
         <div className="space-y-6">
-          {isAdmin && (
-            <Card className="gap-2 bg-primary text-primary-foreground relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
-              
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
-                <CardTitle className="text-sm font-medium text-primary-foreground/80">
-                  درآمد ماهانه تخمینی
-                </CardTitle>
-                <CircleDollarSign className="size-4 text-primary-foreground/70" />
-              </CardHeader>
-              
-              <CardContent className="space-y-2">
-                <div className="text-2xl font-bold tracking-tight">
-                  {formatNumber(monthlyRevenue)}{" "}
-                  <span className="text-base font-normal text-primary-foreground/70">
-                    تومان
-                  </span>
-                </div>
-                
-                <p className="text-xs text-primary-foreground/70 border-b border-primary-foreground/10 pb-2">
-                  بر اساس {formatNumber(occupied)} صندلی اشغال‌شده ×{" "}
-                  {formatNumber(user.studyhall.monthlyFee ?? 0)} تومان
-                </p>
-
-                <div className="pt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-primary-foreground/60">
-                  <div className="flex items-center gap-1">
-                    <span className="size-1.5 rounded-full bg-emerald-400" />
-                    <span>وصول شده: {formatNumber(activeRevenue)}</span>
-                  </div>
-                  <div className="flex items-center gap-1 justify-end">
-                    <span className="size-1.5 rounded-full bg-amber-400" />
-                    <span>در آستانه انقضا: {formatNumber(atRiskRevenue)}</span>
-                  </div>
-                  {lostRevenue > 0 && (
-                    <div className="flex items-center gap-1 col-span-2 mt-0.5 text-primary-foreground/50 border-t border-dashed border-primary-foreground/5 pt-1">
-                      <span>ظرفیت درآمدی خالی سالن:</span>
-                      <span className="font-medium text-primary-foreground/70 dir-ltr inline-block">
-                        {formatNumber(lostRevenue)} - تومان
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+          {isOwner && (
+            <RevenueCard
+              monthlyRevenue={monthlyRevenue}
+              occupiedCount={occupied}
+              activeRevenue={activeRevenue}
+              atRiskRevenue={atRiskRevenue}
+            />
           )}
-          {isAdmin ? (
+
+          {isOwner ? (
             <Card id="staff">
               <CardHeader>
                 <CardTitle>مدیریت کارکنان</CardTitle>
                 <CardDescription>
-                  همکار با role=staff و studyhallId همین سالن ساخته می‌شود.
+                  همکار جدید با نقش STAFF برای این سالن ثبت می‌شود.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -427,15 +355,11 @@ export default async function Page({ searchParams }: PageProps) {
               <CardTitle className="flex items-center gap-2">
                 <CircleDollarSign className="size-4" /> مرزبندی داده
               </CardTitle>
-              <CardDescription>
-                شناسه سالن: {user.studyhall.id}
-              </CardDescription>
+              <CardDescription>شناسه سالن: {studyHall.id}</CardDescription>
             </CardHeader>
             <CardContent className="text-sm leading-7 text-muted-foreground">
               تمام اطلاعات ثبت‌شده (شامل لیست همکاران، اعضا، صندلی‌ها و
-              تاریخچه‌ی اشتراک‌ها) کاملاً رمزگذاری شده و منحصراً متعلق به
-              این سالن مطالعه است. هیچ کاربر یا سالن دیگری به این داده‌ها
-              دسترسی ندارد.
+              تاریخچه‌ی اشتراک‌ها) کاملاً منحصراً متعلق به این سالن مطالعه است.
             </CardContent>
           </Card>
         </div>

@@ -3,30 +3,22 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 
-// ---------------------------------------------------------------------------
-// Validation schema
-//
-// The form is intentionally short (name, phone, venue name, optional message).
-// We require a phone number because it is the primary contact channel for
-// study-hall operators in the Iranian market.
-// ---------------------------------------------------------------------------
-
 const submitDemoSchema = z.object({
-  name: z
+  fullName: z
     .string()
     .trim()
     .min(2, "نام باید حداقل ۲ کاراکتر باشد.")
     .max(120, "نام نمی‌تواند بیش از ۱۲۰ کاراکتر باشد."),
-  phone: z
+  phoneNumber: z
     .string()
     .trim()
     .regex(/^09\d{9}$/, "شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود."),
-  venueName: z
+  studyhallName: z
     .string()
     .trim()
     .min(2, "نام سالن باید حداقل ۲ کاراکتر باشد.")
     .max(200, "نام سالن نمی‌تواند بیش از ۲۰۰ کاراکتر باشد."),
-  message: z.string().trim().max(1000).optional(),
+  notes: z.string().trim().max(1000).optional(),
 });
 
 export type SubmitDemoResult =
@@ -34,23 +26,21 @@ export type SubmitDemoResult =
   | { success: false; error: string };
 
 /**
- * submitLead — the primary marketing-to-sales conversion action.
+ * submitLead — Primary marketing-to-sales conversion action.
  *
- * Creates a Lead (source: MARKETING_SITE, status: NEW) and a linked
- * DemoRequest in a single transaction. Both records are platform-level and
- * never scoped to a studyhallId.
- *
- * Used by:
- *   - The CTA section on the homepage (/#demo)
- *   - The /contact page
- *   - The dedicated /demo page
+ * Creates a Lead (source: WEBSITE, status: NEW) and a linked
+ * DemoRequest (status: PENDING) in a single transaction.
  */
 export async function submitLead(formData: FormData): Promise<SubmitDemoResult> {
   const raw = {
-    name: formData.get("name")?.toString() ?? "",
-    phone: formData.get("phone")?.toString() ?? "",
-    venueName: formData.get("venueName")?.toString() ?? formData.get("venue")?.toString() ?? "",
-    message: formData.get("message")?.toString() ?? undefined,
+    fullName: formData.get("fullName")?.toString() ?? formData.get("name")?.toString() ?? "",
+    phoneNumber: formData.get("phoneNumber")?.toString() ?? formData.get("phone")?.toString() ?? "",
+    studyhallName:
+      formData.get("studyhallName")?.toString() ??
+      formData.get("venueName")?.toString() ??
+      formData.get("venue")?.toString() ??
+      "",
+    notes: formData.get("notes")?.toString() ?? formData.get("message")?.toString() ?? undefined,
   };
 
   const parsed = submitDemoSchema.safeParse(raw);
@@ -62,17 +52,17 @@ export async function submitLead(formData: FormData): Promise<SubmitDemoResult> 
     };
   }
 
-  const { name, phone, venueName, message } = parsed.data;
+  const { fullName, phoneNumber, studyhallName, notes } = parsed.data;
 
   try {
     const lead = await prisma.$transaction(async (tx) => {
       const createdLead = await tx.lead.create({
         data: {
-          name,
-          phone,
-          venueName,
-          message: message ?? null,
-          source: "MARKETING_SITE",
+          fullName,
+          phoneNumber,
+          studyhallName,
+          notes: notes ?? null,
+          source: "WEBSITE",
           status: "NEW",
         },
       });
@@ -80,7 +70,8 @@ export async function submitLead(formData: FormData): Promise<SubmitDemoResult> 
       await tx.demoRequest.create({
         data: {
           leadId: createdLead.id,
-          status: "requested",
+          status: "PENDING",
+          note: notes ?? null,
         },
       });
 

@@ -12,10 +12,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Mock seat data for the preview
+// Mock seat data for the preview (v2 shape: `seat.number` is string)
 const mockSeats = Array.from({ length: 24 }).map((_, i) => ({
   id: `seat-${i + 1}`,
-  seatNumber: i + 1,
+  // v2: seats live under a `seat` record and `number` is a string
+  seat: { number: String(i + 1) },
   status: (() => {
     const mod = i % 7;
     if (mod === 0) return "renewal";
@@ -62,7 +63,7 @@ const stats = {
 };
 
 const occupancyRate = Math.round(
-  ((stats.reserved + stats.renewal) / mockSeats.length) * 100
+  ((stats.reserved + stats.renewal) / mockSeats.length) * 100,
 );
 
 const monthlyFee = 890000;
@@ -146,7 +147,9 @@ export function DashboardPreview() {
                   <div className="text-lg font-bold tracking-tight">
                     {card.value}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">{card.hint}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {card.hint}
+                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -173,15 +176,17 @@ export function DashboardPreview() {
                         key={seat.id}
                         className={cn(
                           "flex flex-col rounded-xl border p-2 text-right transition-shadow hover:shadow-md text-[10px]",
-                          config.className
+                          config.className,
                         )}
                       >
                         <div className="flex items-center justify-between gap-1">
                           <span className="inline-flex items-center gap-0.5 font-bold">
                             <Armchair className="size-2.5 opacity-70" />
-                            {seat.seatNumber}
+                            {seat.seat.number}
                           </span>
-                          <span className={cn("size-1 rounded-full", config.dot)} />
+                          <span
+                            className={cn("size-1 rounded-full", config.dot)}
+                          />
                         </div>
                         {seat.status !== "available" && (
                           <p className="mt-1 truncate font-medium opacity-90">
@@ -197,7 +202,7 @@ export function DashboardPreview() {
 
             {/* Revenue card */}
             <Card className="gap-2 bg-primary text-primary-foreground relative overflow-hidden h-fit group">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
+              <div className="absolute inset-0 bg-linear-to-r from-transparent via-primary-foreground/5 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
 
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xs font-medium text-primary-foreground/80">

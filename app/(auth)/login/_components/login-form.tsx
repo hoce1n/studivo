@@ -2,7 +2,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -13,7 +12,6 @@ import { authClient } from "@/lib/auth-client"
 import { Eye, EyeClosed, Loader } from "lucide-react"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
-import Link from "next/link"
 import { ForgotPasswordPopover } from "./forgot-password-popover"
 
 export function LoginForm({

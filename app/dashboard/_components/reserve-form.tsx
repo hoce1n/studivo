@@ -18,13 +18,11 @@ import { format } from "date-fns-jalali";
 
 import {
   releaseSeat,
-  reserveSeat,
   swapSeat,
-} from "@/app/actions/seat";
-import { 
-  renewSubscription, 
-  updatePaymentStatus
-} from "@/app/actions/subscription";
+} from "@/app/actions/seats/manage";
+import { reserveSeat } from "@/app/actions/seats/reserve"
+import { renewMembership } from "@/app/actions/memberships/renew";
+import { recordPayment } from "@/app/actions/memberships/payments";
 
 import { ActionForm } from "@/components/action-form";
 import { SubscriptionProgress } from "@/app/dashboard/_components/subscription-progress";
@@ -66,14 +64,16 @@ export type ReserveFormSeat = {
   seatNumber: string;
   reserveSeatNumber: number;
   status: SeatStatus;
-  subscription?: {
-    id: string;
+  seatAssignmentId?: string;
+  membership?: {
+    id: string; // membership id
     memberName: string;
     phoneNumber: string;
     endDate: string;
     startDateISO: string;
     endDateISO: string;
-    paymentStatus: string;
+    paymentStatus?: string;
+    planPrice?: number;
   };
   history?: {
     id: string;
@@ -250,13 +250,14 @@ export function ReserveForm({
     currentSeat?.reserveSeatNumber ?? currentSeat?.seatNumber,
   );
   const isAvailable = currentSeat?.status === "available";
-  const subscription = currentSeat?.subscription;
+  const membership = currentSeat?.membership;
+  const seatAssignmentId = currentSeat?.seatAssignmentId;
   const smartRenewalPreview = React.useMemo(
     () =>
-      subscription
-        ? getSmartRenewalPreview(subscription.endDateISO, renewDate)
+      membership
+        ? getSmartRenewalPreview(membership.endDateISO, renewDate)
         : null,
-    [subscription, renewDate],
+    [membership, renewDate],
   );
 
   const handleStartDateChange = (selectedDate: Date | undefined) => {
@@ -292,40 +293,40 @@ export function ReserveForm({
   };
 
   function handleSendStatusMessage() {
-    if (!seat || !subscription) return;
+    if (!seat || !membership) return;
 
     const message = getStatusMessage(
       seat.status,
-      subscription.memberName,
+      membership.memberName,
       seat.seatNumber,
       studyHallName,
     );
 
     window.open(
-      `sms:${subscription.phoneNumber}?body=${encodeURIComponent(message)}`,
+      `sms:${membership.phoneNumber}?body=${encodeURIComponent(message)}`,
       "_blank",
     );
   }
 
   function handleRenew() {
-    if (!subscription || !renewDate) return;
+    if (!membership || !renewDate) return;
 
     const adjustedDate = new Date(renewDate);
     adjustedDate.setHours(23, 59, 59, 999);
     setRenewError(null);
     startRenewTransition(async () => {
       try {
-        const result = await renewSubscription(subscription.id, adjustedDate.toISOString());
+        const result = await renewMembership(membership.id, adjustedDate.toISOString());
         if (!result.success) {
-          throw new Error(result.error || "تمدید اشتراک ناموفق بود.");
+          throw new Error(result.error || "تمدید عضویت ناموفق بود.");
         }
-        toast.success(result.message || "تمدید اشتراک با موفقیت ثبت شد.");
+        toast.success(result.message || "تمدید عضویت با موفقیت ثبت شد.");
         setRenewDate(getDefaultEndDate());
         onOpenChange(false);
       } catch (error) {
         const message = getActionErrorMessage(
           error,
-          "تمدید اشتراک ناموفق بود.",
+          "تمدید عضویت ناموفق بود.",
         );
         setRenewError(message);
         toast.error(message);
@@ -334,7 +335,7 @@ export function ReserveForm({
   }
 
   function handleSwap() {
-    if (!subscription) return;
+    if (!membership) return;
 
     const cleanedSeatNumber = normalizeSeatNumber(swapSeatNumber);
     const parsedSeatNumber = Number(cleanedSeatNumber);
@@ -350,7 +351,11 @@ export function ReserveForm({
     setSwapError(null);
     startSwapTransition(async () => {
       try {
-        const result = await swapSeat(subscription.id, parsedSeatNumber);
+        if (!seatAssignmentId) {
+          throw new Error("شناسه تخصیص صندلی نامعتبر است.");
+        }
+
+        const result = await swapSeat(seatAssignmentId, parsedSeatNumber);
         if (!result.success) {
           throw new Error(result.error || "جابجایی صندلی ناموفق بود.");
         }
@@ -369,11 +374,11 @@ export function ReserveForm({
   }
 
   function handleRelease() {
-    if (!subscription) return;
+    if (!seatAssignmentId) return;
 
     startReleaseTransition(async () => {
       try {
-        const result = await releaseSeat(subscription.id);
+        const result = await releaseSeat(seatAssignmentId);
         if (!result.success) {
           throw new Error(result.error || "تخلیه صندلی ناموفق بود.");
         }
@@ -386,31 +391,42 @@ export function ReserveForm({
   }
 
   function handlePaymentStatusToggle() {
-    if (!subscription) return;
+    if (!membership) return;
 
-    const nextStatus = subscription.paymentStatus === "paid" ? "unpaid" : "paid";
+    // For v2: record a payment to mark membership as paid.
+    if (membership.paymentStatus === "paid") {
+      toast.warning("پرداخت قبلاً ثبت شده است؛ ابطال پرداخت از طریق صفحه پرداخت انجام شود.");
+      return;
+    }
+
     startPaymentTransition(async () => {
       try {
-        const result = await updatePaymentStatus(subscription.id, nextStatus);
+        const formData = new FormData();
+        formData.set("membershipId", membership.id);
+        formData.set("amount", String(membership.planPrice ?? 0));
+        formData.set("method", "CASH");
+
+        const result = await recordPayment(formData);
         if (!result.success) {
-          throw new Error(result.error || "تغییر وضعیت پرداخت ناموفق بود.");
+          throw new Error(result.error || "ثبت پرداخت ناموفق بود.");
         }
+
         setCurrentSeat((previousSeat) =>
           previousSeat
             ? {
                 ...previousSeat,
-                subscription: previousSeat.subscription
+                membership: previousSeat.membership
                   ? {
-                      ...previousSeat.subscription,
-                      paymentStatus: nextStatus,
+                      ...previousSeat.membership,
+                      paymentStatus: "paid",
                     }
-                  : previousSeat.subscription,
+                  : previousSeat.membership,
               }
             : previousSeat,
         );
-        toast.success(result.message || "وضعیت پرداخت با موفقیت به‌روزرسانی شد.");
+        toast.success(result.message || "پرداخت با موفقیت ثبت شد.");
       } catch (error) {
-        toast.error(getActionErrorMessage(error, "تغییر وضعیت پرداخت ناموفق بود."));
+        toast.error(getActionErrorMessage(error, "ثبت پرداخت ناموفق بود."));
       }
     });
   }
@@ -581,7 +597,7 @@ export function ReserveForm({
                 </FieldGroup>
               )}
             </ActionForm>
-          ) : subscription ? (
+          ) : membership ? (
             <Tabs defaultValue="current" className="text-right">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="current">مدیریت فعلی</TabsTrigger>
@@ -591,29 +607,29 @@ export function ReserveForm({
               <div className="space-y-2 rounded-2xl bg-muted/50 p-3 text-sm">
                 <div className="flex items-center gap-2">
                   <User className="size-4 text-muted-foreground" />
-                  <span className="font-medium">{subscription.memberName}</span>
+                  <span className="font-medium">{membership.memberName}</span>
                 </div>
                 <div className="flex items-center gap-2" dir="ltr">
                   <Phone className="size-4 text-muted-foreground" />
                   <a
-                    href={`tel:${subscription.phoneNumber}`}
+                    href={`tel:${membership.phoneNumber}`}
                     className="font-mono"
                   >
-                    {subscription.phoneNumber}
+                    {membership.phoneNumber}
                   </a>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <CalendarClock className="size-4 text-muted-foreground" />
-                    <span>پایان فعلی اشتراک: {subscription.endDate}</span>
+                    <span>پایان فعلی اشتراک: {membership.endDate}</span>
                   </div>
                   <Button
                     type="button"
-                    variant={subscription.paymentStatus === "paid" ? "outline" : "default"}
+                    variant={membership.paymentStatus === "paid" ? "outline" : "default"}
                     size="sm"
                     className={cn(
                       "h-7 px-2 text-[10px]",
-                      subscription.paymentStatus === "paid"
+                      membership.paymentStatus === "paid"
                         ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                         : "bg-amber-500 text-white hover:bg-amber-600",
                     )}
@@ -622,7 +638,7 @@ export function ReserveForm({
                   >
                     {paymentPending ? (
                       <Loader className="size-3 animate-spin" />
-                    ) : subscription.paymentStatus === "paid" ? (
+                    ) : membership.paymentStatus === "paid" ? (
                       "پرداخت شده"
                     ) : (
                       "تسویه نشده"
@@ -642,8 +658,8 @@ export function ReserveForm({
               </div>
 
               <SubscriptionProgress
-                startDate={subscription.startDateISO}
-                endDate={subscription.endDateISO}
+                startDate={membership.startDateISO}
+                endDate={membership.endDateISO}
                 className="rounded-2xl border p-3"
               />
 
@@ -669,7 +685,7 @@ export function ReserveForm({
                 </Popover>
                 <div className="rounded-2xl border bg-muted/40 p-3 text-xs leading-6 text-muted-foreground">
                   <div className="font-medium text-foreground">
-                    پایان فعلی: {subscription.endDate}
+                    پایان فعلی: {membership.endDate}
                   </div>
                   <div>{smartRenewalPreview?.helpText}</div>
                 </div>
@@ -730,7 +746,7 @@ export function ReserveForm({
                         تخلیه صندلی {currentSeat?.seatNumber}؟
                       </AlertDialogTitle>
                       <AlertDialogDescription>
-                        اشتراک فعال {subscription.memberName} لغو می‌شود و صندلی
+                        اشتراک فعال {membership.memberName} لغو می‌شود و صندلی
                         خالی خواهد شد.
                       </AlertDialogDescription>
                     </AlertDialogHeader>

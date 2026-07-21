@@ -38,7 +38,11 @@ type StudyHallSeatsMapProps = {
   statusCopy: StatusCopy;
   stats: Record<SeatStatus, string>;
   studyHallName: string;
-  returningMember?: { id: string; name: string; phoneNumber: string | null } | null;
+  returningMember?: {
+    id: string;
+    name: string;
+    phoneNumber: string | null;
+  } | null;
 };
 
 export function StudyHallSeatsMap({
@@ -141,7 +145,7 @@ export function StudyHallSeatsMap({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
             {seats.map((seat) => {
               const copy = statusCopy[seat.status];
-              const studentName = seat.subscription?.memberName ?? "";
+              const studentName = seat.membership?.memberName ?? "";
               const isMatch = studentName
                 .toLocaleLowerCase("fa-IR")
                 .includes(normalizedSearchQuery);
@@ -171,7 +175,7 @@ export function StudyHallSeatsMap({
                         "z-10 scale-105 ring-2 ring-indigo-500",
                     )}
                     dotClass={copy.dot}
-                    subscription={seat.subscription}
+                    membership={seat.membership}
                   />
                 </button>
               );

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Globe, ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
 
-import { updatePublicPageSettings } from "@/app/actions/auth";
+import { updatePublicPageSettings } from "@/app/actions/settings/mutations";
 import { ActionForm } from "@/components/action-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

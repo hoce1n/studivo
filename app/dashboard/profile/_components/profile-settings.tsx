@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { KeyRound, Loader2, ShieldAlert, User, Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { updateProfileDetails } from "@/app/actions/auth";
+import { updateProfileDetails } from "@/app/actions/members/mutations";
 import { ActionForm } from "@/components/action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

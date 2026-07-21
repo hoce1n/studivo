@@ -8,7 +8,7 @@ import {
   sendNotification,
   subscribeUser,
   unsubscribeUser,
-} from "@/app/actions/pwa"
+} from "@/app/actions/notifications/push"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

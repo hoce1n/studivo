@@ -19,14 +19,11 @@ import { getSession } from "@/lib/server";
 import ThemeToggle from "../(marketing)/_components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 
-
-
 export default async function Layout({
-    children,
+  children,
 }: {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }) {
-
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
@@ -37,16 +34,20 @@ export default async function Layout({
     select: {
       id: true,
       name: true,
-      role: true,
       platformRole: true,
-      studyhallId: true,
-      studyhall: {
+      staffAssignments: {
         select: {
           id: true,
-          name: true,
-          totalSeats: true,
-          monthlyFee: true,
+          role: true,
+          studyHallId: true,
+          studyHall: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
+        take: 1,
       },
     },
   });
@@ -56,13 +57,17 @@ export default async function Layout({
   }
 
   // Platform users (SALES / SUPER_ADMIN) have no studyhallId and must not
-  // reach onboarding. Redirect them to their own route group before the
-  // studyhallId check runs. See ADR-010 and ADR-015.
+  // reach onboarding.
   if (user.platformRole) {
     redirect("/platform");
   }
 
-  if (!user.studyhallId || !user.studyhall) {
+  // Extract primary staff assignment for v2 schema.
+  const primaryAssignment = user.staffAssignments[0];
+  const currentStudyhall = primaryAssignment?.studyHall;
+  const currentRole = primaryAssignment?.role;
+
+  if (!primaryAssignment || !currentStudyhall) {
     redirect("/onboarding");
   }
 
@@ -70,8 +75,8 @@ export default async function Layout({
     <SidebarProvider>
       <AppSidebar
         side="right"
-        userRole={user?.role}
-        studyhallName={user.studyhall.name}
+        userRole={currentRole}
+        studyhallName={currentStudyhall.name}
         activePath="/dashboard"
       />
       <SidebarInset>
@@ -86,7 +91,7 @@ export default async function Layout({
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
-                    <BreadcrumbPage>{user.studyhall.name}</BreadcrumbPage>
+                    <BreadcrumbPage>{currentStudyhall.name}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
@@ -98,7 +103,7 @@ export default async function Layout({
           </div>
         </header>
         <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            {children}
+          {children}
         </main>
       </SidebarInset>
     </SidebarProvider>

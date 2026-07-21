@@ -19,9 +19,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// ---------------------------------------------------------------------------
-// What to expect cards
-// ---------------------------------------------------------------------------
 const steps = [
   {
     icon: Clock,
@@ -40,9 +37,6 @@ const steps = [
   },
 ];
 
-// ---------------------------------------------------------------------------
-// Success panel
-// ---------------------------------------------------------------------------
 function SuccessPanel({ name }: { name: string }) {
   return (
     <div
@@ -99,9 +93,6 @@ function SuccessPanel({ name }: { name: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Demo request page
-// ---------------------------------------------------------------------------
 export default function DemoPage() {
   const [pending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

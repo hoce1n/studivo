@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "reset-pass": "npx tsx scripts/reset-pass.ts"
   },
   "dependencies": {
     "@daypicker/persian": "^10.0.1",

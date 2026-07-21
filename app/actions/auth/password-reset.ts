@@ -2,7 +2,6 @@
 
 import { hashPassword } from "better-auth/crypto";
 import { z } from "zod";
-
 import { prisma } from "@/lib/db";
 import {
   OTP_PURPOSE,
@@ -19,7 +18,7 @@ const emailSchema = z
 const phoneSchema = z
   .string()
   .trim()
-  .regex(/^09\d{9}$/, "شماره موبایل باید به فرمت ۰۹xxxxxxxxx باشد");
+  .regex(/^09\d{9}$/, "شماره موبایل باید به فرمت ۰۹xxxxxxxxx باشد.");
 
 const otpSchema = z.string().length(6, "کد تایید باید ۶ رقم باشد.");
 
@@ -27,12 +26,15 @@ const passwordSchema = z
   .string()
   .min(8, "رمز عبور جدید باید حداقل ۸ کاراکتر باشد.");
 
-type ActionResult =
+export type PasswordResetActionResult =
   | { ok: true; message?: string; data?: { phoneNumber: string; verified?: boolean } }
   | { ok: false; error: string };
 
 const GENERIC_ERROR = "امکان بازیابی رمز عبور برای این حساب وجود ندارد.";
 
+/**
+ * Finds user and validates attached phone number.
+ */
 async function findUserWithPhone(email: string) {
   const user = await prisma.user.findUnique({
     where: { email },
@@ -54,10 +56,13 @@ async function findUserWithPhone(email: string) {
   return { ...user, phoneNumber: phoneParsed.data };
 }
 
+/**
+ * Requests an OTP code to be sent to user's registered phone number for password reset.
+ */
 export async function requestPasswordResetOTP(input: {
   email: string;
   sendOtp?: boolean;
-}): Promise<ActionResult> {
+}): Promise<PasswordResetActionResult> {
   const parsed = z
     .object({
       email: emailSchema,
@@ -90,27 +95,28 @@ export async function requestPasswordResetOTP(input: {
 
       console.error(
         "[password-reset] Failed to send password reset OTP:",
-        error instanceof Error ? error.message : "Unknown error",
+        error instanceof Error ? error.message : "Unknown error"
       );
-      return { ok: false, error: "خطایی رخ داد. لطفاً دوباره تلاش کنید." };
+      return { ok: false, error: "خطایی در ارسال پیامک رخ داد. لطفاً دوباره تلاش کنید." };
     }
   }
 
   return {
     ok: true,
-    message: parsed.data.sendOtp
-      ? "کد تایید ارسال شد."
-      : undefined,
+    message: parsed.data.sendOtp ? "کد تایید ارسال شد." : undefined,
     data: { phoneNumber: user.phoneNumber },
   };
 }
 
+/**
+ * Verifies submitted OTP code and updates user account password with Better-Auth compatibility.
+ */
 export async function resetPasswordWithOTP(input: {
   email: string;
   otp: string;
   newPassword?: string;
   confirmPassword?: string;
-}): Promise<ActionResult> {
+}): Promise<PasswordResetActionResult> {
   const baseParsed = z
     .object({
       email: emailSchema,
@@ -174,13 +180,18 @@ export async function resetPasswordWithOTP(input: {
 
   const hashedPassword = await hashPassword(newPassword);
 
-  await prisma.$transaction([
-    prisma.account.update({
-      where: { id: credentialAccount.id },
-      data: { password: hashedPassword },
-    }),
-    prisma.otpVerification.delete({ where: { id: otpResult.record.id } }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.account.update({
+        where: { id: credentialAccount.id },
+        data: { password: hashedPassword },
+      }),
+      prisma.otpVerification.delete({ where: { id: otpResult.record.id } }),
+    ]);
+  } catch (error) {
+    console.error("[resetPasswordWithOTP] Error updating password:", error);
+    return { ok: false, error: "خطایی در بروزرسانی رمز عبور رخ داد." };
+  }
 
   return {
     ok: true,

@@ -1,20 +1,59 @@
 import { redirect } from "next/navigation";
 import { Building2, Settings2 } from "lucide-react";
 
-import { requireUser } from "@/app/actions/auth";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/server";
 import { HallSettingsForm } from "@/app/dashboard/settings/_components/hall-settings-form";
 import { PublicPageSettingsForm } from "@/app/dashboard/settings/_components/public-page-settings-form";
 
 export default async function HallSettingsPage() {
-  const user = await requireUser();
+  const session = await getSession();
 
-  if (!user.studyhallId || !user.studyhall) {
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      staffAssignments: {
+        where: { isActive: true },
+        select: {
+          role: true,
+          studyHallId: true,
+          studyHall: {
+            select: {
+              id: true,
+              name: true,
+              gender: true,
+              phoneNumber: true,
+              address: true,
+              description: true,
+              slug: true,
+              publicPageEnabled: true,
+              heroImage: true,
+              galleryImages: true,
+            },
+          },
+        },
+        take: 1,
+      },
+    },
+  });
+
+  const assignment = user?.staffAssignments[0];
+
+  if (!user || !assignment || !assignment.studyHall) {
     redirect("/onboarding");
   }
 
-  if (user.role !== "admin") {
+  // بررسی نقش مدیر (OWNER در اسکیمای v2)
+  if (assignment.role !== "OWNER") {
     redirect("/dashboard");
   }
+
+  const studyHall = assignment.studyHall;
 
   return (
     <section className="flex flex-1 flex-col gap-6 p-4 md:p-6" dir="rtl">
@@ -32,26 +71,26 @@ export default async function HallSettingsPage() {
                 تنظیمات سالن
               </h1>
               <p className="mt-3 max-w-2xl leading-8 text-muted-foreground">
-                مشخصات سالن، نوع پذیرش، آدرس، ظرفیت و شهریه را در بخش اختصاصی مدیریت سالن به‌روزرسانی کنید.
+                مشخصات سالن، نوع پذیرش، آدرس و صفحه عمومی را در بخش اختصاصی مدیریت سالن به‌روزرسانی کنید.
               </p>
             </div>
           </div>
           <div className="rounded-2xl border bg-background px-4 py-3 text-sm font-bold text-muted-foreground">
-            {user.studyhall.name}
+            {studyHall.name}
           </div>
         </div>
       </section>
 
-      <HallSettingsForm studyHall={user.studyhall} />
+      <HallSettingsForm studyHall={studyHall} />
 
       <PublicPageSettingsForm
         studyHall={{
-          slug: user.studyhall.slug,
-          publicPageEnabled: user.studyhall.publicPageEnabled,
-          heroImage: user.studyhall.heroImage,
-          galleryImages: user.studyhall.galleryImages,
+          slug: studyHall.slug,
+          publicPageEnabled: studyHall.publicPageEnabled,
+          heroImage: studyHall.heroImage,
+          galleryImages: studyHall.galleryImages,
         }}
-        studyhallId={user.studyhallId}
+        studyhallId={studyHall.id}
       />
     </section>
   );

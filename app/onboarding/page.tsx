@@ -7,7 +7,7 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { completeOnboarding } from "@/app/actions/auth";
+import { completeOnboarding } from "@/app/actions/studyhall/mutations";
 
 import OnboardingForm from "@/components/onboarding-form";
 import {
@@ -47,14 +47,22 @@ export default async function OnboardingPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session?.user.id },
-    select: { studyhallId: true, phoneNumber: true },
+    select: { 
+      phoneNumber: true,
+      staffAssignments: {
+        select: { id: true },
+        take: 1,
+      },
+     },
   });
 
   if (!user?.phoneNumber) {
     redirect("/verify-phone");
   }
 
-  if (user?.studyhallId) {
+  // Check if user already belongs to at least one studyhall in v2 schema
+  const hasStudyhall = user?.staffAssignments.length > 0;
+  if (hasStudyhall) {
     redirect("/dashboard");
   }
 

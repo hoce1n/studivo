@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   requestPasswordResetOTP,
   resetPasswordWithOTP,
-} from "@/app/actions/password-reset";
+} from "@/app/actions/auth/password-reset";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {

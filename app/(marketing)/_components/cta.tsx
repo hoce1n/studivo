@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowLeft, CheckCircle2, ShieldCheck, Loader2, ShieldAlert, CalendarClock } from "lucide-react";
-import { submitLead, type SubmitDemoResult } from "@/app/actions/marketing";
+import { submitLead, type SubmitDemoResult } from "@/app/actions/marketing/lead";
 import { toast } from "sonner";
 
 const trustPoints = [

@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/db";
 import { sendVerificationCode } from "@/lib/sms";
+import type { OtpPurpose } from "@/lib/generated/prisma/client";
+
+export { OtpPurpose };
 
 export const OTP_PURPOSE = {
-  PASSWORD_RESET: "password_reset",
-  SIGNUP: "signup",
+  PASSWORD_RESET: "PASSWORD_RESET" as OtpPurpose,
+  SIGNUP: "SIGNUP" as OtpPurpose,
 } as const;
-
-export type OtpPurpose = (typeof OTP_PURPOSE)[keyof typeof OTP_PURPOSE];
 
 const OTP_EXPIRY_MINUTES = 5;
 
@@ -28,7 +29,7 @@ export async function createOtpVerification({
     where: { phoneNumber, purpose },
   });
 
-  await prisma.otpVerification.create({
+  const record = await prisma.otpVerification.create({
     data: {
       phoneNumber,
       code,
@@ -39,7 +40,7 @@ export async function createOtpVerification({
 
   await sendVerificationCode(phoneNumber, code);
 
-  return { code, expiresAt };
+  return { code, expiresAt, id: record.id };
 }
 
 export async function verifyOtp({

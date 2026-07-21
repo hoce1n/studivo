@@ -7,7 +7,7 @@ import { Logo } from "./navbar/logo";
 import Enamad from "@/components/enamad";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
-import { submitLead } from "@/app/actions/marketing";
+import { submitLead } from "@/app/actions/marketing/lead";
 import { Loader2 } from "lucide-react";
 
 const footerLinks = [
@@ -57,7 +57,7 @@ function StackedCircularFooter() {
                       className="rounded-full text-right" 
                     />
                   </div>
-                  <Button type="submit" disabled={pending} className="rounded-full min-w-[80px]">
+                  <Button type="submit" disabled={pending} className="rounded-full min-w-20">
                     {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "ثبت"}
                   </Button>
                 </>

@@ -8,7 +8,6 @@ import {
   UserCircleIcon,
   ScrollTextIcon,
   UsersRoundIcon,
-  WalletCardsIcon,
   TrendingUpIcon,
 } from "lucide-react";
 
@@ -62,13 +61,20 @@ function adminOnlyItems(activePath?: string) {
   ];
 }
 
-function sidebarData(userRole?: string, studyhallName?: string, activePath = "/dashboard") {
+function sidebarData(
+  userRole?: string, 
+  studyhallName?: string, 
+  activePath = "/dashboard"
+) {
+  // Check against v2 HallRole ("OWNER") as well as legacy ("admin" / "ADMIN")
+  const isOwnerOrAdmin = userRole === "OWNER" || userRole === "admin" || userRole === "ADMIN";
+
   return {
     teams: [
       {
         name: studyhallName ?? "سالن مطالعه",
         logo: <BookOpenCheck />,
-        plan: userRole === "admin" ? "مدیر" : "مراقب",
+        plan: isOwnerOrAdmin ? "مدیر" : "مراقب",
       },
     ],
     navMain: [
@@ -102,7 +108,7 @@ function sidebarData(userRole?: string, studyhallName?: string, activePath = "/d
           { title: "امنیت و رمز عبور", url: "/dashboard/profile" },
         ],
       },
-      ...(userRole === "admin" ? adminOnlyItems(activePath) : []),
+      ...(isOwnerOrAdmin ? adminOnlyItems(activePath) : []),
     ],
     projects: [],
   };

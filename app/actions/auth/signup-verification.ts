@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-
 import { prisma } from "@/lib/db";
 import {
   OTP_PURPOSE,
@@ -15,15 +14,18 @@ import { getSession } from "@/lib/server";
 const phoneSchema = z
   .string()
   .trim()
-  .regex(/^09\d{9}$/, "شماره موبایل باید به فرمت ۰۹xxxxxxxxx باشد")
-  .length(11, "شماره موبایل باید ۱۱ رقم باشد");
+  .regex(/^09\d{9}$/, "شماره موبایل باید به فرمت ۰۹xxxxxxxxx باشد.")
+  .length(11, "شماره موبایل باید ۱۱ رقم باشد.");
 
 const otpSchema = z.string().length(6, "کد تایید باید ۶ رقم باشد.");
 
-type ActionResult =
+export type SignupVerificationResult =
   | { ok: true; message?: string }
   | { ok: false; error: string };
 
+/**
+ * Checks session and ensures user is authenticated but doesn't have a verified phone yet.
+ */
 async function requireUnverifiedPhoneUser() {
   const session = await getSession();
 
@@ -50,6 +52,9 @@ async function requireUnverifiedPhoneUser() {
   return { ok: true as const, user };
 }
 
+/**
+ * Checks whether a phone number is already attached to another user account.
+ */
 async function isPhoneTaken(phoneNumber: string, excludeUserId: string) {
   const existing = await prisma.user.findFirst({
     where: {
@@ -62,9 +67,12 @@ async function isPhoneTaken(phoneNumber: string, excludeUserId: string) {
   return Boolean(existing);
 }
 
+/**
+ * Requests an OTP code to verify user's signup phone number.
+ */
 export async function requestSignupPhoneOTP(
-  phoneNumber: string,
-): Promise<ActionResult> {
+  phoneNumber: string
+): Promise<SignupVerificationResult> {
   const auth = await requireUnverifiedPhoneUser();
   if (!auth.ok) {
     return auth;
@@ -94,18 +102,21 @@ export async function requestSignupPhoneOTP(
 
     console.error(
       "[signup-verification] Failed to send signup OTP:",
-      error instanceof Error ? error.message : "Unknown error",
+      error instanceof Error ? error.message : "Unknown error"
     );
-    return { ok: false, error: "خطایی رخ داد. لطفاً دوباره تلاش کنید." };
+    return { ok: false, error: "خطایی در ارسال پیامک رخ داد. لطفاً دوباره تلاش کنید." };
   }
 
-  return { ok: true, message: "کد تایید ارسال شد." };
+  return { ok: true, message: "کد تایید با موفقیت ارسال شد." };
 }
 
+/**
+ * Verifies submitted OTP code and links the phone number to the current user.
+ */
 export async function verifySignupPhoneOTP(
   phoneNumber: string,
-  otp: string,
-): Promise<ActionResult> {
+  otp: string
+): Promise<SignupVerificationResult> {
   const auth = await requireUnverifiedPhoneUser();
   if (!auth.ok) {
     return auth;
@@ -126,7 +137,7 @@ export async function verifySignupPhoneOTP(
   }
 
   if (await isPhoneTaken(parsed.data.phoneNumber, auth.user.id)) {
-    return { ok: false, error: "این شماره موبایل قبلاً ثبت شده است." };
+    return { ok: false, error: "این شماره موبایل قبلاً برای حساب دیگری ثبت شده است." };
   }
 
   const otpResult = await verifyOtp({
@@ -139,16 +150,26 @@ export async function verifySignupPhoneOTP(
     return { ok: false, error: otpResult.error };
   }
 
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: auth.user.id },
-      data: { phoneNumber: parsed.data.phoneNumber },
-    }),
-    prisma.otpVerification.delete({ where: { id: otpResult.record.id } }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: auth.user.id },
+        data: {
+          phoneNumber: parsed.data.phoneNumber,
+        },
+      }),
+      prisma.otpVerification.delete({ where: { id: otpResult.record.id } }),
+    ]);
+  } catch (error) {
+    console.error("[verifySignupPhoneOTP] Error saving phone number:", error);
+    return {
+      ok: false,
+      error: "خطایی در ثبت شماره موبایل در سیستم رخ داد.",
+    };
+  }
 
   revalidatePath("/verify-phone");
   revalidatePath("/onboarding");
 
-  return { ok: true, message: "شماره موبایل شما با موفقیت تایید شد." };
+  return { ok: true, message: "شماره موبایل شما با موفقیت تایید و ثبت شد." };
 }
