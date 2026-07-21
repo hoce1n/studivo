@@ -49,6 +49,7 @@ const reservationSchema = z
  */
 export async function reserveSeat(formData: FormData): Promise<ActionResult> {
   const user = await requireScopedUser();
+  const { studyHallId } = user;
 
   const parsed = reservationSchema.safeParse({
     seatId: formData.get("seatId"),
@@ -74,7 +75,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
       const seat = await tx.seat.findFirst({
         where: {
           id: seatId,
-          section: { studyHallId: user.studyhallId },
+          section: { studyHallId },
         },
         select: { id: true, number: true },
       });
@@ -97,7 +98,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
 
       // 3. Validate Plan
       const plan = await tx.membershipPlan.findFirst({
-        where: { id: membershipPlanId, studyHallId: user.studyhallId },
+        where: { id: membershipPlanId, studyHallId },
         select: { id: true, name: true, durationDays: true, price: true },
       });
 
@@ -122,7 +123,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
       const membership = await tx.membership.create({
         data: {
           userId: member.id,
-          studyHallId: user.studyhallId,
+          studyHallId,
           membershipPlanId: plan.id,
           status: "ACTIVE",
           startsAt,
@@ -146,7 +147,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
       // 7. Audit Log
       await tx.auditLog.create({
         data: {
-          studyHallId: user.studyhallId,
+          studyHallId,
           actorId: user.id,
           action: "CREATE",
           entityType: "SEAT_ASSIGNMENT",

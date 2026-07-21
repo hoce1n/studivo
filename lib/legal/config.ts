@@ -12,7 +12,7 @@ export const LEGAL_DOCUMENTS: Record<
     description: doc.description,
   };
   return acc;
-}, {} as any);
+}, {} as Record<LegalDocumentSlug, Omit<RelatedLegalDocument, "href"> & { path: string }>);
 
 export function getRelatedDocuments(
   currentSlug: LegalDocumentSlug

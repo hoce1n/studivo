@@ -35,8 +35,9 @@ export async function updateProfileDetails(formData: FormData): Promise<ActionRe
 
 export async function createStaff(formData: FormData): Promise<ActionResult> {
   const user = await requireScopedUser();
+  const { role, studyHallId } = user;
 
-  if (user.role !== "OWNER") {
+  if (role !== "OWNER") {
     return { success: false, error: "فقط مدیر سالن اجازه تعریف همکار جدید را دارد." };
   }
 
@@ -68,7 +69,7 @@ export async function createStaff(formData: FormData): Promise<ActionResult> {
     await tx.staffAssignment.create({
       data: {
         userId: staffUser.id,
-        studyHallId: user.studyhallId,
+        studyHallId,
         role: "STAFF",
         startDate: new Date(),
         isActive: true,

@@ -20,6 +20,7 @@ const swapSeatSchema = z.object({
  */
 export async function releaseSeat(seatAssignmentId: string): Promise<ActionResult> {
   const user = await requireScopedUser();
+  const { studyHallId } = user;
   const parsed = releaseSeatSchema.safeParse({ seatAssignmentId });
 
   if (!parsed.success) {
@@ -31,7 +32,7 @@ export async function releaseSeat(seatAssignmentId: string): Promise<ActionResul
       const assignment = await tx.seatAssignment.findFirst({
         where: {
           id: parsed.data.seatAssignmentId,
-          membership: { studyHallId: user.studyhallId },
+          membership: { studyHallId },
           endsAt: null,
         },
         select: {
@@ -52,7 +53,7 @@ export async function releaseSeat(seatAssignmentId: string): Promise<ActionResul
 
       await tx.auditLog.create({
         data: {
-          studyHallId: user.studyhallId,
+          studyHallId,
           actorId: user.id,
           action: "UPDATE",
           entityType: "SEAT_ASSIGNMENT",
@@ -82,6 +83,7 @@ export async function swapSeat(
   targetSeatId: string
 ): Promise<ActionResult> {
   const user = await requireScopedUser();
+  const { studyHallId } = user;
   const parsed = swapSeatSchema.safeParse({ seatAssignmentId, targetSeatId });
 
   if (!parsed.success) {
@@ -94,7 +96,7 @@ export async function swapSeat(
       const targetSeat = await tx.seat.findFirst({
         where: {
           id: parsed.data.targetSeatId,
-          section: { studyHallId: user.studyhallId },
+          section: { studyHallId },
         },
         select: { id: true, number: true },
       });
@@ -116,7 +118,7 @@ export async function swapSeat(
       const current = await tx.seatAssignment.findFirst({
         where: {
           id: parsed.data.seatAssignmentId,
-          membership: { studyHallId: user.studyhallId },
+          membership: { studyHallId },
           endsAt: null,
         },
         select: {
@@ -156,7 +158,7 @@ export async function swapSeat(
       // Audit Log
       await tx.auditLog.create({
         data: {
-          studyHallId: user.studyhallId,
+          studyHallId,
           actorId: user.id,
           action: "UPDATE",
           entityType: "SEAT_ASSIGNMENT",

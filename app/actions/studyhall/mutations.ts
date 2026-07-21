@@ -92,8 +92,9 @@ export async function completeOnboarding(formData: FormData): Promise<ActionResu
 
 export async function updatePublicPageSettings(formData: FormData): Promise<ActionResult> {
   const user = await requireScopedUser();
+  const { role, studyHallId } = user;
 
-  if (user.role !== "OWNER") {
+  if (role !== "OWNER") {
     return { success: false, error: "فقط مدیر سالن اجازه ویرایش صفحه عمومی را دارد." };
   }
 
@@ -118,7 +119,7 @@ export async function updatePublicPageSettings(formData: FormData): Promise<Acti
 
   if (parsed.data.slug) {
     const existing = await prisma.studyHall.findFirst({
-      where: { slug: parsed.data.slug, id: { not: user.studyhallId } },
+      where: { slug: parsed.data.slug, id: { not: studyHallId } },
     });
     if (existing) {
       return { success: false, error: "این آدرس عمومی قبلاً توسط سالن دیگری انتخاب شده است." };
@@ -126,7 +127,7 @@ export async function updatePublicPageSettings(formData: FormData): Promise<Acti
   }
 
   await prisma.studyHall.update({
-    where: { id: user.studyhallId },
+    where: { id: studyHallId },
     data: {
       slug: parsed.data.slug,
       publicPageEnabled: parsed.data.publicPageEnabled,
