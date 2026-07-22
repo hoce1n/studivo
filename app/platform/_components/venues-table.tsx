@@ -125,11 +125,11 @@ export function VenuesTable({ venues }: VenuesTableProps) {
                     {fmt(venue.totalSeats)}
                   </TableCell>
                   <TableCell className="text-center text-muted-foreground">
-                    {fmt(venue._count.activeSubscriptions)}
+                    {fmt(venue._count.activeMemberships)}
                   </TableCell>
                   <TableCell className="text-center">
                     <OccupancyBadge
-                      active={venue._count.activeSubscriptions}
+                      active={venue._count.activeMemberships}
                       total={venue.totalSeats}
                     />
                   </TableCell>
@@ -137,9 +137,9 @@ export function VenuesTable({ venues }: VenuesTableProps) {
                     {formatDate(venue.createdAt)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {venue.lead ? (
+                    {venue.convertedFromLead ? (
                       <span className="text-sm">
-                        {venue.lead.name ?? venue.lead.venueName ?? "—"}
+                        {venue.convertedFromLead.fullName ?? venue.convertedFromLead.studyhallName ?? "—"}
                       </span>
                     ) : (
                       <span className="text-muted-foreground/50">—</span>

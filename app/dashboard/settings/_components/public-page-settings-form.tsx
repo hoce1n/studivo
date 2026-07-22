@@ -149,7 +149,6 @@ function ImagePicker({
 // ---------------------------------------------------------------------------
 export function PublicPageSettingsForm({
   studyHall,
-  studyhallId,
 }: {
   studyHall: PublicPageSettingsData;
   studyhallId: string;

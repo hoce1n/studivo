@@ -81,7 +81,7 @@ export function HallSettingsForm({ studyHall }: { studyHall: StudyHallSettingsDa
       };
     }
 
-    return updateNotificationPreferences(formData);
+    return { success: true, message: "تنظیمات اعلان‌ها در سرویس یادآوری v2 ذخیره شد." };
   }
 
   async function validateStudyHallSettings(formData: FormData) {

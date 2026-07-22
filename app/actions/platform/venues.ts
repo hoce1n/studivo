@@ -160,3 +160,16 @@ export async function convertLeadToStudyHall(
     data: { studyhallId },
   };
 }
+export type VenueDetail = VenueRow & { address: string | null; phoneNumber: string | null; description: string | null; monthlyFee: number; lead: (VenueRow["convertedFromLead"] & { name?: string | null; phone?: string | null; venueName?: string | null; status: string }) | null; _count: { activeMemberships: number; activeSubscriptions: number; users: number } };
+
+export async function getVenueById(id: string): Promise<VenueDetail | null> {
+  await requirePlatformUser();
+  const hall = await prisma.studyHall.findUnique({
+    where: { id },
+    select: { id: true, name: true, gender: true, address: true, phoneNumber: true, description: true, createdAt: true, leads: { select: { id: true, fullName: true, studyhallName: true }, take: 1 }, sections: { select: { _count: { select: { seats: { where: { isActive: true } } } } } }, memberships: { where: { status: "ACTIVE" }, select: { id: true } } },
+  });
+  if (!hall) return null;
+  const totalSeats = hall.sections.reduce((acc, sec) => acc + sec._count.seats, 0);
+  const lead = hall.leads[0] ?? null;
+  return { id: hall.id, name: hall.name, gender: hall.gender, address: hall.address, phoneNumber: hall.phoneNumber, description: hall.description, monthlyFee: 0, totalSeats, createdAt: hall.createdAt, convertedFromLead: lead, lead: lead ? { ...lead, status: "CONVERTED" } : null, _count: { activeMemberships: hall.memberships.length, activeSubscriptions: hall.memberships.length, users: 0 } };
+}

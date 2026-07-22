@@ -136,16 +136,16 @@ export function LeadsTable({ leads, isSuperAdmin }: LeadsTableProps) {
                   key={lead.id}
                   className="cursor-pointer"
                   onClick={() => handleRowClick(lead.id)}
-                  aria-label={`مشاهده جزئیات لید ${lead.name ?? "بدون نام"}`}
+                  aria-label={`مشاهده جزئیات لید ${lead.fullName ?? "بدون نام"}`}
                 >
                   <TableCell className="font-medium">
-                    {lead.name ?? <span className="text-muted-foreground">—</span>}
+                    {lead.fullName ?? <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell dir="ltr" className="text-muted-foreground">
-                    {lead.phone ?? "—"}
+                    {lead.phoneNumber ?? "—"}
                   </TableCell>
                   <TableCell className="max-w-[140px] truncate text-muted-foreground">
-                    {lead.venueName ?? "—"}
+                    {lead.studyhallName ?? "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs">

@@ -30,10 +30,40 @@ type StatusCopy = Record<
   }
 >;
 
+type DashboardSeatData = {
+  id: string;
+  number: string;
+  assignments: {
+    id: string;
+    startsAt: Date;
+    endsAt: Date | null;
+    membership: {
+      id: string;
+      status: string;
+      startsAt: Date;
+      endsAt: Date;
+      planPrice: unknown;
+      user: {
+        name: string;
+        phoneNumber: string | null;
+      };
+      payments: { id: string }[];
+    };
+  }[];
+};
+
+type MembershipPlanOption = {
+  id: string;
+  name: string;
+  durationDays: number;
+  price: number;
+};
+
 type SeatMapItem = ReserveFormSeat;
 
 type StudyHallSeatsMapProps = {
-  seats: SeatMapItem[];
+  seats: DashboardSeatData[];
+  membershipPlans: MembershipPlanOption[];
   shouldSortByRenewal: boolean;
   statusCopy: StatusCopy;
   stats: Record<SeatStatus, string>;
@@ -45,8 +75,63 @@ type StudyHallSeatsMapProps = {
   } | null;
 };
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+function getSeatStatus(endsAt?: Date): SeatStatus {
+  if (!endsAt) return "available";
+
+  const diffDays = Math.ceil((endsAt.getTime() - Date.now()) / DAY_IN_MS);
+  if (diffDays < 0) return "expired";
+  if (diffDays <= 3) return "renewal";
+  return "reserved";
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(date);
+}
+
+function naturalSeatCompare(a: string, b: string) {
+  return a.localeCompare(b, "fa-IR-u-kn-true", { numeric: true, sensitivity: "base" });
+}
+
+function toSeatMapItem(seat: DashboardSeatData): SeatMapItem {
+  const activeAssignment = seat.assignments.find((assignment) => assignment.endsAt === null);
+  const membership = activeAssignment?.membership;
+
+  return {
+    id: seat.id,
+    seatAssignmentId: activeAssignment?.id,
+    seatNumber: seat.number,
+    status: getSeatStatus(membership?.endsAt),
+    membership: membership
+      ? {
+          id: membership.id,
+          memberName: membership.user.name ?? "بدون نام",
+          phoneNumber: membership.user.phoneNumber ?? "—",
+          endDate: formatDate(membership.endsAt),
+          startDateISO: membership.startsAt.toISOString(),
+          endDateISO: membership.endsAt.toISOString(),
+          planPrice: Number(membership.planPrice),
+          paymentStatus: membership.payments.length > 0 ? "paid" : "unpaid",
+        }
+      : undefined,
+    history: seat.assignments
+      .filter((assignment) => assignment.id !== activeAssignment?.id)
+      .map((assignment) => ({
+        id: assignment.id,
+        memberName: assignment.membership.user.name ?? "بدون نام",
+        phoneNumber: assignment.membership.user.phoneNumber ?? "—",
+        startDate: formatDate(assignment.membership.startsAt),
+        endDate: formatDate(assignment.membership.endsAt),
+        status: assignment.membership.status.toLowerCase(),
+        paymentStatus: assignment.membership.payments.length > 0 ? "paid" : "unpaid",
+      })),
+  };
+}
+
 export function StudyHallSeatsMap({
   seats,
+  membershipPlans,
   shouldSortByRenewal,
   statusCopy,
   stats,
@@ -57,6 +142,16 @@ export function StudyHallSeatsMap({
   const [selectedSeat, setSelectedSeat] = useState<SeatMapItem | null>(null);
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("fa-IR");
   const isSearchActive = normalizedSearchQuery.length >= 3;
+
+  const seatItems = seats.map(toSeatMapItem);
+  const sortedSeats = shouldSortByRenewal
+    ? [...seatItems].sort((a, b) => {
+        const timeA = a.membership ? new Date(a.membership.endDateISO).getTime() : Infinity;
+        const timeB = b.membership ? new Date(b.membership.endDateISO).getTime() : Infinity;
+        if (timeA !== timeB) return timeA - timeB;
+        return naturalSeatCompare(a.seatNumber, b.seatNumber);
+      })
+    : [...seatItems].sort((a, b) => naturalSeatCompare(a.seatNumber, b.seatNumber));
 
   const handleSeatSelect = (seat: SeatMapItem) => {
     setSelectedSeat(seat);
@@ -141,9 +236,9 @@ export function StudyHallSeatsMap({
         </div>
       </CardHeader>
       <CardContent>
-        {seats.length ? (
+        {sortedSeats.length ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
-            {seats.map((seat) => {
+            {sortedSeats.map((seat) => {
               const copy = statusCopy[seat.status];
               const studentName = seat.membership?.memberName ?? "";
               const isMatch = studentName
@@ -192,7 +287,8 @@ export function StudyHallSeatsMap({
         )}
       </CardContent>
       <ReserveForm
-        maxSeats={seats.length}
+        membershipPlans={membershipPlans}
+        maxSeats={sortedSeats.length}
         open={selectedSeat !== null}
         seat={selectedSeat}
         studyHallName={studyHallName}
