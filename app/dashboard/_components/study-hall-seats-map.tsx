@@ -95,7 +95,7 @@ function naturalSeatCompare(a: string, b: string) {
 }
 
 function toSeatMapItem(seat: DashboardSeatData): SeatMapItem {
-  const activeAssignment = seat.assignments.find((assignment) => assignment.endsAt === null);
+  const activeAssignment = seat.assignments[0];  
   const membership = activeAssignment?.membership;
 
   return {
