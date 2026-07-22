@@ -126,25 +126,31 @@ export default async function Page({ searchParams }: PageProps) {
   const studyHallId = assignment.studyHallId;
   const role = assignment.role;
 
-  const [seats, staffAssignments, membersCount, returningMember] =
+  const [seats, membershipPlans, staffAssignments, membersCount, returningMember] =
     await Promise.all([
       prisma.seat.findMany({
         where: { section: { studyHallId } },
         orderBy: { number: "asc" },
         include: {
           assignments: {
-            where: { endsAt: null },
+            orderBy: { createdAt: "desc" },
             include: {
               membership: {
                 include: {
                   user: {
                     select: { name: true, phoneNumber: true },
                   },
+                  payments: { where: { status: "COMPLETED" }, select: { id: true }, take: 1 },
                 },
               },
             },
           },
         },
+      }),
+      prisma.membershipPlan.findMany({
+        where: { studyHallId, isActive: true },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true, durationDays: true, price: true },
       }),
       prisma.staffAssignment.findMany({
         where: { studyHallId, isActive: true },
@@ -168,38 +174,18 @@ export default async function Page({ searchParams }: PageProps) {
 
   const staff = staffAssignments.map((s) => s.user);
 
-  const initialSeatView = seats.map((seat) => {
-    const currentAssignment = seat.assignments[0];
-    const membership = currentAssignment?.membership;
-    const seatNum = parseInt(seat.number, 10) || 0;
-    return {
-      ...seat,
-      seatNumber: seatNum,
-      membership,
-      status: getSeatStatus(membership?.endsAt),
-    };
-  });
-
   const shouldSortByRenewal = sortBy === "renewal";
 
-  const seatView = shouldSortByRenewal
-    ? [...initialSeatView].sort((a, b) => {
-        const timeA = a.membership
-          ? new Date(a.membership.endsAt).getTime()
-          : Infinity;
-        const timeB = b.membership
-          ? new Date(b.membership.endsAt).getTime()
-          : Infinity;
-        if (timeA !== timeB) return timeA - timeB;
-        return a.seatNumber - b.seatNumber;
-      })
-    : initialSeatView;
+  const seatStatuses = seats.map((seat) => {
+    const activeAssignment = seat.assignments.find((assignment) => assignment.endsAt === null);
+    return getSeatStatus(activeAssignment?.membership.endsAt);
+  });
 
   const stats = {
-    available: seatView.filter((s) => s.status === "available").length,
-    reserved: seatView.filter((s) => s.status === "reserved").length,
-    renewal: seatView.filter((s) => s.status === "renewal").length,
-    expired: seatView.filter((s) => s.status === "expired").length,
+    available: seatStatuses.filter((status) => status === "available").length,
+    reserved: seatStatuses.filter((status) => status === "reserved").length,
+    renewal: seatStatuses.filter((status) => status === "renewal").length,
+    expired: seatStatuses.filter((status) => status === "expired").length,
   };
 
   const occupied = stats.reserved + stats.renewal;
@@ -211,11 +197,14 @@ export default async function Page({ searchParams }: PageProps) {
   let activeRevenue = 0;
   let atRiskRevenue = 0;
 
-  seatView.forEach((s) => {
-    if (s.membership) {
-      const price = Number(s.membership.planPrice) || 0;
-      if (s.status === "reserved") activeRevenue += price;
-      if (s.status === "renewal") atRiskRevenue += price;
+  seats.forEach((seat) => {
+    const activeAssignment = seat.assignments.find((assignment) => assignment.endsAt === null);
+    const membership = activeAssignment?.membership;
+    const status = getSeatStatus(membership?.endsAt);
+    if (membership) {
+      const price = Number(membership.planPrice) || 0;
+      if (status === "reserved") activeRevenue += price;
+      if (status === "renewal") atRiskRevenue += price;
     }
   });
 
@@ -257,25 +246,12 @@ export default async function Page({ searchParams }: PageProps) {
 
       <section id="map" className="grid gap-6 xl:grid-cols-[1.6fr_0.9fr]">
         <StudyHallSeatsMap
-          seats={seatView.map((seat) => ({
-            id: seat.id,
-            seatAssignmentId: seat.assignments[0]?.id,
-            seatNumber: seat.number,
-            reserveSeatNumber: seat.seatNumber,
-            status: seat.status,
-            membership: seat.membership
-              ? {
-                  id: seat.membership.id,
-                  memberName: seat.membership.user.name ?? "بدون نام",
-                  phoneNumber: seat.membership.user.phoneNumber ?? "—",
-                  endDate: formatDate(seat.membership.endsAt),
-                  startDateISO: seat.membership.startsAt.toISOString(),
-                  endDateISO: seat.membership.endsAt.toISOString(),
-                  planPrice: seat.membership.planPrice as unknown as number,
-                  paymentStatus: "PAID",
-                }
-              : undefined,
-            history: [],
+          seats={seats}
+          membershipPlans={membershipPlans.map((plan) => ({
+            id: plan.id,
+            name: plan.name,
+            durationDays: plan.durationDays,
+            price: Number(plan.price),
           }))}
           shouldSortByRenewal={shouldSortByRenewal}
           statusCopy={statusCopy}

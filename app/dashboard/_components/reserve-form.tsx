@@ -20,7 +20,7 @@ import {
   releaseSeat,
   swapSeat,
 } from "@/app/actions/seats/manage";
-import { reserveSeat } from "@/app/actions/seats/reserve"
+import { reserveSeat } from "@/app/actions/seats/reserve";
 import { renewMembership } from "@/app/actions/memberships/renew";
 import { recordPayment } from "@/app/actions/memberships/payments";
 
@@ -62,7 +62,6 @@ export type SeatStatus = "available" | "reserved" | "renewal" | "expired";
 export type ReserveFormSeat = {
   id: string;
   seatNumber: string;
-  reserveSeatNumber: number;
   status: SeatStatus;
   seatAssignmentId?: string;
   membership?: {
@@ -208,6 +207,7 @@ const statusLabels: Record<string, string> = {
 };
 
 export function ReserveForm({
+  membershipPlans,
   maxSeats,
   open,
   seat,
@@ -215,6 +215,7 @@ export function ReserveForm({
   returningMember,
   onOpenChange,
 }: {
+  membershipPlans: { id: string; name: string; durationDays: number; price: number }[];
   maxSeats: number;
   open: boolean;
   seat: ReserveFormSeat | null;
@@ -247,7 +248,7 @@ export function ReserveForm({
   }, [seat]);
 
   const reservationSeatNumber = normalizeSeatNumber(
-    currentSeat?.reserveSeatNumber ?? currentSeat?.seatNumber,
+    currentSeat?.seatNumber,
   );
   const isAvailable = currentSeat?.status === "available";
   const membership = currentSeat?.membership;
@@ -485,18 +486,34 @@ export function ReserveForm({
                       required
                     />
                   </Field>
+                  <input type="hidden" name="seatId" value={currentSeat?.id ?? ""} />
                   <Field>
                     <FieldLabel htmlFor="seatNumber">شماره صندلی</FieldLabel>
                     <Input
                       id="seatNumber"
-                      name="seatNumber"
-                      type="number"
-                      min="1"
-                      max={maxSeats}
                       value={reservationSeatNumber}
                       readOnly
-                      required
+                      aria-describedby="seatNumberHelp"
                     />
+                    <p id="seatNumberHelp" className="text-xs text-muted-foreground">
+                      رزرو با شناسه داخلی صندلی ثبت می‌شود تا با شماره‌های غیرترتیبی هم سازگار باشد.
+                    </p>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="membershipPlanId">طرح عضویت</FieldLabel>
+                    <select
+                      id="membershipPlanId"
+                      name="membershipPlanId"
+                      className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-10 w-full rounded-2xl border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      required
+                      disabled={pending || membershipPlans.length === 0}
+                    >
+                      {membershipPlans.map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name} · {plan.durationDays.toLocaleString("fa-IR")} روز · {plan.price.toLocaleString("fa-IR")} تومان
+                        </option>
+                      ))}
+                    </select>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="startDate">
@@ -505,7 +522,7 @@ export function ReserveForm({
                     <input
                       id="startDate"
                       type="hidden"
-                      name="startDate"
+                      name="startsAt"
                       value={startDate ? startDate.toISOString() : ""}
                     />
                     <Popover>
@@ -548,7 +565,7 @@ export function ReserveForm({
                     <input
                       id="endDate"
                       type="hidden"
-                      name="endDate"
+                      name="endsAt"
                       value={date ? date.toISOString() : ""}
                     />
                     <Popover>
@@ -590,7 +607,7 @@ export function ReserveForm({
                   </Field>
                   <Button
                     type="submit"
-                    disabled={pending || !reservationSeatNumber || !startDate || !date}
+                    disabled={pending || !currentSeat?.id || !reservationSeatNumber || !startDate || !date || membershipPlans.length === 0}
                   >
                     {pending ? <Loader className="animate-spin" /> : "رزرو"}
                   </Button>
