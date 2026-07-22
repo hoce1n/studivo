@@ -20,8 +20,8 @@ const reservationSchema = z
     membershipPlanId: z.string().cuid({ message: "شناسه طرح عضویت معتبر نیست." }),
     memberName: z.string().trim().min(2, "نام دانش‌آموز باید حداقل ۲ حرف باشد."),
     phoneNumber: z.string().trim().min(10, "شماره تلفن معتبر نیست."),
-    startsAt: z.coerce.date({ invalid_type_error: "تاریخ شروع معتبر نیست." }),
-    endsAt: z.coerce.date({ invalid_type_error: "تاریخ پایان معتبر نیست." }),
+    startsAt: z.coerce.date("تاریخ شروع معتبر نیست."),
+    endsAt: z.coerce.date("تاریخ پایان معتبر نیست."),
   })
   .superRefine((data, ctx) => {
     if (data.startsAt >= data.endsAt) {

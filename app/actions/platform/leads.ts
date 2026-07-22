@@ -22,7 +22,7 @@ export type LeadRow = {
   phoneNumber: string | null;
   email: string | null;
   studyhallName: string | null;
-  status: LeadStatus;
+  status: LeadStatus | "CUSTOMER";
   source: LeadSource;
   createdAt: Date;
   owner: { id: string; name: string } | null;
@@ -138,4 +138,19 @@ export async function updateLeadStatus(formData: FormData): Promise<ActionResult
 
   revalidatePath("/platform");
   return { success: true, message: "وضعیت لید با موفقیت به‌روزرسانی شد." };
+}
+export type LeadDetail = LeadRow & { notes: string | null; lostReason?: string | null; studyhallId?: string | null; message?: string | null; name?: string | null; phone?: string | null; venueName?: string | null; demoRequests: Array<{ id: string; scheduledAt: Date | null; preferredTime?: string | null; status: string; note: string | null; notes?: string | null; createdAt: Date }> };
+
+export async function getLeadById(id: string): Promise<LeadDetail | null> {
+  await requirePlatformUser();
+  const lead = await prisma.lead.findUnique({
+    where: { id },
+    select: {
+      id: true, fullName: true, phoneNumber: true, email: true, studyhallName: true, status: true, source: true, createdAt: true, notes: true,
+      owner: { select: { id: true, name: true } },
+      _count: { select: { demoRequests: true } },
+      demoRequests: { orderBy: { createdAt: "desc" }, select: { id: true, scheduledAt: true, status: true, note: true, createdAt: true } },
+    },
+  });
+  return lead;
 }

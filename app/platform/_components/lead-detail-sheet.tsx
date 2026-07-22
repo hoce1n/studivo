@@ -78,7 +78,7 @@ function DemoRequestList({ demos }: { demos: LeadDetail["demoRequests"] }) {
 
   return (
     <ul className="flex flex-col gap-2">
-      {demos.map((demo) => (
+      {demos.map((demo: LeadDetail["demoRequests"][number]) => (
         <li
           key={demo.id}
           className="flex flex-col gap-1 rounded-xl border bg-muted/30 p-3 text-sm"
