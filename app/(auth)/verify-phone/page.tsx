@@ -15,7 +15,7 @@ export default async function VerifyPhonePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { phoneNumber: true, studyhallId: true },
+    select: { phoneNumber: true, staffAssignments: { where: { isActive: true }, select: { studyHallId: true }, take: 1 } },
   });
 
   if (!user) {
@@ -23,7 +23,7 @@ export default async function VerifyPhonePage() {
   }
 
   if (user.phoneNumber) {
-    redirect(user.studyhallId ? "/dashboard" : "/onboarding");
+    redirect(user.staffAssignments[0]?.studyHallId ? "/dashboard" : "/onboarding");
   }
 
   return (

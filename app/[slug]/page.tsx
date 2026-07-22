@@ -45,8 +45,8 @@ async function getVenueBySlug(slug: string) {
       name: true,
       gender: true,
       address: true,
-      totalSeats: true,
-      monthlyFee: true,
+      membershipPlans: { where: { isActive: true }, orderBy: { createdAt: "asc" }, take: 1, select: { price: true } },
+      sections: { select: { _count: { select: { seats: true } } } },
       heroImage: true,
       galleryImages: true,
       createdAt: true,
@@ -67,10 +67,10 @@ export async function generateMetadata({
   if (!hall) return { title: "سالن یافت نشد" };
   return {
     title: `${hall.name} | استودیوو`,
-    description: `سالن مطالعه ${hall.name} — ${hall.address}. فضایی آرام برای تمرکز عمیق و مطالعه بدون حواس‌پرتی.`,
+    description: `سالن مطالعه ${hall.name} — ${hall.address ?? "آدرس ثبت نشده"}. فضایی آرام برای تمرکز عمیق و مطالعه بدون حواس‌پرتی.`,
     openGraph: {
       title: hall.name,
-      description: `سالن مطالعه ${hall.name} در ${hall.address}`,
+      description: `سالن مطالعه ${hall.name} در ${hall.address ?? "آدرس ثبت نشده"}`,
       images: hall.heroImage ? [hall.heroImage] : [],
     },
   };
@@ -159,15 +159,15 @@ export default async function VenuePublicPage({
 
   if (!hall) notFound();
 
-  const mapsUrl = buildMapsUrl(hall.address);
-  const monthlyFeeDisplay =
-    hall.monthlyFee > 0
-      ? hall.monthlyFee.toLocaleString("fa-IR")
-      : "تماس بگیرید";
+  const address = hall.address ?? "آدرس ثبت نشده";
+  const totalSeats = hall.sections.reduce((sum, section) => sum + section._count.seats, 0);
+  const monthlyFee = Number(hall.membershipPlans[0]?.price ?? 0);
+  const mapsUrl = buildMapsUrl(address);
+  const monthlyFeeDisplay = monthlyFee > 0 ? monthlyFee.toLocaleString("fa-IR") : "تماس بگیرید";
 
   // Mock available seats (in real scenario, calculate from subscriptions)
   const mockAvailableSeats = Math.max(
-    Math.floor(hall.totalSeats * 0.3),
+    Math.floor(totalSeats * 0.3),
     1
   );
 
@@ -189,8 +189,8 @@ export default async function VenuePublicPage({
       <VenueHero
         name={hall.name}
         heroImage={hall.heroImage}
-        totalSeats={hall.totalSeats}
-        genderLabel={genderLabel(hall.gender)}
+        totalSeats={totalSeats}
+        genderLabel={genderLabel(hall.gender.toLowerCase())}
       />
 
       {/* Quick facts strip */}
@@ -198,11 +198,11 @@ export default async function VenuePublicPage({
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-4 px-5 py-5 md:px-8 md:py-6">
           <FadeIn className="flex min-w-0 items-center gap-2.5 text-sm text-muted-foreground">
             <MapPin className="size-4 shrink-0 text-foreground" />
-            <span className="truncate">{hall.address}</span>
+            <span className="truncate">{address}</span>
           </FadeIn>
           <FadeIn delay={80} className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Users className="size-4 shrink-0 text-foreground" />
-            <span>{hall.totalSeats.toLocaleString("fa-IR")} صندلی فعال</span>
+            <span>{totalSeats.toLocaleString("fa-IR")} صندلی فعال</span>
           </FadeIn>
           <FadeIn delay={160} className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Calendar className="size-4 shrink-0 text-foreground" />
@@ -238,21 +238,21 @@ export default async function VenuePublicPage({
               <StatCard
                 icon={Users}
                 label="ظرفیت"
-                value={hall.totalSeats.toLocaleString("fa-IR")}
+                value={totalSeats.toLocaleString("fa-IR")}
                 hint="صندلی"
                 delay={0}
               />
               <StatCard
                 icon={Sparkles}
                 label="نوع پذیرش"
-                value={genderLabel(hall.gender)}
+                value={genderLabel(hall.gender.toLowerCase())}
                 delay={100}
               />
               <StatCard
                 icon={Wallet}
                 label="شهریه ماهانه"
                 value={monthlyFeeDisplay}
-                hint={hall.monthlyFee > 0 ? "تومان" : undefined}
+                hint={monthlyFee > 0 ? "تومان" : undefined}
                 delay={200}
               />
             </div>
@@ -288,8 +288,8 @@ export default async function VenuePublicPage({
                   </p>
                 </div>
                 <PublicSeatMap
-                  totalSeats={hall.totalSeats}
-                  occupiedSeats={hall.totalSeats - mockAvailableSeats}
+                  totalSeats={totalSeats}
+                  occupiedSeats={totalSeats - mockAvailableSeats}
                 />
               </section>
             </FadeIn>
@@ -329,7 +329,7 @@ export default async function VenuePublicPage({
                       <MapPin className="size-4 text-foreground/80" />
                     </div>
                     <p className="text-sm leading-7 text-muted-foreground">
-                      {hall.address}
+                      {address}
                     </p>
                   </div>
 
@@ -383,7 +383,7 @@ export default async function VenuePublicPage({
 
       <StickyCtaBar
         venueName={hall.name}
-        address={hall.address}
+        address={address}
         mapsUrl={mapsUrl}
       />
     </main>

@@ -8,7 +8,7 @@ import { requireScopedUser } from "@/app/actions/auth/verify-role";
 
 const renewMembershipSchema = z.object({
   membershipId: z.string().cuid("شناسه عضویت معتبر نیست."),
-  endsAt: z.coerce.date({ invalid_type_error: "تاریخ پایان جدید معتبر نیست." }),
+  endsAt: z.coerce.date("تاریخ پایان جدید معتبر نیست."),
 });
 
 function calculateDaysDifference(newEndsAt: Date, currentEndsAt: Date) {

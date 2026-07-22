@@ -12,7 +12,7 @@ const releaseSeatSchema = z.object({
 
 const swapSeatSchema = z.object({
   seatAssignmentId: z.string().cuid("شناسه تخصیص فعلی معتبر نیست."),
-  targetSeatId: z.string().cuid("شناسه صندلی جدید معتبر نیست."),
+  targetSeatId: z.union([z.string().cuid("شناسه صندلی جدید معتبر نیست."), z.number().int().positive()]),
 });
 
 /**
@@ -80,7 +80,7 @@ export async function releaseSeat(seatAssignmentId: string): Promise<ActionResul
  */
 export async function swapSeat(
   seatAssignmentId: string,
-  targetSeatId: string
+  targetSeatId: string | number
 ): Promise<ActionResult> {
   const user = await requireScopedUser();
   const { studyHallId } = user;
@@ -95,7 +95,9 @@ export async function swapSeat(
       // 1. Verify target seat
       const targetSeat = await tx.seat.findFirst({
         where: {
-          id: parsed.data.targetSeatId,
+          ...(typeof parsed.data.targetSeatId === "string"
+            ? { id: parsed.data.targetSeatId }
+            : { number: String(parsed.data.targetSeatId) }),
           section: { studyHallId },
         },
         select: { id: true, number: true },

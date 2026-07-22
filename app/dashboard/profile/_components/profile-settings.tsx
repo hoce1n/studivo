@@ -30,15 +30,15 @@ type ProfileSettingsProps = {
     role: string;
     phoneNumber?: string | null;
     image?: string | null;
-    studyhall?: {
+    studyHall?: {
       name: string;
     } | null;
   };
 };
 
 function roleLabel(role: string) {
-  if (role === "admin") return "مدیر سالن";
-  if (role === "staff") return "مراقب";
+  if (role === "OWNER") return "مدیر سالن";
+  if (role === "STAFF") return "مراقب";
   return "عضو";
 }
 
@@ -185,7 +185,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
               <div className="rounded-2xl border bg-muted/20 p-4">
                 <p className="text-xs font-medium text-muted-foreground">سالن متصل</p>
                 <p className="mt-2 truncate font-bold">
-                  {user.studyhall?.name ?? "بدون سالن"}
+                  {user.studyHall?.name ?? "بدون سالن"}
                 </p>
               </div>
             </div>

@@ -1,10 +1,10 @@
 import { ShieldAlert, User } from "lucide-react";
 
 import { ProfileSettings } from "./_components/profile-settings";
-import { requireUser } from "@/app/actions/auth/verify-role";
+import { requireScopedUser } from "@/app/actions/auth/verify-role";
 
 export default async function ProfilePage() {
-  const user = await requireUser();
+  const user = await requireScopedUser();
   return (
     <section className="flex flex-1 flex-col gap-6 p-4 md:p-6" dir="rtl">
       <section className="relative overflow-hidden rounded-[2rem] border bg-card p-6 shadow-sm md:p-8">
@@ -26,7 +26,7 @@ export default async function ProfilePage() {
             </div>
           </div>
           <div className="rounded-2xl border bg-background px-4 py-3 text-sm font-bold text-muted-foreground">
-            {user.studyhall?.name ?? ""}
+            {user.studyHall?.name ?? ""}
           </div>
         </div>
       </section>
