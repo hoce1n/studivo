@@ -1,17 +1,14 @@
 import { redirect } from "next/navigation";
 import { Building2, Settings2 } from "lucide-react";
 
+import { SettingsTabs } from "@/app/dashboard/settings/_components/settings-tabs";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
-import { HallSettingsForm } from "@/app/dashboard/settings/_components/hall-settings-form";
-import { PublicPageSettingsForm } from "@/app/dashboard/settings/_components/public-page-settings-form";
 
 export default async function HallSettingsPage() {
   const session = await getSession();
 
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
+  if (!session?.user?.id) redirect("/login");
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -19,48 +16,73 @@ export default async function HallSettingsPage() {
       id: true,
       staffAssignments: {
         where: { isActive: true },
-        select: {
-          role: true,
-          studyHallId: true,
-          studyHall: {
-            select: {
-              id: true,
-              name: true,
-              gender: true,
-              phoneNumber: true,
-              address: true,
-              description: true,
-              slug: true,
-              publicPageEnabled: true,
-              heroImage: true,
-              galleryImages: true,
-            },
-          },
-        },
+        select: { role: true, studyHallId: true },
         take: 1,
       },
     },
   });
 
   const assignment = user?.staffAssignments[0];
+  if (!user || !assignment) redirect("/onboarding");
+  if (assignment.role !== "OWNER") redirect("/dashboard");
 
-  if (!user || !assignment || !assignment.studyHall) {
-    redirect("/onboarding");
-  }
-
-  // بررسی نقش مدیر (OWNER در اسکیمای v2)
-  if (assignment.role !== "OWNER") {
-    redirect("/dashboard");
-  }
-
-  const studyHall = assignment.studyHall;
-  const [totalSeats, defaultPlan] = await Promise.all([
-    prisma.seat.count({ where: { section: { studyHallId: studyHall.id } } }),
-    prisma.membershipPlan.findFirst({ where: { studyHallId: studyHall.id, isActive: true }, orderBy: { createdAt: "asc" }, select: { price: true } }),
+  const [studyHall, sections, plans, staff] = await Promise.all([
+    prisma.studyHall.findUnique({
+      where: { id: assignment.studyHallId },
+      select: {
+        name: true,
+        gender: true,
+        phoneNumber: true,
+        address: true,
+        description: true,
+        publicPageEnabled: true,
+        slug: true,
+        heroImage: true,
+        galleryImages: true,
+      },
+    }),
+    prisma.section.findMany({
+      where: { studyHallId: assignment.studyHallId },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isActive: true,
+        _count: { select: { seats: true } },
+        seats: { orderBy: { number: "asc" }, select: { id: true, number: true, isActive: true } },
+      },
+    }),
+    prisma.membershipPlan.findMany({
+      where: { studyHallId: assignment.studyHallId },
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+      select: { id: true, name: true, durationDays: true, price: true, hasFixedSeat: true, description: true, isActive: true },
+    }),
+    prisma.staffAssignment.findMany({
+      where: { studyHallId: assignment.studyHallId },
+      orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        role: true,
+        startDate: true,
+        endDate: true,
+        isActive: true,
+        user: { select: { name: true, email: true, phoneNumber: true } },
+      },
+    }),
   ]);
 
+  if (!studyHall) redirect("/onboarding");
+
+  const normalizedPlans = plans.map((plan: (typeof plans)[number]) => ({ ...plan, price: Number(plan.price) }));
+  const normalizedStaff = staff.map((item: (typeof staff)[number]) => ({
+    ...item,
+    startDate: item.startDate.toISOString(),
+    endDate: item.endDate?.toISOString() ?? null,
+  }));
+
   return (
-    <section className="flex flex-1 flex-col gap-6 p-4 md:p-6" dir="rtl">
+    <section className="flex flex-1 flex-col gap-6" dir="rtl">
       <section className="relative overflow-hidden rounded-[2rem] border bg-card p-6 shadow-sm md:p-8">
         <div className="absolute -left-20 -top-20 size-48 rounded-full bg-primary/5 blur-3xl" />
         <div className="relative flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -75,7 +97,7 @@ export default async function HallSettingsPage() {
                 تنظیمات سالن
               </h1>
               <p className="mt-3 max-w-2xl leading-8 text-muted-foreground">
-                مشخصات سالن، نوع پذیرش، آدرس و صفحه عمومی را در بخش اختصاصی مدیریت سالن به‌روزرسانی کنید.
+                مشخصات عمومی، بخش‌ها، صندلی‌های فعال و خارج از سرویس، پلن‌های عضویت و همکاران سالن را از یک فضای تب‌بندی‌شده مدیریت کنید.
               </p>
             </div>
           </div>
@@ -85,26 +107,7 @@ export default async function HallSettingsPage() {
         </div>
       </section>
 
-      <HallSettingsForm studyHall={{
-        name: studyHall.name,
-        totalSeats,
-        monthlyFee: Number(defaultPlan?.price ?? 0),
-        gender: studyHall.gender === "FEMALE" ? "female" : "male",
-        address: studyHall.address ?? "",
-        reminderDaysBefore: 3,
-        renewalRemindersEnabled: true,
-        expiryRemindersEnabled: true,
-      }} />
-
-      <PublicPageSettingsForm
-        studyHall={{
-          slug: studyHall.slug,
-          publicPageEnabled: studyHall.publicPageEnabled,
-          heroImage: studyHall.heroImage,
-          galleryImages: studyHall.galleryImages,
-        }}
-        studyhallId={studyHall.id}
-      />
+      <SettingsTabs hall={studyHall} sections={sections} plans={normalizedPlans} staff={normalizedStaff} />
     </section>
   );
 }
