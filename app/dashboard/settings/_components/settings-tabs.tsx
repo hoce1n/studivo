@@ -834,7 +834,7 @@ function SeatChip({
   onSuccess: () => void;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-full border p-1">
+    <div className="flex items-center gap-1 rounded-2xl border p-2">
       <ActionForm
         action={toggleSeatActive}
         onSuccess={onSuccess}
@@ -853,7 +853,7 @@ function SeatChip({
       <ActionForm
         action={moveSeatToSection}
         onSuccess={onSuccess}
-        className="m-0"
+        className="m-0 space-y-0!"
       >
         <input type="hidden" name="seatId" value={seat.id} />
         <select
