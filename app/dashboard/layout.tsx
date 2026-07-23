@@ -36,6 +36,7 @@ export default async function Layout({
       name: true,
       platformRole: true,
       staffAssignments: {
+        where: { isActive: true },
         select: {
           id: true,
           role: true,

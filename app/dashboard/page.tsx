@@ -19,9 +19,9 @@ import { DashboardStats } from "@/app/dashboard/_components/dashboard-stats";
 import { RevenueCard } from "@/app/dashboard/_components/revenue-card";
 import {
   statusCopy,
-  formatDate,
   formatNumber,
   processSeatData,
+  getActiveAssignment,
 } from "@/app/dashboard/_lib/dashboard-utils";
 
 interface PageProps {
@@ -81,16 +81,31 @@ export default async function Page({ searchParams }: PageProps) {
         where: { section: { studyHallId } },
         orderBy: { number: "asc" },
         include: {
+          section: { select: { id: true, name: true } },
           assignments: {
-            take: 1,
+            // Active (endsAt null) + recent history for the seat sheet
+            take: 15,
             orderBy: { createdAt: "desc" },
             include: {
               membership: {
-                include: {
+                select: {
+                  id: true,
+                  status: true,
+                  startsAt: true,
+                  endsAt: true,
+                  planName: true,
+                  planDurationDays: true,
+                  planPrice: true,
+                  hasFixedSeat: true,
                   user: {
                     select: { name: true, phoneNumber: true },
                   },
-                  payments: { where: { status: "COMPLETED" }, select: { id: true }, take: 1 },
+                  payments: {
+                    where: { status: { in: ["COMPLETED", "PENDING"] } },
+                    select: { id: true, status: true, method: true },
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                  },
                 },
               },
             },
@@ -100,7 +115,13 @@ export default async function Page({ searchParams }: PageProps) {
       prisma.membershipPlan.findMany({
         where: { studyHallId, isActive: true },
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, durationDays: true, price: true },
+        select: {
+          id: true,
+          name: true,
+          durationDays: true,
+          price: true,
+          hasFixedSeat: true,
+        },
       }),
       prisma.staffAssignment.findMany({
         where: { studyHallId, isActive: true },
@@ -124,10 +145,44 @@ export default async function Page({ searchParams }: PageProps) {
 
   const staff = staffAssignments.map((s) => s.user);
 
-  const { seatView, stats, activeRevenue, atRiskRevenue } = processSeatData(
+  const { stats, activeRevenue, atRiskRevenue } = processSeatData(
     seats,
     shouldSortByRenewal
   );
+
+  // Client components cannot receive Prisma Decimal — serialize for the map.
+  const seatsForMap = seats.map((seat) => ({
+    id: seat.id,
+    number: seat.number,
+    sectionId: seat.section.id,
+    sectionName: seat.section.name,
+    assignments: seat.assignments.map((assignment) => ({
+      id: assignment.id,
+      startsAt: assignment.startsAt,
+      endsAt: assignment.endsAt,
+      membership: {
+        id: assignment.membership.id,
+        status: assignment.membership.status,
+        startsAt: assignment.membership.startsAt,
+        endsAt: assignment.membership.endsAt,
+        planName: assignment.membership.planName,
+        planDurationDays: assignment.membership.planDurationDays,
+        planPrice: Number(assignment.membership.planPrice),
+        hasFixedSeat: assignment.membership.hasFixedSeat,
+        user: assignment.membership.user,
+        payments: assignment.membership.payments,
+      },
+    })),
+  }));
+
+  const availableSeatsForSwap = seatsForMap
+    .filter((seat) => !getActiveAssignment(seat.assignments))
+    .map((seat) => ({
+      id: seat.id,
+      number: seat.number,
+      sectionId: seat.sectionId,
+      sectionName: seat.sectionName,
+    }));
 
   const occupied = stats.reserved + stats.renewal;
   const occupancyRate = seats.length
@@ -171,12 +226,14 @@ export default async function Page({ searchParams }: PageProps) {
 
       <section id="map" className="grid gap-6 xl:grid-cols-[1.6fr_0.9fr]">
         <StudyHallSeatsMap
-          seats={seats}
+          seats={seatsForMap}
+          availableSeats={availableSeatsForSwap}
           membershipPlans={membershipPlans.map((plan) => ({
             id: plan.id,
             name: plan.name,
             durationDays: plan.durationDays,
             price: Number(plan.price),
+            hasFixedSeat: plan.hasFixedSeat,
           }))}
           shouldSortByRenewal={shouldSortByRenewal}
           statusCopy={statusCopy}

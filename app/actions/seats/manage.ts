@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { actionError, revalidateOperationalPaths } from "@/app/actions/audit/helpers";
 import type { ActionResult } from "@/app/actions/audit/helpers";
 import { requireScopedUser } from "@/app/actions/auth/verify-role";
+import { isOccupyingAssignment } from "@/app/dashboard/_lib/dashboard-utils";
 
 const releaseSeatSchema = z.object({
   seatAssignmentId: z.string().cuid("شناسه تخصیص صندلی معتبر نیست."),
@@ -12,11 +13,14 @@ const releaseSeatSchema = z.object({
 
 const swapSeatSchema = z.object({
   seatAssignmentId: z.string().cuid("شناسه تخصیص فعلی معتبر نیست."),
-  targetSeatId: z.union([z.string().cuid("شناسه صندلی جدید معتبر نیست."), z.number().int().positive()]),
+  targetSeatId: z.union([
+    z.string().cuid("شناسه صندلی جدید معتبر نیست."),
+    z.number().int().positive(),
+  ]),
 });
 
 /**
- * Releases a seat assignment by setting endsAt timestamp.
+ * Releases a seat assignment by setting endsAt timestamp and cancelling membership.
  */
 export async function releaseSeat(seatAssignmentId: string): Promise<ActionResult> {
   const user = await requireScopedUser();
@@ -24,7 +28,10 @@ export async function releaseSeat(seatAssignmentId: string): Promise<ActionResul
   const parsed = releaseSeatSchema.safeParse({ seatAssignmentId });
 
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "داده‌های ورودی معتبر نیست." };
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "داده‌های ورودی معتبر نیست.",
+    };
   }
 
   try {
@@ -32,24 +39,47 @@ export async function releaseSeat(seatAssignmentId: string): Promise<ActionResul
       const assignment = await tx.seatAssignment.findFirst({
         where: {
           id: parsed.data.seatAssignmentId,
-          membership: { studyHallId },
-          endsAt: null,
+          membership: {
+            studyHallId,
+            status: { not: "CANCELLED" },
+          },
         },
         select: {
           id: true,
+          endsAt: true,
+          membershipId: true,
           seat: { select: { number: true } },
-          membership: { select: { user: { select: { name: true } } } },
+          membership: {
+            select: {
+              id: true,
+              status: true,
+              endsAt: true,
+              user: { select: { name: true } },
+            },
+          },
         },
       });
 
-      if (!assignment) {
+      if (!assignment || !isOccupyingAssignment(assignment)) {
         throw new Error("تخصیص صندلی فعال برای تخلیه یافت نشد.");
       }
 
+      const now = new Date();
+
       await tx.seatAssignment.update({
         where: { id: assignment.id },
-        data: { endsAt: new Date() },
+        data: { endsAt: now },
       });
+
+      if (
+        assignment.membership.status === "ACTIVE" ||
+        assignment.membership.status === "PENDING"
+      ) {
+        await tx.membership.update({
+          where: { id: assignment.membershipId },
+          data: { status: "CANCELLED" },
+        });
+      }
 
       await tx.auditLog.create({
         data: {
@@ -63,6 +93,8 @@ export async function releaseSeat(seatAssignmentId: string): Promise<ActionResul
             operatorName: user.name,
             memberName: assignment.membership.user.name,
             seatNumber: assignment.seat.number,
+            membershipId: assignment.membershipId,
+            membershipStatus: "CANCELLED",
           },
         },
       });
@@ -87,52 +119,90 @@ export async function swapSeat(
   const parsed = swapSeatSchema.safeParse({ seatAssignmentId, targetSeatId });
 
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات جابه‌جایی معتبر نیست." };
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "اطلاعات جابه‌جایی معتبر نیست.",
+    };
   }
 
   try {
     await prisma.$transaction(async (tx) => {
-      // 1. Verify target seat
-      const targetSeat = await tx.seat.findFirst({
-        where: {
-          ...(typeof parsed.data.targetSeatId === "string"
-            ? { id: parsed.data.targetSeatId }
-            : { number: String(parsed.data.targetSeatId) }),
-          section: { studyHallId },
-        },
-        select: { id: true, number: true },
-      });
+      let targetSeat: { id: string; number: string } | null = null;
+
+      if (typeof parsed.data.targetSeatId === "string") {
+        targetSeat = await tx.seat.findFirst({
+          where: {
+            id: parsed.data.targetSeatId,
+            section: { studyHallId },
+          },
+          select: { id: true, number: true },
+        });
+      } else {
+        const matches = await tx.seat.findMany({
+          where: {
+            number: String(parsed.data.targetSeatId),
+            section: { studyHallId },
+          },
+          select: { id: true, number: true },
+          take: 2,
+        });
+
+        if (matches.length > 1) {
+          throw new Error(
+            "چند صندلی با این شماره در بخش‌های مختلف وجود دارد. لطفاً صندلی را دقیق‌تر مشخص کنید."
+          );
+        }
+
+        targetSeat = matches[0] ?? null;
+      }
 
       if (!targetSeat) {
         throw new Error("صندلی مقصد در این سالن یافت نشد.");
       }
 
-      // 2. Check target seat availability
-      const activeOnTarget = await tx.seatAssignment.findFirst({
-        where: { seatId: targetSeat.id, endsAt: null },
-      });
-
-      if (activeOnTarget) {
-        throw new Error(`صندلی شماره ${targetSeat.number} در حال حاضر اشغال است.`);
-      }
-
-      // 3. Find current active assignment
-      const current = await tx.seatAssignment.findFirst({
+      const targetAssignments = await tx.seatAssignment.findMany({
         where: {
-          id: parsed.data.seatAssignmentId,
-          membership: { studyHallId },
-          endsAt: null,
+          seatId: targetSeat.id,
+          membership: { status: { not: "CANCELLED" } },
         },
         select: {
           id: true,
+          endsAt: true,
+          membership: { select: { status: true, endsAt: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      });
+
+      if (targetAssignments.some(isOccupyingAssignment)) {
+        throw new Error(`صندلی شماره ${targetSeat.number} در حال حاضر اشغال است.`);
+      }
+
+      const current = await tx.seatAssignment.findFirst({
+        where: {
+          id: parsed.data.seatAssignmentId,
+          membership: {
+            studyHallId,
+            status: { not: "CANCELLED" },
+          },
+        },
+        select: {
+          id: true,
+          endsAt: true,
           membershipId: true,
           seatId: true,
           seat: { select: { number: true } },
-          membership: { select: { user: { select: { name: true } } } },
+          membership: {
+            select: {
+              status: true,
+              endsAt: true,
+              user: { select: { name: true } },
+            },
+          },
         },
       });
 
-      if (!current) {
+      if (!current || !isOccupyingAssignment(current)) {
         throw new Error("تخصیص فعالی برای این صندلی پیدا نشد.");
       }
 
@@ -142,13 +212,11 @@ export async function swapSeat(
 
       const now = new Date();
 
-      // Close current assignment
       await tx.seatAssignment.update({
         where: { id: current.id },
         data: { endsAt: now },
       });
 
-      // Create new assignment
       await tx.seatAssignment.create({
         data: {
           membershipId: current.membershipId,
@@ -157,7 +225,6 @@ export async function swapSeat(
         },
       });
 
-      // Audit Log
       await tx.auditLog.create({
         data: {
           studyHallId,

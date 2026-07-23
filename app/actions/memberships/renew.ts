@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { actionError, revalidateOperationalPaths } from "@/app/actions/audit/helpers";
 import type { ActionResult } from "@/app/actions/audit/helpers";
 import { requireScopedUser } from "@/app/actions/auth/verify-role";
+import { isOccupyingAssignment } from "@/app/dashboard/_lib/dashboard-utils";
 
 const renewMembershipSchema = z.object({
   membershipId: z.string().cuid("شناسه عضویت معتبر نیست."),
@@ -12,11 +13,14 @@ const renewMembershipSchema = z.object({
 });
 
 function calculateDaysDifference(newEndsAt: Date, currentEndsAt: Date) {
-  return Math.ceil((newEndsAt.getTime() - currentEndsAt.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.ceil(
+    (newEndsAt.getTime() - currentEndsAt.getTime()) / (1000 * 60 * 60 * 24)
+  );
 }
 
 /**
  * Renews an existing membership or extends its duration based on endsAt threshold.
+ * Keeps SeatAssignment in sync for fixed-seat memberships so the map stays correct.
  */
 export async function renewMembership(
   membershipId: string,
@@ -37,23 +41,27 @@ export async function renewMembership(
   const now = new Date();
 
   if (newEndsAt <= now) {
-    return { success: false, error: "تاریخ پایان عضویت باید بعد از زمان جاری باشد." };
+    return {
+      success: false,
+      error: "تاریخ پایان عضویت باید بعد از زمان جاری باشد.",
+    };
   }
 
   let result: { isRealRenewal: boolean; daysDifference: number } | null = null;
 
   try {
     result = await prisma.$transaction(async (tx) => {
-      // 1. Fetch active membership
       const current = await tx.membership.findFirst({
         where: {
           id: parsed.data.membershipId,
           studyHallId,
+          status: { in: ["ACTIVE", "EXPIRED", "PENDING"] },
         },
         select: {
           id: true,
           userId: true,
           membershipPlanId: true,
+          status: true,
           endsAt: true,
           planName: true,
           planDurationDays: true,
@@ -61,9 +69,14 @@ export async function renewMembership(
           hasFixedSeat: true,
           user: { select: { name: true } },
           seatAssignments: {
-            where: { endsAt: null },
-            select: { seatId: true, seat: { select: { number: true } } },
-            take: 1,
+            select: {
+              id: true,
+              seatId: true,
+              endsAt: true,
+              seat: { select: { number: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: 5,
           },
         },
       });
@@ -72,11 +85,24 @@ export async function renewMembership(
         throw new Error("عضویت مورد نظر برای تمدید یافت نشد.");
       }
 
+      const occupyingSeat = current.seatAssignments.find((assignment) =>
+        isOccupyingAssignment({
+          endsAt: assignment.endsAt,
+          membership: {
+            status: current.status,
+            endsAt: current.endsAt,
+          },
+        })
+      );
+      // Fallback: fixed-seat memberships should keep the latest known seat
+      const seatToKeep =
+        occupyingSeat ??
+        (current.hasFixedSeat ? current.seatAssignments[0] : undefined);
+
       const daysDifference = calculateDaysDifference(newEndsAt, current.endsAt);
       const isRealRenewal = daysDifference > 7;
 
       if (isRealRenewal) {
-        // Mark old membership EXPIRED and create a new Membership record
         await tx.membership.update({
           where: { id: current.id },
           data: { status: "EXPIRED" },
@@ -97,33 +123,41 @@ export async function renewMembership(
           },
         });
 
-        // Re-assign active seat to the new membership if applicable
-        const activeSeat = current.seatAssignments[0];
-        if (activeSeat) {
-          // Close old assignment
-          await tx.seatAssignment.updateMany({
-            where: { membershipId: current.id, endsAt: null },
+        if (current.hasFixedSeat && seatToKeep) {
+          // Close previous assignment (works for null or legacy endsAt)
+          await tx.seatAssignment.update({
+            where: { id: seatToKeep.id },
             data: { endsAt: now },
           });
 
-          // Create assignment for new membership
+          // Canonical open assignment for the new membership
           await tx.seatAssignment.create({
             data: {
               membershipId: newMembership.id,
-              seatId: activeSeat.seatId,
+              seatId: seatToKeep.seatId,
               startsAt: now,
+              endsAt: null,
             },
           });
         }
       } else {
-        // Minor date correction: update existing endsAt
         await tx.membership.update({
           where: { id: current.id },
-          data: { endsAt: newEndsAt },
+          data: { endsAt: newEndsAt, status: "ACTIVE" },
         });
+
+        // Align seat occupancy with the extended membership.
+        // Legacy rows had endsAt = old membership end; leaving that stale
+        // makes isOccupyingAssignment treat the seat as released.
+        if (current.hasFixedSeat && seatToKeep) {
+          await tx.seatAssignment.update({
+            where: { id: seatToKeep.id },
+            data: { endsAt: null },
+          });
+        }
       }
 
-      const seatNum = current.seatAssignments[0]?.seat.number ?? "بدون صندلی";
+      const seatNum = seatToKeep?.seat.number ?? "بدون صندلی";
 
       await tx.auditLog.create({
         data: {
@@ -137,6 +171,7 @@ export async function renewMembership(
             operatorName: user.name,
             memberName: current.user.name,
             seatNumber: seatNum,
+            hasFixedSeat: current.hasFixedSeat,
             oldEndsAt: current.endsAt.toISOString(),
             newEndsAt: newEndsAt.toISOString(),
             daysDifference,

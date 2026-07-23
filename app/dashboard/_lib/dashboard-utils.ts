@@ -2,14 +2,77 @@ export const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 export type SeatStatus = "available" | "reserved" | "renewal" | "expired";
 
-export function getSeatStatus(endsAt?: Date): SeatStatus {
-  if (!endsAt) return "available";
+type AssignmentLike = {
+  id: string;
+  endsAt: Date | string | null;
+  membership: {
+    id: string;
+    status: string;
+    startsAt: Date | string;
+    endsAt: Date | string;
+    planPrice?: unknown;
+    user?: { name: string | null; phoneNumber: string | null };
+    payments?: { id: string; status?: string; method?: string }[];
+  };
+};
 
-  const diffDays = Math.ceil((endsAt.getTime() - Date.now()) / DAY_IN_MS);
+function toTime(value: Date | string | null | undefined): number | null {
+  if (value == null) return null;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+/**
+ * Active occupancy:
+ * - Canonical v2 writes: SeatAssignment.endsAt === null
+ * - Legacy migrate-v2 rows: endsAt was copied from membership endDate (not null).
+ *   Those count as current unless closed early (release/swap set endsAt before membership end).
+ */
+export function isOccupyingAssignment(assignment: {
+  endsAt: Date | string | null;
+  membership: { status: string; endsAt: Date | string };
+}): boolean {
+  if (assignment.membership.status === "CANCELLED") return false;
+
+  if (assignment.endsAt == null) return true;
+
+  const assignmentEnd = toTime(assignment.endsAt);
+  const membershipEnd = toTime(assignment.membership.endsAt);
+  if (assignmentEnd == null || membershipEnd == null) return false;
+
+  // Closed early by release/swap — seat is vacant.
+  return assignmentEnd >= membershipEnd - DAY_IN_MS;
+}
+
+export function getActiveAssignment<T extends AssignmentLike>(
+  assignments: T[] | undefined
+): T | undefined {
+  if (!assignments?.length) return undefined;
+
+  const candidates = assignments.filter((assignment) =>
+    isOccupyingAssignment(assignment)
+  );
+  if (!candidates.length) return undefined;
+
+  const open = candidates.find((assignment) => assignment.endsAt == null);
+  return open ?? candidates[0];
+}
+
+export function getSeatStatus(
+  endsAt?: Date | string | null,
+  membershipStatus?: string
+): SeatStatus {
+  const endTime = toTime(endsAt ?? null);
+  if (endTime == null) return "available";
+  if (membershipStatus === "CANCELLED") return "available";
+  if (membershipStatus === "EXPIRED") return "expired";
+
+  const diffDays = Math.ceil((endTime - Date.now()) / DAY_IN_MS);
   if (diffDays < 0) return "expired";
   if (diffDays <= 3) return "renewal";
   return "reserved";
 }
+
 
 export const statusCopy: Record<
   SeatStatus,
@@ -58,23 +121,30 @@ export function formatNumber(value: number) {
   return new Intl.NumberFormat("fa-IR").format(value);
 }
 
-export function processSeatData(seats: any[], sortByRenewal: boolean) {
+export function processSeatData(
+  seats: { number: string; assignments: AssignmentLike[] }[],
+  sortByRenewal: boolean
+) {
   const initialSeatView = seats.map((seat) => {
-    const currentAssignment = seat.assignments[0];
+    const currentAssignment = getActiveAssignment(seat.assignments);
     const membership = currentAssignment?.membership;
     const seatNum = parseInt(seat.number, 10) || 0;
     return {
       ...seat,
       seatNumber: seatNum,
       membership,
-      status: getSeatStatus(membership?.endsAt),
+      status: getSeatStatus(membership?.endsAt, membership?.status),
     };
   });
 
   const seatView = sortByRenewal
     ? [...initialSeatView].sort((a, b) => {
-        const timeA = a.membership ? new Date(a.membership.endsAt).getTime() : Infinity;
-        const timeB = b.membership ? new Date(b.membership.endsAt).getTime() : Infinity;
+        const timeA = a.membership
+          ? new Date(a.membership.endsAt).getTime()
+          : Infinity;
+        const timeB = b.membership
+          ? new Date(b.membership.endsAt).getTime()
+          : Infinity;
         if (timeA !== timeB) return timeA - timeB;
         return a.seatNumber - b.seatNumber;
       })
