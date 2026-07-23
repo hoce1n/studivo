@@ -74,8 +74,10 @@ export type AvailableSeatOption = {
 export type ReserveFormSeat = {
   id: string;
   seatNumber: string;
-  sectionId: string;
+  isActive: boolean;
+  sectionId: string | null;
   sectionName: string;
+  sectionIsActive: boolean;
   status: SeatStatus;
   seatAssignmentId?: string;
   membership?: {
@@ -156,7 +158,7 @@ function getStatusMessage(
   statusLabel: string,
   memberName: string,
   seatNumber: string,
-  studyHallName: string
+  studyHallName: string,
 ): string {
   const baseMessage = `سلام ${memberName} عزیز، از سالن مطالعه ${studyHallName || ""} مزاحمتون میشم. `;
 
@@ -215,7 +217,7 @@ function SeatHistoryTimeline({
 
 function getSmartRenewalPreview(
   currentEndDateISO: string,
-  selectedDate: Date | undefined
+  selectedDate: Date | undefined,
 ) {
   if (!selectedDate) {
     return {
@@ -229,7 +231,7 @@ function getSmartRenewalPreview(
   const currentEndDate = new Date(currentEndDateISO);
   const adjustedDate = endOfDay(selectedDate);
   const daysDifference = Math.ceil(
-    (adjustedDate.getTime() - currentEndDate.getTime()) / (1000 * 60 * 60 * 24)
+    (adjustedDate.getTime() - currentEndDate.getTime()) / (1000 * 60 * 60 * 24),
   );
   const isRealRenewal = daysDifference > 7;
 
@@ -260,16 +262,20 @@ export function ReserveForm({
   open: boolean;
   seat: ReserveFormSeat | null;
   studyHallName: string;
-  returningMember?: { id: string; name: string; phoneNumber: string | null } | null;
+  returningMember?: {
+    id: string;
+    name: string;
+    phoneNumber: string | null;
+  } | null;
   onOpenChange: (open: boolean) => void;
 }) {
   const defaultPlanId = membershipPlans[0]?.id ?? "";
   const [selectedPlanId, setSelectedPlanId] = React.useState(defaultPlanId);
   const [startDate, setStartDate] = React.useState<Date | undefined>(
-    getDefaultStartDate
+    getDefaultStartDate,
   );
   const [endDate, setEndDate] = React.useState<Date | undefined>(() =>
-    addPlanDays(getDefaultStartDate(), membershipPlans[0]?.durationDays ?? 30)
+    addPlanDays(getDefaultStartDate(), membershipPlans[0]?.durationDays ?? 30),
   );
   const [paymentMethod, setPaymentMethod] =
     React.useState<(typeof PAYMENT_METHODS)[number]["value"]>("CASH");
@@ -277,12 +283,12 @@ export function ReserveForm({
     "COMPLETED" | "PENDING"
   >("COMPLETED");
   const [amount, setAmount] = React.useState(
-    String(membershipPlans[0]?.price ?? 0)
+    String(membershipPlans[0]?.price ?? 0),
   );
   const [note, setNote] = React.useState("");
 
   const [renewDate, setRenewDate] = React.useState<Date | undefined>(() =>
-    addPlanDays(getDefaultStartDate(), 30)
+    addPlanDays(getDefaultStartDate(), 30),
   );
   const [swapSeatId, setSwapSeatId] = React.useState("");
   const [managePaymentMethod, setManagePaymentMethod] =
@@ -295,7 +301,7 @@ export function ReserveForm({
   const [paymentPending, startPaymentTransition] = React.useTransition();
 
   const [currentSeat, setCurrentSeat] = React.useState<ReserveFormSeat | null>(
-    seat
+    seat,
   );
 
   const selectedPlan =
@@ -328,7 +334,7 @@ export function ReserveForm({
       setEndDate(addPlanDays(start, plan.durationDays));
       setAmount(String(plan.price));
     },
-    []
+    [],
   );
 
   const isAvailable = currentSeat?.status === "available";
@@ -339,7 +345,7 @@ export function ReserveForm({
       membership
         ? getSmartRenewalPreview(membership.endDateISO, renewDate)
         : null,
-    [membership, renewDate]
+    [membership, renewDate],
   );
 
   const swapSections = React.useMemo(() => {
@@ -351,18 +357,21 @@ export function ReserveForm({
   }, [availableSeats]);
 
   const [swapSectionId, setSwapSectionId] = React.useState(
-    swapSections[0]?.id ?? ""
+    swapSections[0]?.id ?? "",
   );
 
   React.useEffect(() => {
-    if (swapSections.length && !swapSections.some((s) => s.id === swapSectionId)) {
+    if (
+      swapSections.length &&
+      !swapSections.some((s) => s.id === swapSectionId)
+    ) {
       setSwapSectionId(swapSections[0]?.id ?? "");
     }
   }, [swapSections, swapSectionId]);
 
   const swapSeatsInSection = availableSeats.filter(
     (option) =>
-      option.sectionId === swapSectionId && option.id !== currentSeat?.id
+      option.sectionId === swapSectionId && option.id !== currentSeat?.id,
   );
 
   const handleStartDateChange = (selectedDate: Date | undefined) => {
@@ -391,11 +400,11 @@ export function ReserveForm({
       seat.status,
       membership.memberName,
       seat.seatNumber,
-      studyHallName
+      studyHallName,
     );
     window.open(
       `sms:${membership.phoneNumber}?body=${encodeURIComponent(message)}`,
-      "_blank"
+      "_blank",
     );
   }
 
@@ -407,7 +416,7 @@ export function ReserveForm({
       try {
         const result = await renewMembership(
           membership.id,
-          adjustedDate.toISOString()
+          adjustedDate.toISOString(),
         );
         if (!result.success) {
           throw new Error(result.error || "تمدید عضویت ناموفق بود.");
@@ -438,13 +447,13 @@ export function ReserveForm({
           throw new Error(result.error || "جابجایی صندلی ناموفق بود.");
         }
         toast.success(
-          result.message || "دانش‌آموز با موفقیت به صندلی جدید منتقل شد."
+          result.message || "دانش‌آموز با موفقیت به صندلی جدید منتقل شد.",
         );
         onOpenChange(false);
       } catch (error) {
         const message = getActionErrorMessage(
           error,
-          "جابجایی صندلی ناموفق بود."
+          "جابجایی صندلی ناموفق بود.",
         );
         setSwapError(message);
         toast.error(message);
@@ -472,7 +481,7 @@ export function ReserveForm({
     if (!membership) return;
     if (membership.paymentStatus === "paid") {
       toast.warning(
-        "پرداخت قبلاً ثبت شده است؛ ابطال از طریق بخش مالی انجام شود."
+        "پرداخت قبلاً ثبت شده است؛ ابطال از طریق بخش مالی انجام شود.",
       );
       return;
     }
@@ -500,7 +509,7 @@ export function ReserveForm({
                   status: "ACTIVE",
                 },
               }
-            : previous
+            : previous,
         );
         toast.success(result.message || "پرداخت با موفقیت ثبت شد.");
       } catch (error) {
@@ -565,7 +574,11 @@ export function ReserveForm({
                     />
                   </Field>
 
-                  <input type="hidden" name="seatId" value={currentSeat?.id ?? ""} />
+                  <input
+                    type="hidden"
+                    name="seatId"
+                    value={currentSeat?.id ?? ""}
+                  />
                   <Field>
                     <FieldLabel>بخش / صندلی</FieldLabel>
                     <Input
@@ -578,7 +591,9 @@ export function ReserveForm({
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="membershipPlanId">طرح عضویت</FieldLabel>
+                    <FieldLabel htmlFor="membershipPlanId">
+                      طرح عضویت
+                    </FieldLabel>
                     <select
                       id="membershipPlanId"
                       name="membershipPlanId"
@@ -600,7 +615,8 @@ export function ReserveForm({
                     {selectedPlan ? (
                       <p className="text-xs text-muted-foreground">
                         اسنپ‌شات: {selectedPlan.name} /{" "}
-                        {selectedPlan.durationDays.toLocaleString("fa-IR")} روز /{" "}
+                        {selectedPlan.durationDays.toLocaleString("fa-IR")} روز
+                        /{" "}
                         {selectedPlan.hasFixedSeat
                           ? "صندلی ثابت"
                           : "بدون صندلی ثابت"}
@@ -622,7 +638,7 @@ export function ReserveForm({
                           variant="outline"
                           className={cn(
                             "w-full justify-start text-right font-normal",
-                            !startDate && "text-muted-foreground"
+                            !startDate && "text-muted-foreground",
                           )}
                         >
                           <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
@@ -659,7 +675,7 @@ export function ReserveForm({
                           variant="outline"
                           className={cn(
                             "w-full justify-start text-right font-normal",
-                            !endDate && "text-muted-foreground"
+                            !endDate && "text-muted-foreground",
                           )}
                         >
                           <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
@@ -686,7 +702,8 @@ export function ReserveForm({
                       </PopoverContent>
                     </Popover>
                     <p className="text-xs text-muted-foreground">
-                      با انتخاب طرح، پایان از روی durationDays پر می‌شود؛ قابل ویرایش است.
+                      با انتخاب طرح، پایان از روی durationDays پر می‌شود؛ قابل
+                      ویرایش است.
                     </p>
                   </Field>
 
@@ -700,7 +717,7 @@ export function ReserveForm({
                       onChange={(event) =>
                         setPaymentMethod(
                           event.target
-                            .value as (typeof PAYMENT_METHODS)[number]["value"]
+                            .value as (typeof PAYMENT_METHODS)[number]["value"],
                         )
                       }
                       disabled={pending}
@@ -714,7 +731,9 @@ export function ReserveForm({
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="paymentStatus">وضعیت پرداخت</FieldLabel>
+                    <FieldLabel htmlFor="paymentStatus">
+                      وضعیت پرداخت
+                    </FieldLabel>
                     <select
                       id="paymentStatus"
                       name="paymentStatus"
@@ -722,7 +741,7 @@ export function ReserveForm({
                       value={paymentStatus}
                       onChange={(event) =>
                         setPaymentStatus(
-                          event.target.value as "COMPLETED" | "PENDING"
+                          event.target.value as "COMPLETED" | "PENDING",
                         )
                       }
                       disabled={pending}
@@ -768,7 +787,11 @@ export function ReserveForm({
                       membershipPlans.length === 0
                     }
                   >
-                    {pending ? <Loader className="animate-spin" /> : "ثبت عضویت"}
+                    {pending ? (
+                      <Loader className="animate-spin" />
+                    ) : (
+                      "ثبت عضویت"
+                    )}
                   </Button>
                 </FieldGroup>
               )}
@@ -837,10 +860,12 @@ export function ReserveForm({
                     onChange={(event) =>
                       setManagePaymentMethod(
                         event.target
-                          .value as (typeof PAYMENT_METHODS)[number]["value"]
+                          .value as (typeof PAYMENT_METHODS)[number]["value"],
                       )
                     }
-                    disabled={paymentPending || membership.paymentStatus === "paid"}
+                    disabled={
+                      paymentPending || membership.paymentStatus === "paid"
+                    }
                   >
                     {PAYMENT_METHODS.map((method) => (
                       <option key={method.value} value={method.value}>
@@ -851,14 +876,18 @@ export function ReserveForm({
                   <Button
                     type="button"
                     variant={
-                      membership.paymentStatus === "paid" ? "outline" : "default"
+                      membership.paymentStatus === "paid"
+                        ? "outline"
+                        : "default"
                     }
                     className={cn(
                       membership.paymentStatus === "paid" &&
-                        "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        "border-emerald-200 bg-emerald-50 text-emerald-700",
                     )}
                     onClick={handleRecordPayment}
-                    disabled={paymentPending || membership.paymentStatus === "paid"}
+                    disabled={
+                      paymentPending || membership.paymentStatus === "paid"
+                    }
                   >
                     {paymentPending ? (
                       <Loader className="animate-spin" />
@@ -937,7 +966,9 @@ export function ReserveForm({
                         className={selectClassName}
                         value={swapSeatId}
                         onChange={(event) => setSwapSeatId(event.target.value)}
-                        disabled={swapPending || swapSeatsInSection.length === 0}
+                        disabled={
+                          swapPending || swapSeatsInSection.length === 0
+                        }
                       >
                         <option value="">صندلی مقصد</option>
                         {swapSeatsInSection.map((option) => (

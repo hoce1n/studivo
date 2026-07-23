@@ -74,88 +74,94 @@ export default async function Page({ searchParams }: PageProps) {
     role: assignment.role,
   };
 
-
-  const [seats, membershipPlans, staffAssignments, membersCount, returningMember] =
-    await Promise.all([
-      prisma.seat.findMany({
-        where: { section: { studyHallId } },
-        orderBy: { number: "asc" },
-        include: {
-          section: { select: { id: true, name: true } },
-          assignments: {
-            // Active (endsAt null) + recent history for the seat sheet
-            take: 15,
-            orderBy: { createdAt: "desc" },
-            include: {
-              membership: {
-                select: {
-                  id: true,
-                  status: true,
-                  startsAt: true,
-                  endsAt: true,
-                  planName: true,
-                  planDurationDays: true,
-                  planPrice: true,
-                  hasFixedSeat: true,
-                  user: {
-                    select: { name: true, phoneNumber: true },
-                  },
-                  payments: {
-                    where: { status: { in: ["COMPLETED", "PENDING"] } },
-                    select: { id: true, status: true, method: true },
-                    orderBy: { createdAt: "desc" },
-                    take: 1,
-                  },
+  const [
+    seats,
+    membershipPlans,
+    staffAssignments,
+    membersCount,
+    returningMember,
+  ] = await Promise.all([
+    prisma.seat.findMany({
+      where: { section: { studyHallId } },
+      orderBy: { number: "asc" },
+      include: {
+        section: { select: { id: true, name: true, isActive: true } },
+        assignments: {
+          // Active (endsAt null) + recent history for the seat sheet
+          take: 15,
+          orderBy: { createdAt: "desc" },
+          include: {
+            membership: {
+              select: {
+                id: true,
+                status: true,
+                startsAt: true,
+                endsAt: true,
+                planName: true,
+                planDurationDays: true,
+                planPrice: true,
+                hasFixedSeat: true,
+                user: {
+                  select: { name: true, phoneNumber: true },
+                },
+                payments: {
+                  where: { status: { in: ["COMPLETED", "PENDING"] } },
+                  select: { id: true, status: true, method: true },
+                  orderBy: { createdAt: "desc" },
+                  take: 1,
                 },
               },
             },
           },
         },
-      }),
-      prisma.membershipPlan.findMany({
-        where: { studyHallId, isActive: true },
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          name: true,
-          durationDays: true,
-          price: true,
-          hasFixedSeat: true,
+      },
+    }),
+    prisma.membershipPlan.findMany({
+      where: { studyHallId, isActive: true },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        durationDays: true,
+        price: true,
+        hasFixedSeat: true,
+      },
+    }),
+    prisma.staffAssignment.findMany({
+      where: { studyHallId, isActive: true },
+      orderBy: { createdAt: "desc" },
+      select: {
+        user: {
+          select: { id: true, name: true, email: true },
         },
-      }),
-      prisma.staffAssignment.findMany({
-        where: { studyHallId, isActive: true },
-        orderBy: { createdAt: "desc" },
-        select: {
-          user: {
-            select: { id: true, name: true, email: true },
-          },
-        },
-      }),
-      prisma.membership.count({
-        where: { studyHallId, status: "ACTIVE" },
-      }),
-      returningMemberId
-        ? prisma.user.findFirst({
-            where: { id: returningMemberId },
-            select: { id: true, name: true, phoneNumber: true },
-          })
-        : Promise.resolve(null),
-    ]);
+      },
+    }),
+    prisma.membership.count({
+      where: { studyHallId, status: "ACTIVE" },
+    }),
+    returningMemberId
+      ? prisma.user.findFirst({
+          where: { id: returningMemberId },
+          select: { id: true, name: true, phoneNumber: true },
+        })
+      : Promise.resolve(null),
+  ]);
 
   const staff = staffAssignments.map((s) => s.user);
 
   const { stats, activeRevenue, atRiskRevenue } = processSeatData(
     seats,
-    shouldSortByRenewal
+    shouldSortByRenewal,
   );
 
   // Client components cannot receive Prisma Decimal — serialize for the map.
   const seatsForMap = seats.map((seat) => ({
     id: seat.id,
     number: seat.number,
+    isActive: seat.isActive,
     sectionId: seat.section.id,
     sectionName: seat.section.name,
+    sectionIsActive: seat.section.isActive,
     assignments: seat.assignments.map((assignment) => ({
       id: assignment.id,
       startsAt: assignment.startsAt,
@@ -176,7 +182,7 @@ export default async function Page({ searchParams }: PageProps) {
   }));
 
   const availableSeatsForSwap = seatsForMap
-    .filter((seat) => !getActiveAssignment(seat.assignments))
+    .filter((seat) => seat.isActive && !getActiveAssignment(seat.assignments))
     .map((seat) => ({
       id: seat.id,
       number: seat.number,
@@ -201,9 +207,7 @@ export default async function Page({ searchParams }: PageProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="muted">
-            {isOwner ? "مدیر سالن" : "مراقب سالن"}
-          </Badge>
+          <Badge variant="muted">{isOwner ? "مدیر سالن" : "مراقب سالن"}</Badge>
           <Badge variant="outline" className="gap-1.5">
             <span
               className="inline-block size-1.5 rounded-full bg-emerald-500"

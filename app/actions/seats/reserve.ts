@@ -2,11 +2,17 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { actionError, revalidateOperationalPaths } from "@/app/actions/audit/helpers";
+import {
+  actionError,
+  revalidateOperationalPaths,
+} from "@/app/actions/audit/helpers";
 import type { ActionResult } from "@/app/actions/audit/helpers";
 import { requireScopedUser } from "@/app/actions/auth/verify-role";
 import { isOccupyingAssignment } from "@/app/dashboard/_lib/dashboard-utils";
-import type { PaymentMethod, PaymentStatus } from "@/lib/generated/prisma/client";
+import type {
+  PaymentMethod,
+  PaymentStatus,
+} from "@/lib/generated/prisma/client";
 
 const START_DATE_MAX_PAST_DAYS = 30;
 
@@ -19,14 +25,22 @@ function startOfDay(date: Date) {
 const reservationSchema = z
   .object({
     seatId: z.string().cuid({ message: "شناسه صندلی معتبر نیست." }),
-    membershipPlanId: z.string().cuid({ message: "شناسه طرح عضویت معتبر نیست." }),
-    memberName: z.string().trim().min(2, "نام دانش‌آموز باید حداقل ۲ حرف باشد."),
+    membershipPlanId: z
+      .string()
+      .cuid({ message: "شناسه طرح عضویت معتبر نیست." }),
+    memberName: z
+      .string()
+      .trim()
+      .min(2, "نام دانش‌آموز باید حداقل ۲ حرف باشد."),
     phoneNumber: z.string().trim().min(10, "شماره تلفن معتبر نیست."),
     startsAt: z.coerce.date("تاریخ شروع معتبر نیست."),
     endsAt: z.coerce.date("تاریخ پایان معتبر نیست."),
     paymentMethod: z.enum(["CASH", "POS", "CARD_TO_CARD", "ONLINE"]),
     paymentStatus: z.enum(["COMPLETED", "PENDING"]),
-    amount: z.coerce.number().positive("مبلغ باید بزرگتر از صفر باشد.").optional(),
+    amount: z.coerce
+      .number()
+      .positive("مبلغ باید بزرگتر از صفر باشد.")
+      .optional(),
     note: z.string().trim().max(250).optional(),
   })
   .superRefine((data, ctx) => {
@@ -40,7 +54,7 @@ const reservationSchema = z
 
     const oldestAllowedStartDate = startOfDay(new Date());
     oldestAllowedStartDate.setDate(
-      oldestAllowedStartDate.getDate() - START_DATE_MAX_PAST_DAYS
+      oldestAllowedStartDate.getDate() - START_DATE_MAX_PAST_DAYS,
     );
 
     if (startOfDay(data.startsAt) < oldestAllowedStartDate) {
@@ -72,13 +86,16 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
     paymentStatus: formData.get("paymentStatus") || "COMPLETED",
     amount: formData.get("amount") || undefined,
     note:
-      typeof noteRaw === "string" && noteRaw.trim() ? noteRaw.trim() : undefined,
+      typeof noteRaw === "string" && noteRaw.trim()
+        ? noteRaw.trim()
+        : undefined,
   });
 
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? "اطلاعات رزرو صندلی معتبر نیست.",
+      error:
+        parsed.error.issues[0]?.message ?? "اطلاعات رزرو صندلی معتبر نیست.",
     };
   }
 
@@ -100,6 +117,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
       const seat = await tx.seat.findFirst({
         where: {
           id: seatId,
+          isActive: true,
           section: { studyHallId },
         },
         select: {
@@ -179,7 +197,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
         throw new Error(
           occupiedSeat
             ? `این شماره تلفن هم‌اکنون صندلی ${occupiedSeat} را در این سالن دارد.`
-            : "این شماره تلفن هم‌اکنون یک اشتراک فعال در این سالن دارد."
+            : "این شماره تلفن هم‌اکنون یک اشتراک فعال در این سالن دارد.",
         );
       }
 

@@ -4,13 +4,6 @@ import { Building2, Settings2 } from "lucide-react";
 import { SettingsTabs } from "@/app/dashboard/settings/_components/settings-tabs";
 import { prisma } from "@/lib/db";
 
-type HallSeatReader = {
-  findMany(args: {
-    where: { studyHallId: string; sectionId: null };
-    orderBy: { number: "asc" };
-    select: { id: true; number: true; isActive: true; sectionId: true };
-  }): Promise<{ id: string; number: string; isActive: boolean; sectionId: string | null }[]>;
-};
 import { getSession } from "@/lib/server";
 
 export default async function HallSettingsPage() {
@@ -34,7 +27,7 @@ export default async function HallSettingsPage() {
   if (!user || !assignment) redirect("/onboarding");
   if (assignment.role !== "OWNER") redirect("/dashboard");
 
-  const [studyHall, sections, unassignedSeats, plans, staff] = await Promise.all([
+  const [studyHall, sections, plans, staff] = await Promise.all([
     prisma.studyHall.findUnique({
       where: { id: assignment.studyHallId },
       select: {
@@ -58,18 +51,24 @@ export default async function HallSettingsPage() {
         description: true,
         isActive: true,
         _count: { select: { seats: true } },
-        seats: { orderBy: { number: "asc" }, select: { id: true, number: true, isActive: true, sectionId: true } },
+        seats: {
+          orderBy: { number: "asc" },
+          select: { id: true, number: true, isActive: true, sectionId: true },
+        },
       },
-    }),
-    (prisma.seat as unknown as HallSeatReader).findMany({
-      where: { studyHallId: assignment.studyHallId, sectionId: null },
-      orderBy: { number: "asc" },
-      select: { id: true, number: true, isActive: true, sectionId: true },
     }),
     prisma.membershipPlan.findMany({
       where: { studyHallId: assignment.studyHallId },
       orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-      select: { id: true, name: true, durationDays: true, price: true, hasFixedSeat: true, description: true, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        durationDays: true,
+        price: true,
+        hasFixedSeat: true,
+        description: true,
+        isActive: true,
+      },
     }),
     prisma.staffAssignment.findMany({
       where: { studyHallId: assignment.studyHallId },
@@ -87,7 +86,17 @@ export default async function HallSettingsPage() {
 
   if (!studyHall) redirect("/onboarding");
 
-  const normalizedPlans = plans.map((plan: (typeof plans)[number]) => ({ ...plan, price: Number(plan.price) }));
+  const unassignedSeats: {
+    id: string;
+    number: string;
+    isActive: boolean;
+    sectionId: string | null;
+  }[] = [];
+
+  const normalizedPlans = plans.map((plan: (typeof plans)[number]) => ({
+    ...plan,
+    price: Number(plan.price),
+  }));
   const normalizedStaff = staff.map((item: (typeof staff)[number]) => ({
     ...item,
     startDate: item.startDate.toISOString(),
@@ -110,7 +119,8 @@ export default async function HallSettingsPage() {
                 تنظیمات سالن
               </h1>
               <p className="mt-3 max-w-2xl leading-8 text-muted-foreground">
-                مشخصات عمومی، بخش‌ها، صندلی‌های فعال و خارج از سرویس، پلن‌های عضویت و همکاران سالن را از یک فضای تب‌بندی‌شده مدیریت کنید.
+                مشخصات عمومی، بخش‌ها، صندلی‌های فعال و خارج از سرویس، پلن‌های
+                عضویت و همکاران سالن را از یک فضای تب‌بندی‌شده مدیریت کنید.
               </p>
             </div>
           </div>
@@ -120,7 +130,13 @@ export default async function HallSettingsPage() {
         </div>
       </section>
 
-      <SettingsTabs hall={studyHall} sections={sections} unassignedSeats={unassignedSeats} plans={normalizedPlans} staff={normalizedStaff} />
+      <SettingsTabs
+        hall={studyHall}
+        sections={sections}
+        unassignedSeats={unassignedSeats}
+        plans={normalizedPlans}
+        staff={normalizedStaff}
+      />
     </section>
   );
 }

@@ -2,7 +2,10 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { actionError, revalidateOperationalPaths } from "@/app/actions/audit/helpers";
+import {
+  actionError,
+  revalidateOperationalPaths,
+} from "@/app/actions/audit/helpers";
 import type { ActionResult } from "@/app/actions/audit/helpers";
 import { requireScopedUser } from "@/app/actions/auth/verify-role";
 import { isOccupyingAssignment } from "@/app/dashboard/_lib/dashboard-utils";
@@ -22,7 +25,9 @@ const swapSeatSchema = z.object({
 /**
  * Releases a seat assignment by setting endsAt timestamp and cancelling membership.
  */
-export async function releaseSeat(seatAssignmentId: string): Promise<ActionResult> {
+export async function releaseSeat(
+  seatAssignmentId: string,
+): Promise<ActionResult> {
   const user = await requireScopedUser();
   const { studyHallId } = user;
   const parsed = releaseSeatSchema.safeParse({ seatAssignmentId });
@@ -112,7 +117,7 @@ export async function releaseSeat(seatAssignmentId: string): Promise<ActionResul
  */
 export async function swapSeat(
   seatAssignmentId: string,
-  targetSeatId: string | number
+  targetSeatId: string | number,
 ): Promise<ActionResult> {
   const user = await requireScopedUser();
   const { studyHallId } = user;
@@ -133,6 +138,7 @@ export async function swapSeat(
         targetSeat = await tx.seat.findFirst({
           where: {
             id: parsed.data.targetSeatId,
+            isActive: true,
             section: { studyHallId },
           },
           select: { id: true, number: true },
@@ -141,6 +147,7 @@ export async function swapSeat(
         const matches = await tx.seat.findMany({
           where: {
             number: String(parsed.data.targetSeatId),
+            isActive: true,
             section: { studyHallId },
           },
           select: { id: true, number: true },
@@ -149,7 +156,7 @@ export async function swapSeat(
 
         if (matches.length > 1) {
           throw new Error(
-            "چند صندلی با این شماره در بخش‌های مختلف وجود دارد. لطفاً صندلی را دقیق‌تر مشخص کنید."
+            "چند صندلی با این شماره در بخش‌های مختلف وجود دارد. لطفاً صندلی را دقیق‌تر مشخص کنید.",
           );
         }
 
@@ -175,7 +182,9 @@ export async function swapSeat(
       });
 
       if (targetAssignments.some(isOccupyingAssignment)) {
-        throw new Error(`صندلی شماره ${targetSeat.number} در حال حاضر اشغال است.`);
+        throw new Error(
+          `صندلی شماره ${targetSeat.number} در حال حاضر اشغال است.`,
+        );
       }
 
       const current = await tx.seatAssignment.findFirst({
@@ -247,5 +256,8 @@ export async function swapSeat(
   }
 
   revalidateOperationalPaths();
-  return { success: true, message: "دانش‌آموز با موفقیت به صندلی جدید منتقل شد." };
+  return {
+    success: true,
+    message: "دانش‌آموز با موفقیت به صندلی جدید منتقل شد.",
+  };
 }
