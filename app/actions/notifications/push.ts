@@ -37,22 +37,17 @@ export async function subscribeUser(
   const userAgent = requestHeaders.get("user-agent");
 
   try {
-    await prisma.pushSubscription.upsert({
-      where: { endpoint: parsed.data.endpoint },
-      create: {
-        userId: user.id,
-        endpoint: parsed.data.endpoint,
-        p256dh: parsed.data.keys.p256dh,
-        auth: parsed.data.keys.auth,
-        userAgent,
-      },
-      update: {
-        userId: user.id,
-        p256dh: parsed.data.keys.p256dh,
-        auth: parsed.data.keys.auth,
-        userAgent,
-      },
-    });
+    const existing = await prisma.pushSubscription.findFirst({ where: { endpoint: parsed.data.endpoint }, select: { id: true } });
+    if (existing) {
+      await prisma.pushSubscription.update({
+        where: { id: existing.id },
+        data: { userId: user.id, p256dh: parsed.data.keys.p256dh, auth: parsed.data.keys.auth, userAgent },
+      });
+    } else {
+      await prisma.pushSubscription.create({
+        data: { userId: user.id, endpoint: parsed.data.endpoint, p256dh: parsed.data.keys.p256dh, auth: parsed.data.keys.auth, userAgent },
+      });
+    }
 
     return {
       success: true,
@@ -172,13 +167,13 @@ export async function getPushSubscriptionStatus(): Promise<{
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
-      role: true,
+      staffAssignments: { where: { isActive: true }, select: { role: true }, take: 1 },
       pushSubscriptions: { select: { id: true }, take: 1 },
     },
   });
 
   return {
     subscribed: (user?.pushSubscriptions.length ?? 0) > 0,
-    role: user?.role ?? null,
+    role: user?.staffAssignments[0]?.role ?? null,
   };
 }

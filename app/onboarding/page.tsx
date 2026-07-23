@@ -7,9 +7,7 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { completeOnboarding } from "@/app/actions/studyhall/mutations";
-
-import OnboardingForm from "@/components/onboarding-form";
+import { OnboardingWizard } from "@/app/onboarding/_components/onboarding-wizard";
 import {
   Card,
   CardContent,
@@ -133,7 +131,7 @@ export default async function OnboardingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-0 pb-0">
-                <OnboardingForm action={completeOnboarding} />
+                <OnboardingWizard />
               </CardContent>
             </div>
           </div>

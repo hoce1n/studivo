@@ -66,13 +66,13 @@ export default async function FinancePage({ searchParams }: { searchParams: Fina
     {
       title: "درآمد فعال",
       value: formatMoney(stats?.activeRevenue),
-      hint: `${formatNumber(stats?.paidActiveSubscriptions)} اشتراک فعال پرداخت‌شده`,
+      hint: `${formatNumber(stats?.paidActiveMemberships)} اشتراک فعال پرداخت‌شده`,
       icon: Banknote,
     },
     {
       title: "نرخ اشغال",
       value: `${formatNumber(stats?.occupancyRate)}٪`,
-      hint: `${formatNumber(stats?.activeSubscriptions)} از ${formatNumber(stats?.totalSeats)} صندلی فعال`,
+      hint: `${formatNumber(stats?.activeMemberships)} از ${formatNumber(stats?.totalSeats)} صندلی فعال`,
       icon: UsersRound,
     },
   ];
@@ -146,17 +146,17 @@ export default async function FinancePage({ searchParams }: { searchParams: Fina
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {overdue?.overdueSubscriptions.length ? (
-                    overdue.overdueSubscriptions.map((item) => (
+                  {overdue?.overdueMemberships.length ? (
+                    overdue.overdueMemberships.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>
                           <div className="font-medium">{item.user.name}</div>
                           <div className="text-xs text-muted-foreground">{item.user.phoneNumber ?? "بدون شماره"}</div>
                         </TableCell>
-                        <TableCell>{formatNumber(item.seat.seatNumber)}</TableCell>
-                        <TableCell>{formatDate(item.startDate)}</TableCell>
-                        <TableCell>{formatDate(item.endDate)}</TableCell>
-                        <TableCell className="font-medium">{formatMoney(item.amount)}</TableCell>
+                        <TableCell>{item.seatNumber}</TableCell>
+                        <TableCell>{formatDate(item.startsAt)}</TableCell>
+                        <TableCell>{formatDate(item.endsAt)}</TableCell>
+                        <TableCell className="font-medium">{formatMoney(item.planPrice)}</TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -200,7 +200,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Fina
                       <div>
                         <p className="font-medium">{item.user.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          صندلی {formatNumber(item.seat.seatNumber)} · {formatDate(item.paymentDate ?? item.fallbackDate)}
+                          صندلی {item.seatNumber} · {formatDate(item.paidAt)}
                         </p>
                       </div>
                       <span className="font-semibold">{formatMoney(item.amount)}</span>

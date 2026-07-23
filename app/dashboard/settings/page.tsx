@@ -54,6 +54,10 @@ export default async function HallSettingsPage() {
   }
 
   const studyHall = assignment.studyHall;
+  const [totalSeats, defaultPlan] = await Promise.all([
+    prisma.seat.count({ where: { section: { studyHallId: studyHall.id } } }),
+    prisma.membershipPlan.findFirst({ where: { studyHallId: studyHall.id, isActive: true }, orderBy: { createdAt: "asc" }, select: { price: true } }),
+  ]);
 
   return (
     <section className="flex flex-1 flex-col gap-6 p-4 md:p-6" dir="rtl">
@@ -81,7 +85,16 @@ export default async function HallSettingsPage() {
         </div>
       </section>
 
-      <HallSettingsForm studyHall={studyHall} />
+      <HallSettingsForm studyHall={{
+        name: studyHall.name,
+        totalSeats,
+        monthlyFee: Number(defaultPlan?.price ?? 0),
+        gender: studyHall.gender === "FEMALE" ? "female" : "male",
+        address: studyHall.address ?? "",
+        reminderDaysBefore: 3,
+        renewalRemindersEnabled: true,
+        expiryRemindersEnabled: true,
+      }} />
 
       <PublicPageSettingsForm
         studyHall={{
