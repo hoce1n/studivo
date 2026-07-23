@@ -16,9 +16,8 @@ import { onboardingSchema, type OnboardingValues } from "@/lib/validations/onboa
 
 const DEFAULT_SECTION: OnboardingValues["sections"][number] = {
   name: "سالن اصلی",
-  mode: "AUTO",
-  seatCount: 30,
-  manualSeats: "",
+  description: "",
+  seatNumbers: [],
 };
 
 const DEFAULT_PLAN: OnboardingValues["plans"][number] = {
@@ -35,7 +34,7 @@ const initialValues: OnboardingValues = {
   address: "",
   description: "",
   hasSections: false,
-  seatCount: 30,
+  seatInventory: { mode: "AUTO", seatCount: 30, prefix: "", start: 1, manualSeats: "" },
   sections: [DEFAULT_SECTION],
   plans: [DEFAULT_PLAN],
 };
@@ -54,7 +53,8 @@ export function OnboardingWizard() {
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
 
-  const visibleSections = values.hasSections ? values.sections : [values.sections[0] ?? DEFAULT_SECTION];
+  const inventorySeats = React.useMemo(() => values.seatInventory.mode === "AUTO" ? Array.from({ length: values.seatInventory.seatCount }, (_, index) => `${values.seatInventory.prefix ?? ""}${(values.seatInventory.start ?? 1) + index}`) : values.seatInventory.manualSeats.split(",").map((seat) => seat.trim()).filter(Boolean), [values.seatInventory]);
+  const visibleSections = values.hasSections ? values.sections : [values.sections[0] ?? { ...DEFAULT_SECTION, seatNumbers: inventorySeats }];
 
   function updateField<K extends keyof OnboardingValues>(key: K, value: OnboardingValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -120,7 +120,7 @@ export function OnboardingWizard() {
 
     const payload: OnboardingValues = {
       ...values,
-      sections: values.hasSections ? values.sections : [cloneSection(values.sections[0] ?? DEFAULT_SECTION)],
+      sections: values.hasSections ? values.sections : [{ ...cloneSection(values.sections[0] ?? DEFAULT_SECTION), seatNumbers: inventorySeats }],
       plans: values.plans.map(clonePlan),
     };
 
@@ -234,101 +234,33 @@ export function OnboardingWizard() {
             />
           </Field>
 
-          {!values.hasSections ? (
+          <div className="grid gap-4 rounded-3xl border bg-muted/20 p-4 md:grid-cols-4">
             <Field>
-              <FieldLabel htmlFor="seat-count">تعداد صندلی‌ها</FieldLabel>
-              <Input
-                id="seat-count"
-                type="number"
-                min={1}
-                max={500}
-                value={values.seatCount}
-                onChange={(event) => updateField("seatCount", Number(event.target.value))}
-                required
-              />
+              <FieldLabel>روش ساخت موجودی</FieldLabel>
+              <Select value={values.seatInventory.mode} onValueChange={(mode: "AUTO" | "MANUAL") => updateField("seatInventory", mode === "AUTO" ? { mode, seatCount: 30, prefix: "", start: 1, manualSeats: "" } : { mode, manualSeats: inventorySeats.join(", "), seatCount: 30, prefix: "", start: 1 })}>
+                <SelectTrigger className="h-10 rounded-2xl"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="AUTO">تولید بازه‌ای</SelectItem><SelectItem value="MANUAL">برچسب‌های دستی</SelectItem></SelectContent>
+              </Select>
             </Field>
-          ) : null}
+            {values.seatInventory.mode === "AUTO" ? <>
+              <Field><FieldLabel>پیشوند</FieldLabel><Input value={values.seatInventory.prefix ?? ""} onChange={(event) => updateField("seatInventory", { ...values.seatInventory, prefix: event.target.value })} placeholder="A-" /></Field>
+              <Field><FieldLabel>شروع</FieldLabel><Input type="number" min={1} value={values.seatInventory.start} onChange={(event) => updateField("seatInventory", { ...values.seatInventory, start: Number(event.target.value) })} /></Field>
+              <Field><FieldLabel>تعداد کل صندلی‌ها</FieldLabel><Input type="number" min={1} max={500} value={values.seatInventory.seatCount} onChange={(event) => updateField("seatInventory", { ...values.seatInventory, seatCount: Number(event.target.value) })} /></Field>
+            </> : <Field><FieldLabel>برچسب صندلی‌ها</FieldLabel><Input value={values.seatInventory.manualSeats} onChange={(event) => updateField("seatInventory", { ...values.seatInventory, manualSeats: event.target.value })} placeholder="1, 2, A-1, A-2" /></Field>}
+          </div>
+
+          <p className="text-sm text-muted-foreground">{inventorySeats.length.toLocaleString("fa-IR")} صندلی در موجودی سالن تعریف شده است. بخش‌ها فقط همین صندلی‌ها را انتخاب می‌کنند.</p>
 
           {values.hasSections ? (
             <div className="space-y-4">
               {visibleSections.map((section, index) => (
                 <div key={`${section.name}-${index}`} className="space-y-4 rounded-3xl border p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 font-bold">
-                      <Armchair className="size-4 text-muted-foreground" />
-                      بخش {index + 1}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeSection(index)}
-                      disabled={values.sections.length === 1}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-
-                  <Field>
-                    <FieldLabel>نام بخش</FieldLabel>
-                    <Input
-                      value={section.name}
-                      onChange={(event) => updateSection(index, { ...section, name: event.target.value })}
-                      required
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel>روش ساخت صندلی</FieldLabel>
-                    <Select
-                      value={section.mode}
-                      onValueChange={(mode: "AUTO" | "MANUAL") => {
-                        updateSection(index, mode === "AUTO"
-                          ? { name: section.name, mode, seatCount: section.seatCount ?? 1, manualSeats: section.manualSeats ?? "" }
-                          : { name: section.name, mode, seatCount: section.seatCount ?? 1, manualSeats: section.manualSeats ?? "" });
-                      }}
-                    >
-                      <SelectTrigger className="h-10 w-full rounded-2xl border-input bg-background">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="AUTO">خودکار ۱ تا N</SelectItem>
-                        <SelectItem value="MANUAL">ورود دستی با کاما</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  {section.mode === "AUTO" ? (
-                    <Field>
-                      <FieldLabel>تعداد صندلی</FieldLabel>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={500}
-                        value={section.seatCount}
-                        onChange={(event) => updateSection(index, { ...section, seatCount: Number(event.target.value) })}
-                        required
-                      />
-                    </Field>
-                  ) : (
-                    <Field>
-                      <FieldLabel>شماره صندلی‌ها</FieldLabel>
-                      <Input
-                        value={section.manualSeats}
-                        onChange={(event) => updateSection(index, { ...section, manualSeats: event.target.value })}
-                        placeholder="1, 2, A1, A2"
-                        required
-                      />
-                      <FieldDescription>شماره‌ها با کاما جدا می‌شوند و فاصله‌های اضافه حذف می‌شود.</FieldDescription>
-                    </Field>
-                  )}
+                  <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2 font-bold"><Armchair className="size-4 text-muted-foreground" />بخش {index + 1}</div><Button type="button" variant="ghost" size="sm" onClick={() => removeSection(index)} disabled={values.sections.length === 1}><Trash2 className="size-4" /></Button></div>
+                  <Field><FieldLabel>نام بخش</FieldLabel><Input value={section.name} onChange={(event) => updateSection(index, { ...section, name: event.target.value })} required /></Field>
+                  <Field><FieldLabel>انتخاب صندلی‌های بخش</FieldLabel><div className="flex flex-wrap gap-2">{inventorySeats.map((seatNumber) => { const checked = section.seatNumbers.includes(seatNumber); const usedElsewhere = values.sections.some((other, otherIndex) => otherIndex !== index && other.seatNumbers.includes(seatNumber)); return <label key={seatNumber} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm data-[disabled=true]:opacity-40" data-disabled={usedElsewhere}><input type="checkbox" disabled={usedElsewhere} checked={checked} onChange={(event) => updateSection(index, { ...section, seatNumbers: event.target.checked ? [...section.seatNumbers, seatNumber] : section.seatNumbers.filter((number) => number !== seatNumber) })} />{seatNumber}</label>; })}</div><FieldDescription>صندلی‌های انتخاب‌شده با ذخیره فرم از طریق Seat.sectionId به این بخش وصل می‌شوند.</FieldDescription></Field>
                 </div>
               ))}
-
-              <Button type="button" variant="secondary" className="w-full" onClick={addSection}>
-                <Plus className="size-4" />
-                افزودن بخش
-              </Button>
+              <Button type="button" variant="secondary" className="w-full" onClick={addSection}><Plus className="size-4" />افزودن بخش</Button>
             </div>
           ) : null}
         </CardContent>

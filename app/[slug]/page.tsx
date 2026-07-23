@@ -46,7 +46,7 @@ async function getVenueBySlug(slug: string) {
       gender: true,
       address: true,
       membershipPlans: { where: { isActive: true }, orderBy: { createdAt: "asc" }, take: 1, select: { price: true } },
-      sections: { select: { _count: { select: { seats: true } } } },
+      seats: { select: { id: true } },
       heroImage: true,
       galleryImages: true,
       createdAt: true,
@@ -160,7 +160,7 @@ export default async function VenuePublicPage({
   if (!hall) notFound();
 
   const address = hall.address ?? "آدرس ثبت نشده";
-  const totalSeats = hall.sections.reduce((sum, section) => sum + section._count.seats, 0);
+  const totalSeats = hall.seats.length;
   const monthlyFee = Number(hall.membershipPlans[0]?.price ?? 0);
   const mapsUrl = buildMapsUrl(address);
   const monthlyFeeDisplay = monthlyFee > 0 ? monthlyFee.toLocaleString("fa-IR") : "تماس بگیرید";

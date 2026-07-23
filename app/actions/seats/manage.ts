@@ -133,7 +133,7 @@ export async function swapSeat(
         targetSeat = await tx.seat.findFirst({
           where: {
             id: parsed.data.targetSeatId,
-            section: { studyHallId },
+            studyHallId,
           },
           select: { id: true, number: true },
         });
@@ -141,7 +141,7 @@ export async function swapSeat(
         const matches = await tx.seat.findMany({
           where: {
             number: String(parsed.data.targetSeatId),
-            section: { studyHallId },
+            studyHallId,
           },
           select: { id: true, number: true },
           take: 2,

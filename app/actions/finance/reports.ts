@@ -180,7 +180,7 @@ export async function fetchOccupancyRevenueStats(): Promise<ActionResult<Occupan
     // 1. Total active seats
     const totalSeats = await prisma.seat.count({
       where: {
-        section: { studyHallId },
+        studyHallId,
         isActive: true,
       },
     });

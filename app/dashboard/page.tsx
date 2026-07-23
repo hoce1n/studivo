@@ -78,7 +78,7 @@ export default async function Page({ searchParams }: PageProps) {
   const [seats, membershipPlans, staffAssignments, membersCount, returningMember] =
     await Promise.all([
       prisma.seat.findMany({
-        where: { section: { studyHallId } },
+        where: { studyHallId },
         orderBy: { number: "asc" },
         include: {
           section: { select: { id: true, name: true } },
@@ -154,8 +154,8 @@ export default async function Page({ searchParams }: PageProps) {
   const seatsForMap = seats.map((seat) => ({
     id: seat.id,
     number: seat.number,
-    sectionId: seat.section.id,
-    sectionName: seat.section.name,
+    sectionId: seat.section?.id ?? "UNASSIGNED",
+    sectionName: seat.section?.name ?? "بدون بخش",
     assignments: seat.assignments.map((assignment) => ({
       id: assignment.id,
       startsAt: assignment.startsAt,

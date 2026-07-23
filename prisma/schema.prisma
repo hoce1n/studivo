@@ -189,6 +189,7 @@ model StudyHall {
   membershipPlans  MembershipPlan[]
   memberships      Membership[]
   sections         Section[]
+  seats            Seat[]
   staffAssignments StaffAssignment[]
   expenses         Expense[]
   auditLogs        AuditLog[]
@@ -215,17 +216,20 @@ model Section {
   @@map("sections")
 }
 model Seat {
-  id        String   @id @default(cuid())
-  sectionId String   @map("section_id")
-  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  number    String
-  isActive  Boolean  @default(true) @map("is_active")
+  id          String    @id @default(cuid())
+  studyHallId String    @map("studyhall_id")
+  studyHall   StudyHall @relation(fields: [studyHallId], references: [id], onDelete: Cascade)
+  sectionId   String?   @map("section_id")
+  section     Section?  @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  number      String
+  isActive    Boolean   @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   assignments SeatAssignment[]
 
-  @@unique([sectionId, number])
+  @@unique([studyHallId, number])
+  @@index([studyHallId])
   @@index([sectionId])
   @@map("seats")
 }

@@ -9,14 +9,17 @@ import { onboardingSchema, type OnboardingValues } from "@/lib/validations/onboa
 import type { ActionResult } from "@/app/actions/audit/helpers";
 
 function normalizeManualSeatNumbers(value: string) {
-  return value
-    .split(",")
-    .map((seat) => seat.trim())
-    .filter(Boolean);
+  return value.split(",").map((seat) => seat.trim()).filter(Boolean);
 }
 
 function uniqueSeatNumbers(numbers: string[]) {
   return Array.from(new Set(numbers));
+}
+
+function buildInventory(values: OnboardingValues["seatInventory"]) {
+  return values.mode === "AUTO"
+    ? Array.from({ length: values.seatCount }, (_, index) => `${values.prefix ?? ""}${values.start + index}`)
+    : uniqueSeatNumbers(normalizeManualSeatNumbers(values.manualSeats));
 }
 
 export async function submitOnboarding(data: OnboardingValues): Promise<ActionResult> {
@@ -50,43 +53,40 @@ export async function submitOnboarding(data: OnboardingValues): Promise<ActionRe
         select: { id: true },
       });
 
+      const seatNumbers = buildInventory(values.seatInventory);
+      if (seatNumbers.length === 0) {
+        throw new Error("حداقل یک صندلی در موجودی سالن تعریف کنید.");
+      }
+
+      await tx.seat.createMany({
+        data: seatNumbers.map((number) => ({
+          studyHallId: studyHall.id,
+          number,
+          isActive: true,
+        })),
+      });
+
       const sectionInputs = values.hasSections
         ? values.sections
-        : [
-            {
-              name: "سالن اصلی",
-              mode: "AUTO" as const,
-              seatCount: values.seatCount,
-              manualSeats: "",
-            },
-          ];
+        : [{ name: "سالن اصلی", description: "", seatNumbers }];
 
       for (const sectionInput of sectionInputs) {
         const section = await tx.section.create({
           data: {
             studyHallId: studyHall.id,
             name: sectionInput.name,
+            description: sectionInput.description || null,
             isActive: true,
           },
           select: { id: true },
         });
 
-        const seatNumbers =
-          sectionInput.mode === "AUTO"
-            ? Array.from({ length: sectionInput.seatCount }, (_, index) => String(index + 1))
-            : uniqueSeatNumbers(normalizeManualSeatNumbers(sectionInput.manualSeats));
-
-        if (seatNumbers.length === 0) {
-          throw new Error(`برای بخش «${sectionInput.name}» حداقل یک صندلی تعریف کنید.`);
+        if (sectionInput.seatNumbers.length > 0) {
+          await tx.seat.updateMany({
+            where: { studyHallId: studyHall.id, number: { in: sectionInput.seatNumbers } },
+            data: { sectionId: section.id },
+          });
         }
-
-        await tx.seat.createMany({
-          data: seatNumbers.map((number) => ({
-            sectionId: section.id,
-            number,
-            isActive: true,
-          })),
-        });
       }
 
       await tx.membershipPlan.createMany({

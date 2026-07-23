@@ -192,3 +192,5 @@ The guiding principle is **YAGNI** (ADR-013): only the work needed to acquire th
 - [ ] Sales performance: status conversion, demo show-rate, win/loss, time-to-close.
 - [ ] Revenue/retention analytics by joining converted leads → `StudyHall → Subscription` history.
 - [ ] Build reporting on top of read-only aggregations; avoid new transactional tables where possible.
+
+- [x] Refactored Module 1 settings/onboarding so images use direct uploads and seats are managed as hall-level inventory before section assignment.

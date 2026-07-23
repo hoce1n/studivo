@@ -273,3 +273,11 @@ To provide study hall managers with better insights into their revenue and payme
 - The service worker must not cache `/_next/` assets, navigation requests, HTML, RSC payloads, or App Router data responses.
 - The root layout mounts a one-shot chunk-load recovery component to refresh stale open tabs after deployment.
 - Nginx may cache immutable `/_next/static/*` assets, but must not cache HTML/RSC responses without a deliberate App Router cache strategy.
+
+## ADR-017: Inventory-Based Seat Layout
+
+**Status:** Accepted
+
+**Decision:** Seats now belong directly to a `StudyHall` and may optionally be assigned to a `Section` through `Seat.sectionId`. Owners manage hall-level seat inventory first, then assign available seats into rooms or zones.
+
+**Reasoning:** Physical desks often move between rooms, become temporarily unavailable, or need relabeling. Hall-level inventory keeps the canonical seat list stable while section assignment remains a flexible layout concern.

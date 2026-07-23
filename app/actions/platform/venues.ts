@@ -33,10 +33,9 @@ export async function getVenues(): Promise<VenueRow[]> {
         select: { id: true, fullName: true, studyhallName: true },
         take: 1,
       },
-      sections: {
-        select: {
-          _count: { select: { seats: { where: { isActive: true } } } },
-        },
+      seats: {
+        where: { isActive: true },
+        select: { id: true },
       },
       memberships: {
         where: { status: "ACTIVE" },
@@ -46,7 +45,7 @@ export async function getVenues(): Promise<VenueRow[]> {
   });
 
   return halls.map((h) => {
-    const totalSeats = h.sections.reduce((acc, sec) => acc + sec._count.seats, 0);
+    const totalSeats = h.seats.length;
     return {
       id: h.id,
       name: h.name,
@@ -166,10 +165,10 @@ export async function getVenueById(id: string): Promise<VenueDetail | null> {
   await requirePlatformUser();
   const hall = await prisma.studyHall.findUnique({
     where: { id },
-    select: { id: true, name: true, gender: true, address: true, phoneNumber: true, description: true, createdAt: true, leads: { select: { id: true, fullName: true, studyhallName: true }, take: 1 }, sections: { select: { _count: { select: { seats: { where: { isActive: true } } } } } }, memberships: { where: { status: "ACTIVE" }, select: { id: true } } },
+    select: { id: true, name: true, gender: true, address: true, phoneNumber: true, description: true, createdAt: true, leads: { select: { id: true, fullName: true, studyhallName: true }, take: 1 }, seats: { where: { isActive: true }, select: { id: true } }, memberships: { where: { status: "ACTIVE" }, select: { id: true } } },
   });
   if (!hall) return null;
-  const totalSeats = hall.sections.reduce((acc, sec) => acc + sec._count.seats, 0);
+  const totalSeats = hall.seats.length;
   const lead = hall.leads[0] ?? null;
   return { id: hall.id, name: hall.name, gender: hall.gender, address: hall.address, phoneNumber: hall.phoneNumber, description: hall.description, monthlyFee: 0, totalSeats, createdAt: hall.createdAt, convertedFromLead: lead, lead: lead ? { ...lead, status: "CONVERTED" } : null, _count: { activeMemberships: hall.memberships.length, activeSubscriptions: hall.memberships.length, users: 0 } };
 }

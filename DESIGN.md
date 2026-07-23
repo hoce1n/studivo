@@ -404,3 +404,9 @@ Changed models:
 - `StudyHall` — added an optional `lead` back-relation only. No new columns on the table itself; the FK (`studyhallId`) lives on `Lead`. All existing fields and behavior are unchanged.
 
 Migration: the project manages schema with `npx prisma db push` (there is no `migrations/` folder). After setting `DATABASE_URL`, run `npx prisma db push` to apply these additions, then `npx prisma generate`. Every addition is a new table, a new nullable column, or an optional relation, so the change is **non-destructive and backwards compatible** with all existing data and queries.
+
+### Inventory-Based Physical Layout
+
+Studivo separates physical seat inventory from visual room/section layout. A `Seat` belongs to one `StudyHall` and has an optional `sectionId`; a `Section` is now a grouping layer that can receive or release existing seats without recreating inventory. Settings expose bulk seat generation, active/out-of-service toggles, section assignment checkboxes, and direct seat movement between sections.
+
+Public page media fields (`heroImage`, `galleryImages`) are still stored on `StudyHall`, but operators now upload image files through the protected upload route and save the returned public URLs rather than typing URLs manually.

@@ -78,6 +78,7 @@ export async function completeOnboarding(formData: FormData): Promise<ActionResu
 
     // 4. Batch create seats nested under the new section
     const seatData = Array.from({ length: parsed.data.totalSeats }, (_, index) => ({
+      studyHallId: studyhall.id,
       sectionId: defaultSection.id,
       number: (index + 1).toString(),
       isActive: true,

@@ -100,7 +100,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
       const seat = await tx.seat.findFirst({
         where: {
           id: seatId,
-          section: { studyHallId },
+          studyHallId,
         },
         select: {
           id: true,
@@ -236,7 +236,7 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
             operatorName: user.name,
             memberName: member.name,
             phoneNumber,
-            sectionName: seat.section.name,
+            sectionName: seat.section?.name ?? "بدون بخش",
             seatNumber: seat.number,
             planName: plan.name,
             planDurationDays: plan.durationDays,
