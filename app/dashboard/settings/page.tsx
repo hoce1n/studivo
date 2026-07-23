@@ -26,7 +26,7 @@ export default async function HallSettingsPage() {
   if (!user || !assignment) redirect("/onboarding");
   if (assignment.role !== "OWNER") redirect("/dashboard");
 
-  const [studyHall, sections, plans, staff] = await Promise.all([
+  const [studyHall, sections, tables, plans, staff] = await Promise.all([
     prisma.studyHall.findUnique({
       where: { id: assignment.studyHallId },
       select: {
@@ -50,8 +50,13 @@ export default async function HallSettingsPage() {
         description: true,
         isActive: true,
         _count: { select: { seats: true } },
-        seats: { orderBy: { number: "asc" }, select: { id: true, number: true, isActive: true } },
+        seats: { orderBy: { number: "asc" }, select: { id: true, number: true, isActive: true, tableId: true } },
       },
+    }),
+    prisma.physicalTable.findMany({
+      where: { studyHallId: assignment.studyHallId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, label: true, seats: { orderBy: { number: "asc" }, select: { id: true, number: true, isActive: true, sectionId: true } }, _count: { select: { seats: true } } },
     }),
     prisma.membershipPlan.findMany({
       where: { studyHallId: assignment.studyHallId },
@@ -107,7 +112,7 @@ export default async function HallSettingsPage() {
         </div>
       </section>
 
-      <SettingsTabs hall={studyHall} sections={sections} plans={normalizedPlans} staff={normalizedStaff} />
+      <SettingsTabs hall={studyHall} sections={sections} tables={tables} plans={normalizedPlans} staff={normalizedStaff} />
     </section>
   );
 }

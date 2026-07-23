@@ -42,6 +42,8 @@ type DashboardSeatData = {
   number: string;
   sectionId: string;
   sectionName: string;
+  tableId: string;
+  tableLabel: string;
   assignments: {
     id: string;
     startsAt: Date;
@@ -154,6 +156,7 @@ export function StudyHallSeatsMap({
   const isSearchActive = normalizedSearchQuery.length >= 3;
 
   const seatItems = seats.map(toSeatMapItem);
+  const sectionColors = ["border-indigo-200 bg-indigo-50/60", "border-emerald-200 bg-emerald-50/60", "border-amber-200 bg-amber-50/60", "border-sky-200 bg-sky-50/60", "border-fuchsia-200 bg-fuchsia-50/60"];
   const sortedSeats = shouldSortByRenewal
     ? [...seatItems].sort((a, b) => {
         const timeA = a.membership
@@ -168,6 +171,14 @@ export function StudyHallSeatsMap({
     : [...seatItems].sort((a, b) =>
         naturalSeatCompare(a.seatNumber, b.seatNumber)
       );
+
+  const tableGroups = sortedSeats.reduce<Record<string, { label: string; seats: ReserveFormSeat[] }>>((groups, seat) => {
+    const raw = seats.find((item) => item.id === seat.id);
+    const key = raw?.tableId ?? "unknown";
+    groups[key] ??= { label: raw?.tableLabel ?? "بدون میز", seats: [] };
+    groups[key].seats.push(seat);
+    return groups;
+  }, {});
 
   return (
     <Card className="gap-4">
@@ -243,9 +254,14 @@ export function StudyHallSeatsMap({
       </CardHeader>
       <CardContent>
         {sortedSeats.length ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
-            {sortedSeats.map((seat) => {
+          <div className="grid gap-4">
+            {Object.entries(tableGroups).map(([tableId, group]) => (
+              <section key={tableId} className="rounded-3xl border bg-muted/10 p-3">
+                <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-black">{group.label}</h3><span className="text-xs text-muted-foreground">{group.seats.length.toLocaleString("fa-IR")} صندلی</span></div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
+            {group.seats.map((seat) => {
               const copy = statusCopy[seat.status];
+              const sectionIndex = Math.abs(seat.sectionName.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0)) % sectionColors.length;
               const studentName = seat.membership?.memberName ?? "";
               const isMatch = studentName
                 .toLocaleLowerCase("fa-IR")
@@ -267,7 +283,8 @@ export function StudyHallSeatsMap({
                     statusLabel={copy.label}
                     className={cn(
                       copy.className,
-                      "h-full transition-all duration-200",
+                      sectionColors[sectionIndex],
+                      "h-full border-2 transition-all duration-200",
                       isSearchActive &&
                         !isMatch &&
                         "scale-95 opacity-20 blur-[0.5px]",
@@ -281,6 +298,9 @@ export function StudyHallSeatsMap({
                 </button>
               );
             })}
+                </div>
+              </section>
+            ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed py-12 text-center">

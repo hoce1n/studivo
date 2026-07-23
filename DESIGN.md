@@ -404,3 +404,7 @@ Changed models:
 - `StudyHall` — added an optional `lead` back-relation only. No new columns on the table itself; the FK (`studyhallId`) lives on `Lead`. All existing fields and behavior are unchanged.
 
 Migration: the project manages schema with `npx prisma db push` (there is no `migrations/` folder). After setting `DATABASE_URL`, run `npx prisma db push` to apply these additions, then `npx prisma generate`. Every addition is a new table, a new nullable column, or an optional relation, so the change is **non-destructive and backwards compatible** with all existing data and queries.
+
+## 2026-07-23 — Module 1 physical layout and hall media
+
+Module 1 now models physical layout as Tables ➔ Seats ➔ Sections. `PhysicalTable` belongs to a `StudyHall`; each `Seat` belongs to one physical table and may be assigned to a `Section`. Sections remain the business grouping used by operators (VIP, Main Hall, etc.), while tables reflect the real-world furniture layout shown in onboarding, settings, and the dashboard floor map. Hall media is uploaded through the authenticated image upload endpoint and stored as `StudyHall.heroImage` plus the `StudyHall.galleryImages` URL array.

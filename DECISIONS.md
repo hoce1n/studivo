@@ -273,3 +273,7 @@ To provide study hall managers with better insights into their revenue and payme
 - The service worker must not cache `/_next/` assets, navigation requests, HTML, RSC payloads, or App Router data responses.
 - The root layout mounts a one-shot chunk-load recovery component to refresh stale open tabs after deployment.
 - Nginx may cache immutable `/_next/static/*` assets, but must not cache HTML/RSC responses without a deliberate App Router cache strategy.
+
+## 2026-07-23 — Table-centric physical layout
+
+Decision: introduce `PhysicalTable` instead of continuing to create seats directly under sections. This keeps operational seat booking scoped to seats while making setup match how owners think about real rooms. Sections are now assignable groupings for full tables or individual seats, and seats can be marked inactive for maintenance without deleting layout history. Direct image uploads replace manual public URL entry to reduce setup errors and keep media ownership tied to the study hall.

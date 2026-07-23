@@ -3,7 +3,7 @@
 import type * as React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Layers3, Loader2, Plus, Users, WalletCards } from "lucide-react";
+import { Building2, Grid2X2, Layers3, Loader2, Users, WalletCards } from "lucide-react";
 
 import { ActionForm } from "@/components/action-form";
 import { Badge } from "@/components/ui/badge";
@@ -14,23 +14,26 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addSeatsToSection, assignStaffToStudyHall, disableMembershipPlan, toggleSeatActive, updateStudyHallSettings, upsertMembershipPlan, upsertSection } from "@/app/actions/settings/mutations";
+import { assignSeatsToSection, assignStaffToStudyHall, disableMembershipPlan, toggleSeatActive, updateStudyHallSettings, upsertMembershipPlan, upsertPhysicalTable, upsertSection } from "@/app/actions/settings/mutations";
+import { ImageUploadField } from "@/components/image-upload-field";
 
 type Hall = { name: string; gender: "MALE" | "FEMALE"; phoneNumber: string | null; address: string | null; description: string | null; publicPageEnabled: boolean; slug: string | null; heroImage: string | null; galleryImages: string[] };
-type SectionRow = { id: string; name: string; description: string | null; isActive: boolean; seats: { id: string; number: string; isActive: boolean }[]; _count: { seats: number } };
+type SectionRow = { id: string; name: string; description: string | null; isActive: boolean; seats: { id: string; number: string; isActive: boolean; tableId: string }[]; _count: { seats: number } };
+type PhysicalTable = { id: string; label: string; seats: { id: string; number: string; isActive: boolean; sectionId: string | null }[]; _count: { seats: number } };
 type Plan = { id: string; name: string; durationDays: number; price: number; hasFixedSeat: boolean; description: string | null; isActive: boolean };
 type Staff = { id: string; role: "OWNER" | "STAFF"; startDate: string; endDate: string | null; isActive: boolean; user: { name: string; email: string; phoneNumber: string | null } };
 
-export function SettingsTabs({ hall, sections, plans, staff }: { hall: Hall; sections: SectionRow[]; plans: Plan[]; staff: Staff[] }) {
+export function SettingsTabs({ hall, sections, tables, plans, staff }: { hall: Hall; sections: SectionRow[]; tables: PhysicalTable[]; plans: Plan[]; staff: Staff[] }) {
   const router = useRouter();
   const refresh = () => router.refresh();
-  const [galleryImagesText, setGalleryImagesText] = useState(hall.galleryImages.join("\n"));
+  const [heroImage, setHeroImage] = useState<string | null>(hall.heroImage);
+  const [galleryImages, setGalleryImages] = useState<string[]>(hall.galleryImages);
 
   return (
     <Tabs defaultValue="general" dir="rtl" className="gap-6">
       <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-4 md:w-fit">
         <TabsTrigger value="general"><Building2 /> عمومی</TabsTrigger>
-        <TabsTrigger value="sections"><Layers3 /> بخش‌ها و صندلی‌ها</TabsTrigger>
+        <TabsTrigger value="sections"><Layers3 /> میزها و بخش‌ها</TabsTrigger>
         <TabsTrigger value="plans"><WalletCards /> پلن‌ها</TabsTrigger>
         <TabsTrigger value="staff"><Users /> همکاران</TabsTrigger>
       </TabsList>
@@ -46,10 +49,11 @@ export function SettingsTabs({ hall, sections, plans, staff }: { hall: Hall; sec
                   <Field label="نوع پذیرش"><select name="gender" defaultValue={hall.gender} className="h-10 rounded-2xl border bg-background px-3"><option value="MALE">آقایان</option><option value="FEMALE">بانوان</option></select></Field>
                   <Field label="تلفن"><Input name="phoneNumber" defaultValue={hall.phoneNumber ?? ""} /></Field>
                   <Field label="اسلاگ عمومی"><Input name="slug" dir="ltr" defaultValue={hall.slug ?? ""} placeholder="my-studyhall" /></Field>
-                  <Field label="نشانی تصویر قهرمان"><Input name="heroImage" dir="ltr" defaultValue={hall.heroImage ?? ""} /></Field>
-                  <Field label="تصاویر گالری (هر خط یک URL)"><textarea value={galleryImagesText} onChange={(event) => setGalleryImagesText(event.currentTarget.value)} className="min-h-24 rounded-2xl border bg-background p-3" /></Field>
+                  <div className="md:col-span-2"><ImageUploadField label="تصویر اصلی سالن" value={heroImage} onChange={setHeroImage} /></div>
+                  <div className="grid gap-3 md:col-span-2 md:grid-cols-2">{[...galleryImages, ...(galleryImages.length < 8 ? [null] : [])].map((url, index) => <ImageUploadField key={index} label={`تصویر گالری ${index + 1}`} value={url} onChange={(next) => setGalleryImages((current) => next ? current.map((item, i) => i === index ? next : item).concat(index === current.length ? [next] : []).filter((item, i, arr) => arr.indexOf(item) === i) : current.filter((_, i) => i !== index))} />)}</div>
                 </div>
-                <input type="hidden" name="galleryImages" value={JSON.stringify(galleryImagesText.split("\n").map((url) => url.trim()).filter(Boolean))} />
+                <input type="hidden" name="heroImage" value={heroImage ?? ""} />
+                <input type="hidden" name="galleryImages" value={JSON.stringify(galleryImages)} />
                 <Field label="آدرس"><textarea name="address" defaultValue={hall.address ?? ""} className="min-h-24 rounded-2xl border bg-background p-3" /></Field>
                 <Field label="توضیحات"><textarea name="description" defaultValue={hall.description ?? ""} className="min-h-28 rounded-2xl border bg-background p-3" /></Field>
                 <label className="flex items-center gap-3 rounded-2xl border p-4"><Switch name="publicPageEnabled" defaultChecked={hall.publicPageEnabled} /> صفحه عمومی فعال باشد</label>
@@ -61,17 +65,9 @@ export function SettingsTabs({ hall, sections, plans, staff }: { hall: Hall; sec
       </TabsContent>
 
       <TabsContent value="sections" className="grid gap-4">
-        <Card><CardHeader><CardTitle>افزودن بخش جدید</CardTitle></CardHeader><CardContent><SectionForm onSuccess={refresh} /></CardContent></Card>
-        {sections.map((section) => <Card key={section.id}>
-          <CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle>{section.name}</CardTitle><CardDescription>{section._count.seats.toLocaleString("fa-IR")} صندلی</CardDescription></div><Badge variant={section.isActive ? "default" : "secondary"}>{section.isActive ? "فعال" : "غیرفعال"}</Badge></div></CardHeader>
-          <CardContent className="grid gap-5">
-            <SectionForm section={section} onSuccess={refresh} />
-            <ActionForm action={addSeatsToSection} onSuccess={refresh} resetOnSuccess className="rounded-2xl border p-4">
-              {(pending) => <div className="grid gap-3 md:grid-cols-6"><input type="hidden" name="sectionId" value={section.id} /><input type="hidden" name="mode" value="bulk" /><Field label="پیشوند"><Input name="prefix" placeholder="A-" /></Field><Field label="شروع"><Input name="start" type="number" defaultValue={1} /></Field><Field label="تعداد"><Input name="count" type="number" min={1} max={200} /></Field><div className="self-end md:col-span-2"><Button disabled={pending} variant="secondary"><Plus /> افزودن گروهی صندلی</Button></div></div>}
-            </ActionForm>
-            <div className="flex flex-wrap gap-2">{section.seats.map((seat) => <ActionForm key={seat.id} action={toggleSeatActive} onSuccess={refresh} className="m-0"><input type="hidden" name="seatId" value={seat.id} /><input type="hidden" name="isActive" value={seat.isActive ? "" : "on"} /><Button size="sm" variant={seat.isActive ? "outline" : "secondary"}>{seat.number} · {seat.isActive ? "فعال" : "خارج از سرویس"}</Button></ActionForm>)}</div>
-          </CardContent>
-        </Card>)}
+        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Grid2X2 /> تعریف میز فیزیکی</CardTitle><CardDescription>هر میز ظرفیت و شماره‌گذاری صندلی خودش را دارد.</CardDescription></CardHeader><CardContent><TableForm onSuccess={refresh} /></CardContent></Card>
+        <Card><CardHeader><CardTitle>میزها و صندلی‌ها</CardTitle><CardDescription>صندلی‌ها با رنگ بخش در نقشه داشبورد نمایش داده می‌شوند و هر صندلی را می‌توان خارج از سرویس کرد.</CardDescription></CardHeader><CardContent className="grid gap-4">{tables.map((table) => <div key={table.id} className="rounded-3xl border p-4"><div className="mb-3 flex items-center justify-between"><div><h3 className="font-black">{table.label}</h3><p className="text-xs text-muted-foreground">{table._count.seats.toLocaleString("fa-IR")} صندلی</p></div><TableForm table={table} onSuccess={refresh} compact /></div><div className="flex flex-wrap gap-2">{table.seats.map((seat) => <ActionForm key={seat.id} action={toggleSeatActive} onSuccess={refresh} className="m-0"><input type="hidden" name="seatId" value={seat.id} /><input type="hidden" name="isActive" value={seat.isActive ? "" : "on"} /><Button size="sm" variant={seat.isActive ? "outline" : "secondary"}>{seat.number} · {seat.isActive ? "فعال" : "خارج از سرویس"}</Button></ActionForm>)}</div></div>)}</CardContent></Card>
+        <Card><CardHeader><CardTitle>بخش‌ها و تخصیص صندلی</CardTitle><CardDescription>برای هر Section، یک یا چند میز کامل یا صندلی منفرد انتخاب کنید.</CardDescription></CardHeader><CardContent className="grid gap-5"><SectionForm onSuccess={refresh} />{sections.map((section) => <div key={section.id} className="rounded-3xl border p-4"><div className="mb-4 flex items-center justify-between"><div><h3 className="font-black">{section.name}</h3><p className="text-xs text-muted-foreground">{section._count.seats.toLocaleString("fa-IR")} صندلی تخصیص‌یافته</p></div><Badge variant={section.isActive ? "default" : "secondary"}>{section.isActive ? "فعال" : "غیرفعال"}</Badge></div><SectionForm section={section} onSuccess={refresh} /><SeatAssignmentForm section={section} tables={tables} onSuccess={refresh} /></div>)}</CardContent></Card>
       </TabsContent>
 
       <TabsContent value="plans" className="grid gap-4">
@@ -88,6 +84,10 @@ export function SettingsTabs({ hall, sections, plans, staff }: { hall: Hall; sec
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="grid gap-2"><Label>{label}</Label>{children}</div>; }
+
+function TableForm({ table, onSuccess, compact = false }: { table?: PhysicalTable; onSuccess: () => void; compact?: boolean }) { return <ActionForm action={upsertPhysicalTable} onSuccess={onSuccess} resetOnSuccess={!table} className={compact ? "contents" : "grid gap-3 md:grid-cols-5"}><input type="hidden" name="tableId" value={table?.id ?? ""} /><Field label="نام میز"><Input name="label" defaultValue={table?.label ?? ""} required /></Field>{!table ? <><Field label="تعداد صندلی"><Input name="seatCount" type="number" min={1} max={50} defaultValue={4} /></Field><Field label="پیشوند شماره"><Input name="prefix" placeholder="T1-S" /></Field></> : null}<Button className="self-end" variant="secondary">{compact ? "تغییر نام" : "افزودن میز"}</Button></ActionForm>; }
+
+function SeatAssignmentForm({ section, tables, onSuccess }: { section: SectionRow; tables: PhysicalTable[]; onSuccess: () => void }) { const [selected, setSelected] = useState<string[]>(section.seats.map((seat) => seat.id)); const toggle = (ids: string[], checked: boolean) => setSelected((current) => checked ? Array.from(new Set([...current, ...ids])) : current.filter((id) => !ids.includes(id))); return <ActionForm action={assignSeatsToSection} onSuccess={onSuccess} className="mt-4 grid gap-3"><input type="hidden" name="sectionId" value={section.id} /><input type="hidden" name="seatIds" value={JSON.stringify(selected)} />{tables.map((table) => { const tableSeatIds = table.seats.map((seat) => seat.id); const allChecked = tableSeatIds.every((id) => selected.includes(id)); return <div key={table.id} className="rounded-2xl border p-3"><label className="mb-2 flex items-center gap-2 font-bold"><Switch checked={allChecked} onCheckedChange={(checked) => toggle(tableSeatIds, Boolean(checked))} />{table.label}</label><div className="flex flex-wrap gap-2">{table.seats.map((seat) => <label key={seat.id} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"><Switch checked={selected.includes(seat.id)} onCheckedChange={(checked) => toggle([seat.id], Boolean(checked))} />{seat.number}</label>)}</div></div>; })}<Button className="w-fit" variant="secondary">ذخیره تخصیص بخش</Button></ActionForm>; }
 
 function SectionForm({ section, onSuccess }: { section?: SectionRow; onSuccess: () => void }) { return <ActionForm action={upsertSection} onSuccess={onSuccess} className="grid gap-3 md:grid-cols-4"><input type="hidden" name="sectionId" value={section?.id ?? ""} /><Field label="نام بخش"><Input name="name" defaultValue={section?.name ?? ""} required /></Field><Field label="توضیح"><Input name="description" defaultValue={section?.description ?? ""} /></Field><label className="flex items-end gap-2 pb-2"><Switch name="isActive" defaultChecked={section?.isActive ?? true} /> فعال</label><Button className="self-end" variant="secondary">ذخیره بخش</Button></ActionForm>; }
 

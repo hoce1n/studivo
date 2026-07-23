@@ -76,10 +76,16 @@ export async function completeOnboarding(formData: FormData): Promise<ActionResu
       },
     });
 
-    // 4. Batch create seats nested under the new section
+    // 4. Create one default physical table, then batch create seats under it.
+    const defaultTable = await tx.physicalTable.create({
+      data: { studyHallId: studyhall.id, label: "میز ۱", sortOrder: 1 },
+      select: { id: true },
+    });
+
     const seatData = Array.from({ length: parsed.data.totalSeats }, (_, index) => ({
+      tableId: defaultTable.id,
       sectionId: defaultSection.id,
-      number: (index + 1).toString(),
+      number: `T1-S${index + 1}`,
       isActive: true,
     }));
 

@@ -189,6 +189,7 @@ model StudyHall {
   membershipPlans  MembershipPlan[]
   memberships      Membership[]
   sections         Section[]
+  tables           PhysicalTable[]
   staffAssignments StaffAssignment[]
   expenses         Expense[]
   auditLogs        AuditLog[]
@@ -214,10 +215,27 @@ model Section {
   @@index([studyHallId])
   @@map("sections")
 }
+model PhysicalTable {
+  id          String    @id @default(cuid())
+  studyHallId String    @map("studyhall_id")
+  studyHall   StudyHall @relation(fields: [studyHallId], references: [id], onDelete: Cascade)
+  label       String
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  seats Seat[]
+
+  @@unique([studyHallId, label])
+  @@index([studyHallId])
+  @@map("physical_tables")
+}
 model Seat {
   id        String   @id @default(cuid())
-  sectionId String   @map("section_id")
-  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  tableId   String   @map("table_id")
+  table     PhysicalTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  sectionId String?   @map("section_id")
+  section   Section?  @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   number    String
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
@@ -225,7 +243,8 @@ model Seat {
 
   assignments SeatAssignment[]
 
-  @@unique([sectionId, number])
+  @@unique([tableId, number])
+  @@index([tableId])
   @@index([sectionId])
   @@map("seats")
 }

@@ -8,31 +8,13 @@ import { prisma } from "@/lib/db";
 import { onboardingSchema, type OnboardingValues } from "@/lib/validations/onboarding";
 import type { ActionResult } from "@/app/actions/audit/helpers";
 
-function normalizeManualSeatNumbers(value: string) {
-  return value
-    .split(",")
-    .map((seat) => seat.trim())
-    .filter(Boolean);
-}
-
-function uniqueSeatNumbers(numbers: string[]) {
-  return Array.from(new Set(numbers));
-}
-
 export async function submitOnboarding(data: OnboardingValues): Promise<ActionResult> {
   const user = await requireUser();
 
-  if (user.staffAssignments.length > 0) {
-    redirect("/dashboard");
-  }
+  if (user.staffAssignments.length > 0) redirect("/dashboard");
 
   const parsed = onboardingSchema.safeParse(data);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? "اطلاعات راه‌اندازی سالن معتبر نیست.",
-    };
-  }
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات راه‌اندازی سالن معتبر نیست." };
 
   const values = parsed.data;
 
@@ -45,76 +27,46 @@ export async function submitOnboarding(data: OnboardingValues): Promise<ActionRe
           phoneNumber: values.phoneNumber || null,
           address: values.address,
           description: values.description || null,
+          heroImage: values.heroImage ?? null,
+          galleryImages: values.galleryImages,
           isActive: true,
         },
         select: { id: true },
       });
 
-      const sectionInputs = values.hasSections
-        ? values.sections
-        : [
-            {
-              name: "سالن اصلی",
-              mode: "AUTO" as const,
-              seatCount: values.seatCount,
-              manualSeats: "",
-            },
-          ];
+      const sectionByName = new Map<string, string>();
+      for (const sectionInput of values.sections) {
+        const section = await tx.section.create({ data: { studyHallId: studyHall.id, name: sectionInput.name, description: sectionInput.description || null, isActive: true }, select: { id: true } });
+        sectionByName.set(sectionInput.name, section.id);
+      }
 
-      for (const sectionInput of sectionInputs) {
-        const section = await tx.section.create({
-          data: {
-            studyHallId: studyHall.id,
-            name: sectionInput.name,
-            isActive: true,
-          },
-          select: { id: true },
-        });
+      const firstSectionId = sectionByName.get(values.sections[0].name);
+      const tableSection = new Map<string, string | null>();
+      for (const sectionInput of values.sections) {
+        const sectionId = sectionByName.get(sectionInput.name) ?? null;
+        sectionInput.tableLabels.forEach((label) => tableSection.set(label, sectionId));
+      }
+      const seatSection = new Map<string, string | null>();
+      for (const sectionInput of values.sections) {
+        const sectionId = sectionByName.get(sectionInput.name) ?? null;
+        sectionInput.seatNumbers.forEach((number) => seatSection.set(number, sectionId));
+      }
 
-        const seatNumbers =
-          sectionInput.mode === "AUTO"
-            ? Array.from({ length: sectionInput.seatCount }, (_, index) => String(index + 1))
-            : uniqueSeatNumbers(normalizeManualSeatNumbers(sectionInput.manualSeats));
-
-        if (seatNumbers.length === 0) {
-          throw new Error(`برای بخش «${sectionInput.name}» حداقل یک صندلی تعریف کنید.`);
-        }
-
+      for (const [index, tableInput] of values.tables.entries()) {
+        const table = await tx.physicalTable.create({ data: { studyHallId: studyHall.id, label: tableInput.label, sortOrder: index + 1 }, select: { id: true } });
         await tx.seat.createMany({
-          data: seatNumbers.map((number) => ({
-            sectionId: section.id,
-            number,
-            isActive: true,
-          })),
+          data: Array.from({ length: tableInput.seatCount }, (_, seatIndex) => {
+            const number = tableInput.prefix ? `${tableInput.prefix}${seatIndex + 1}` : `T${index + 1}-S${seatIndex + 1}`;
+            return { tableId: table.id, number, sectionId: seatSection.get(number) ?? tableSection.get(tableInput.label) ?? firstSectionId ?? null, isActive: true };
+          }),
         });
       }
 
-      await tx.membershipPlan.createMany({
-        data: values.plans.map((plan) => ({
-          studyHallId: studyHall.id,
-          name: plan.name,
-          durationDays: plan.durationDays,
-          price: plan.price,
-          hasFixedSeat: plan.hasFixedSeat,
-          isActive: true,
-        })),
-      });
-
-      await tx.staffAssignment.create({
-        data: {
-          userId: user.id,
-          studyHallId: studyHall.id,
-          role: "OWNER",
-          startDate: new Date(),
-          isActive: true,
-        },
-      });
+      await tx.membershipPlan.createMany({ data: values.plans.map((plan) => ({ studyHallId: studyHall.id, name: plan.name, durationDays: plan.durationDays, price: plan.price, hasFixedSeat: plan.hasFixedSeat, isActive: true })) });
+      await tx.staffAssignment.create({ data: { userId: user.id, studyHallId: studyHall.id, role: "OWNER", startDate: new Date(), isActive: true } });
     });
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "راه‌اندازی سالن با خطا مواجه شد.",
-    };
+    return { success: false, error: error instanceof Error ? error.message : "راه‌اندازی سالن با خطا مواجه شد." };
   }
 
   revalidatePath("/dashboard");

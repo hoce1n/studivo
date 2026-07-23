@@ -45,13 +45,16 @@ const sectionSchema = z.object({
   isActive: z.boolean(),
 });
 
-const addSeatsSchema = z.object({
+const tableSchema = z.object({
+  tableId: z.string().cuid().optional(),
+  label: z.string().trim().min(1, "نام میز الزامی است.").max(40),
+  seatCount: z.coerce.number().int().min(1).max(50).optional(),
+  prefix: z.string().trim().max(16).optional(),
+});
+
+const assignSeatsSchema = z.object({
   sectionId: z.string().cuid("بخش معتبر نیست."),
-  mode: z.enum(["single", "bulk"]),
-  number: z.string().trim().max(20).optional(),
-  prefix: z.string().trim().max(12).optional(),
-  start: z.coerce.number().int().min(1).optional(),
-  count: z.coerce.number().int().min(1).max(200).optional(),
+  seatIds: z.array(z.string().cuid()).max(500),
 });
 
 const seatStatusSchema = z.object({
@@ -161,22 +164,46 @@ export async function upsertSection(formData: FormData): Promise<ActionResult> {
   }
 }
 
-export async function addSeatsToSection(formData: FormData): Promise<ActionResult> {
+export async function upsertPhysicalTable(formData: FormData): Promise<ActionResult> {
   const user = await requireOwner();
-  const parsed = addSeatsSchema.safeParse({ sectionId: formData.get("sectionId"), mode: formData.get("mode"), number: formData.get("number")?.toString(), prefix: formData.get("prefix")?.toString(), start: formData.get("start") || undefined, count: formData.get("count") || undefined });
-  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات صندلی معتبر نیست." };
+  const parsed = tableSchema.safeParse({ tableId: formData.get("tableId") || undefined, label: formData.get("label"), seatCount: formData.get("seatCount") || undefined, prefix: formData.get("prefix")?.toString() || undefined });
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات میز معتبر نیست." };
+  try {
+    if (parsed.data.tableId) {
+      const table = await prisma.physicalTable.findFirst({ where: { id: parsed.data.tableId, studyHallId: user.studyHallId }, select: { id: true } });
+      if (!table) return { success: false, error: "میز در این سالن یافت نشد." };
+      await prisma.physicalTable.update({ where: { id: table.id }, data: { label: parsed.data.label } });
+    } else {
+      await prisma.$transaction(async (tx) => {
+        const table = await tx.physicalTable.create({ data: { studyHallId: user.studyHallId, label: parsed.data.label }, select: { id: true } });
+        const count = parsed.data.seatCount ?? 1;
+        await tx.seat.createMany({ data: Array.from({ length: count }, (_, index) => ({ tableId: table.id, number: `${parsed.data.prefix ?? `${parsed.data.label}-`}${index + 1}`, isActive: true })) });
+      });
+    }
+    revalidateSettings();
+    return { success: true, message: "میز ذخیره شد." };
+  } catch (error) {
+    return actionError(error, "ذخیره میز ناموفق بود.");
+  }
+}
+
+export async function assignSeatsToSection(formData: FormData): Promise<ActionResult> {
+  const user = await requireOwner();
+  let seatIds: string[] = [];
+  try { seatIds = JSON.parse(formData.get("seatIds")?.toString() || "[]"); } catch (error) { return actionError(error, "فهرست صندلی‌ها معتبر نیست."); }
+  const parsed = assignSeatsSchema.safeParse({ sectionId: formData.get("sectionId"), seatIds });
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات تخصیص معتبر نیست." };
   try {
     const section = await prisma.section.findFirst({ where: { id: parsed.data.sectionId, studyHallId: user.studyHallId }, select: { id: true } });
     if (!section) return { success: false, error: "بخش در این سالن یافت نشد." };
-    const numbers = parsed.data.mode === "single"
-      ? [parsed.data.number?.trim()].filter(Boolean) as string[]
-      : Array.from({ length: parsed.data.count ?? 0 }, (_, index) => `${parsed.data.prefix ?? ""}${(parsed.data.start ?? 1) + index}`);
-    if (!numbers.length) return { success: false, error: "شماره صندلی را وارد کنید." };
-    await prisma.seat.createMany({ data: numbers.map((number) => ({ sectionId: section.id, number, isActive: true })), skipDuplicates: true });
+    await prisma.$transaction([
+      prisma.seat.updateMany({ where: { sectionId: section.id, table: { studyHallId: user.studyHallId } }, data: { sectionId: null } }),
+      prisma.seat.updateMany({ where: { id: { in: parsed.data.seatIds }, table: { studyHallId: user.studyHallId } }, data: { sectionId: section.id } }),
+    ]);
     revalidateSettings();
-    return { success: true, message: "صندلی‌ها اضافه شدند." };
+    return { success: true, message: "تخصیص صندلی‌های بخش ذخیره شد." };
   } catch (error) {
-    return actionError(error, "افزودن صندلی ناموفق بود.");
+    return actionError(error, "ذخیره تخصیص بخش ناموفق بود.");
   }
 }
 
@@ -185,7 +212,7 @@ export async function toggleSeatActive(formData: FormData): Promise<ActionResult
   const parsed = seatStatusSchema.safeParse({ seatId: formData.get("seatId"), isActive: formData.get("isActive") === "on" });
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? "اطلاعات صندلی معتبر نیست." };
   try {
-    const seat = await prisma.seat.findFirst({ where: { id: parsed.data.seatId, section: { studyHallId: user.studyHallId } }, select: { id: true } });
+    const seat = await prisma.seat.findFirst({ where: { id: parsed.data.seatId, table: { studyHallId: user.studyHallId } }, select: { id: true } });
     if (!seat) return { success: false, error: "صندلی در این سالن یافت نشد." };
     await prisma.seat.update({ where: { id: seat.id }, data: { isActive: parsed.data.isActive } });
     revalidateSettings();
