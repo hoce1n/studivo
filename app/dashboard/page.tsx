@@ -83,6 +83,8 @@ export default async function Page({ searchParams }: PageProps) {
         include: {
           section: { select: { id: true, name: true } },
           assignments: {
+            // Active (endsAt null) + recent history for the seat sheet
+            take: 15,
             orderBy: { createdAt: "desc" },
             include: {
               membership: {
@@ -98,7 +100,12 @@ export default async function Page({ searchParams }: PageProps) {
                   user: {
                     select: { name: true, phoneNumber: true },
                   },
-                  payments: { where: { status: "COMPLETED" }, select: { id: true }, take: 1 },
+                  payments: {
+                    where: { status: { in: ["COMPLETED", "PENDING"] } },
+                    select: { id: true, status: true, method: true },
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                  },
                 },
               },
             },
@@ -108,7 +115,13 @@ export default async function Page({ searchParams }: PageProps) {
       prisma.membershipPlan.findMany({
         where: { studyHallId, isActive: true },
         orderBy: { createdAt: "asc" },
-        select: { id: true, name: true, durationDays: true, price: true },
+        select: {
+          id: true,
+          name: true,
+          durationDays: true,
+          price: true,
+          hasFixedSeat: true,
+        },
       }),
       prisma.staffAssignment.findMany({
         where: { studyHallId, isActive: true },
@@ -132,41 +145,49 @@ export default async function Page({ searchParams }: PageProps) {
 
   const staff = staffAssignments.map((s) => s.user);
 
-  const shouldSortByRenewal = sortBy === "renewal";
+  const { stats, activeRevenue, atRiskRevenue } = processSeatData(
+    seats,
+    shouldSortByRenewal
+  );
 
-  const seatStatuses = seats.map((seat) => {
-    const activeAssignment = seat.assignments.find((assignment) => assignment.endsAt === null);
-    return getSeatStatus(activeAssignment?.membership.endsAt);
-  });
+  // Client components cannot receive Prisma Decimal — serialize for the map.
+  const seatsForMap = seats.map((seat) => ({
+    id: seat.id,
+    number: seat.number,
+    sectionId: seat.section.id,
+    sectionName: seat.section.name,
+    assignments: seat.assignments.map((assignment) => ({
+      id: assignment.id,
+      startsAt: assignment.startsAt,
+      endsAt: assignment.endsAt,
+      membership: {
+        id: assignment.membership.id,
+        status: assignment.membership.status,
+        startsAt: assignment.membership.startsAt,
+        endsAt: assignment.membership.endsAt,
+        planName: assignment.membership.planName,
+        planDurationDays: assignment.membership.planDurationDays,
+        planPrice: Number(assignment.membership.planPrice),
+        hasFixedSeat: assignment.membership.hasFixedSeat,
+        user: assignment.membership.user,
+        payments: assignment.membership.payments,
+      },
+    })),
+  }));
 
-  const stats = {
-    available: seatStatuses.filter((status) => status === "available").length,
-    reserved: seatStatuses.filter((status) => status === "reserved").length,
-    renewal: seatStatuses.filter((status) => status === "renewal").length,
-    expired: seatStatuses.filter((status) => status === "expired").length,
-  };
+  const availableSeatsForSwap = seatsForMap
+    .filter((seat) => !getActiveAssignment(seat.assignments))
+    .map((seat) => ({
+      id: seat.id,
+      number: seat.number,
+      sectionId: seat.sectionId,
+      sectionName: seat.sectionName,
+    }));
 
   const occupied = stats.reserved + stats.renewal;
   const occupancyRate = seats.length
     ? Math.round((occupied / seats.length) * 100)
     : 0;
-
-  // Calculate revenue from active memberships planPrice (Decimal to Number)
-  let activeRevenue = 0;
-  let atRiskRevenue = 0;
-
-  seats.forEach((seat) => {
-    const activeAssignment = seat.assignments.find((assignment) => assignment.endsAt === null);
-    const membership = activeAssignment?.membership;
-    const status = getSeatStatus(membership?.endsAt);
-    if (membership) {
-      const price = Number(membership.planPrice) || 0;
-      if (status === "reserved") activeRevenue += price;
-      if (status === "renewal") atRiskRevenue += price;
-    }
-  });
-
-  const monthlyRevenue = activeRevenue + atRiskRevenue;
 
   const isOwner = role === "OWNER";
 
@@ -205,12 +226,14 @@ export default async function Page({ searchParams }: PageProps) {
 
       <section id="map" className="grid gap-6 xl:grid-cols-[1.6fr_0.9fr]">
         <StudyHallSeatsMap
-          seats={seats}
+          seats={seatsForMap}
+          availableSeats={availableSeatsForSwap}
           membershipPlans={membershipPlans.map((plan) => ({
             id: plan.id,
             name: plan.name,
             durationDays: plan.durationDays,
             price: Number(plan.price),
+            hasFixedSeat: plan.hasFixedSeat,
           }))}
           shouldSortByRenewal={shouldSortByRenewal}
           statusCopy={statusCopy}
