@@ -54,9 +54,13 @@ function adminOnlyItems(activePath?: string) {
     },
     {
       title: "کارکنان",
-      url: "#",
+      url: "/dashboard/staff",
       icon: <UsersRoundIcon />,
-      items: [{ title: "لیست همکاران", url: "/dashboard#staff" }],
+      isActive: activePath?.startsWith("/dashboard/staff"),
+      items: [
+        { title: "لیست همکاران", url: "/dashboard/staff" },
+        { title: "شیفت‌ها", url: "/dashboard/staff?tab=shifts" },
+      ],
     },
   ];
 }
