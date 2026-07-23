@@ -27,8 +27,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { updateLeadStatus, convertLeadToStudyHall } from "@/app/actions/platform";
-import type { LeadDetail } from "@/app/actions/platform";
+import { updateLeadStatus } from "@/app/actions/platform/leads";
+import type { LeadDetail } from "@/app/actions/platform/leads";
+import { convertLeadToStudyHall } from "@/app/actions/platform/venues"
 
 export const STATUS_LABELS: Record<string, string> = {
   NEW: "جدید",

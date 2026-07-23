@@ -17,66 +17,12 @@ import { StudyHallSeatsMap } from "@/app/dashboard/_components/study-hall-seats-
 import { CreateStaffForm } from "@/app/dashboard/_components/create-staff-form";
 import { DashboardStats } from "@/app/dashboard/_components/dashboard-stats";
 import { RevenueCard } from "@/app/dashboard/_components/revenue-card";
-
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
-
-type SeatStatus = "available" | "reserved" | "renewal" | "expired";
-
-function getSeatStatus(endsAt?: Date): SeatStatus {
-  if (!endsAt) return "available";
-
-  const diffDays = Math.ceil((endsAt.getTime() - Date.now()) / DAY_IN_MS);
-  if (diffDays < 0) return "expired";
-  if (diffDays <= 3) return "renewal";
-  return "reserved";
-}
-
-const statusCopy: Record<
-  SeatStatus,
-  {
-    label: string;
-    className: string;
-    dot: string;
-    badge: "success" | "warning" | "destructive" | "muted";
-  }
-> = {
-  available: {
-    label: "خالی",
-    className:
-      "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-    dot: "bg-emerald-500",
-    badge: "success",
-  },
-  reserved: {
-    label: "رزرو فعال",
-    className:
-      "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100",
-    dot: "bg-red-500",
-    badge: "destructive",
-  },
-  renewal: {
-    label: "نیازمند تمدید",
-    className:
-      "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100",
-    dot: "bg-amber-500",
-    badge: "warning",
-  },
-  expired: {
-    label: "منقضی",
-    className:
-      "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300",
-    dot: "bg-slate-400",
-    badge: "muted",
-  },
-};
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(date);
-}
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("fa-IR").format(value);
-}
+import {
+  statusCopy,
+  formatNumber,
+  processSeatData,
+  getActiveAssignment,
+} from "@/app/dashboard/_lib/dashboard-utils";
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -84,7 +30,7 @@ interface PageProps {
 
 export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
-  const sortBy = resolvedSearchParams?.sortBy;
+  const shouldSortByRenewal = resolvedSearchParams?.sortBy === "renewal";
   const returningMemberId =
     typeof resolvedSearchParams?.memberId === "string"
       ? resolvedSearchParams.memberId
@@ -122,9 +68,12 @@ export default async function Page({ searchParams }: PageProps) {
     redirect("/onboarding");
   }
 
-  const studyHall = assignment.studyHall;
-  const studyHallId = assignment.studyHallId;
-  const role = assignment.role;
+  const { studyHall, studyHallId, role } = {
+    studyHall: assignment.studyHall,
+    studyHallId: assignment.studyHallId,
+    role: assignment.role,
+  };
+
 
   const [seats, membershipPlans, staffAssignments, membersCount, returningMember] =
     await Promise.all([
@@ -132,11 +81,20 @@ export default async function Page({ searchParams }: PageProps) {
         where: { section: { studyHallId } },
         orderBy: { number: "asc" },
         include: {
+          section: { select: { id: true, name: true } },
           assignments: {
             orderBy: { createdAt: "desc" },
             include: {
               membership: {
-                include: {
+                select: {
+                  id: true,
+                  status: true,
+                  startsAt: true,
+                  endsAt: true,
+                  planName: true,
+                  planDurationDays: true,
+                  planPrice: true,
+                  hasFixedSeat: true,
                   user: {
                     select: { name: true, phoneNumber: true },
                   },
@@ -211,7 +169,6 @@ export default async function Page({ searchParams }: PageProps) {
   const monthlyRevenue = activeRevenue + atRiskRevenue;
 
   const isOwner = role === "OWNER";
-  const roleLabel = isOwner ? "مدیر سالن" : "مراقب سالن";
 
   return (
     <>
@@ -223,7 +180,9 @@ export default async function Page({ searchParams }: PageProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="muted">{roleLabel}</Badge>
+          <Badge variant="muted">
+            {isOwner ? "مدیر سالن" : "مراقب سالن"}
+          </Badge>
           <Badge variant="outline" className="gap-1.5">
             <span
               className="inline-block size-1.5 rounded-full bg-emerald-500"
@@ -268,7 +227,7 @@ export default async function Page({ searchParams }: PageProps) {
         <div className="space-y-6">
           {isOwner && (
             <RevenueCard
-              monthlyRevenue={monthlyRevenue}
+              monthlyRevenue={activeRevenue + atRiskRevenue}
               occupiedCount={occupied}
               activeRevenue={activeRevenue}
               atRiskRevenue={atRiskRevenue}

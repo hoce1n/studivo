@@ -2,8 +2,8 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { actionError } from "@/app/actions/audit";
-import type { ActionResult } from "@/app/actions/audit";
+import { actionError } from "@/app/actions/audit/helpers";
+import type { ActionResult } from "@/app/actions/audit/helpers";
 import { requireScopedUser } from "@/app/actions/auth/verify-role";
 import type {
   RevenueReport,

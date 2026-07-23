@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser, requireScopedUser } from "../auth/verify-role";
-import type { ActionResult } from "@/app/actions/audit";
+import type { ActionResult } from "@/app/actions/audit/helpers";
 
 const onboardingSchema = z.object({
   name: z.string().trim().min(2, "نام سالن باید حداقل ۲ کاراکتر باشد."),

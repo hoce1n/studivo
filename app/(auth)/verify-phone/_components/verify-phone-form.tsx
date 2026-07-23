@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   requestSignupPhoneOTP,
   verifySignupPhoneOTP,
-} from "@/app/actions/signup-verification";
+} from "@/app/actions/auth/signup-verification";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {

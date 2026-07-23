@@ -19,14 +19,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getLeadById } from "@/app/actions/platform";
+import { getLeadById } from "@/app/actions/platform/leads";
 import {
   LeadDetailSheet,
   STATUS_LABELS,
   STATUS_VARIANTS,
   SOURCE_LABELS,
 } from "@/app/platform/_components/lead-detail-sheet";
-import type { LeadRow, LeadDetail } from "@/app/actions/platform";
+import type { LeadRow, LeadDetail } from "@/app/actions/platform/leads";
 
 function formatDate(date: Date | string) {
   return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(

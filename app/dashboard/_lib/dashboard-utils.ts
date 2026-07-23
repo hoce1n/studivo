@@ -1,0 +1,172 @@
+export const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+export type SeatStatus = "available" | "reserved" | "renewal" | "expired";
+
+type AssignmentLike = {
+  id: string;
+  endsAt: Date | string | null;
+  membership: {
+    id: string;
+    status: string;
+    startsAt: Date | string;
+    endsAt: Date | string;
+    planPrice?: unknown;
+    user?: { name: string | null; phoneNumber: string | null };
+    payments?: { id: string; status?: string; method?: string }[];
+  };
+};
+
+function toTime(value: Date | string | null | undefined): number | null {
+  if (value == null) return null;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+/**
+ * Active occupancy:
+ * - Canonical v2 writes: SeatAssignment.endsAt === null
+ * - Legacy migrate-v2 rows: endsAt was copied from membership endDate (not null).
+ *   Those count as current unless closed early (release/swap set endsAt before membership end).
+ */
+export function isOccupyingAssignment(assignment: {
+  endsAt: Date | string | null;
+  membership: { status: string; endsAt: Date | string };
+}): boolean {
+  if (assignment.membership.status === "CANCELLED") return false;
+
+  if (assignment.endsAt == null) return true;
+
+  const assignmentEnd = toTime(assignment.endsAt);
+  const membershipEnd = toTime(assignment.membership.endsAt);
+  if (assignmentEnd == null || membershipEnd == null) return false;
+
+  // Closed early by release/swap — seat is vacant.
+  return assignmentEnd >= membershipEnd - DAY_IN_MS;
+}
+
+export function getActiveAssignment<T extends AssignmentLike>(
+  assignments: T[] | undefined
+): T | undefined {
+  if (!assignments?.length) return undefined;
+
+  const candidates = assignments.filter((assignment) =>
+    isOccupyingAssignment(assignment)
+  );
+  if (!candidates.length) return undefined;
+
+  const open = candidates.find((assignment) => assignment.endsAt == null);
+  return open ?? candidates[0];
+}
+
+export function getSeatStatus(
+  endsAt?: Date | string | null,
+  membershipStatus?: string
+): SeatStatus {
+  const endTime = toTime(endsAt ?? null);
+  if (endTime == null) return "available";
+  if (membershipStatus === "CANCELLED") return "available";
+  if (membershipStatus === "EXPIRED") return "expired";
+
+  const diffDays = Math.ceil((endTime - Date.now()) / DAY_IN_MS);
+  if (diffDays < 0) return "expired";
+  if (diffDays <= 3) return "renewal";
+  return "reserved";
+}
+
+
+export const statusCopy: Record<
+  SeatStatus,
+  {
+    label: string;
+    className: string;
+    dot: string;
+    badge: "success" | "warning" | "destructive" | "muted";
+  }
+> = {
+  available: {
+    label: "خالی",
+    className:
+      "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
+    dot: "bg-emerald-500",
+    badge: "success",
+  },
+  reserved: {
+    label: "رزرو فعال",
+    className:
+      "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100",
+    dot: "bg-red-500",
+    badge: "destructive",
+  },
+  renewal: {
+    label: "نیازمند تمدید",
+    className:
+      "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100",
+    dot: "bg-amber-500",
+    badge: "warning",
+  },
+  expired: {
+    label: "منقضی",
+    className:
+      "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300",
+    dot: "bg-slate-400",
+    badge: "muted",
+  },
+};
+
+export function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(date);
+}
+
+export function formatNumber(value: number) {
+  return new Intl.NumberFormat("fa-IR").format(value);
+}
+
+export function processSeatData(
+  seats: { number: string; assignments: AssignmentLike[] }[],
+  sortByRenewal: boolean
+) {
+  const initialSeatView = seats.map((seat) => {
+    const currentAssignment = getActiveAssignment(seat.assignments);
+    const membership = currentAssignment?.membership;
+    const seatNum = parseInt(seat.number, 10) || 0;
+    return {
+      ...seat,
+      seatNumber: seatNum,
+      membership,
+      status: getSeatStatus(membership?.endsAt, membership?.status),
+    };
+  });
+
+  const seatView = sortByRenewal
+    ? [...initialSeatView].sort((a, b) => {
+        const timeA = a.membership
+          ? new Date(a.membership.endsAt).getTime()
+          : Infinity;
+        const timeB = b.membership
+          ? new Date(b.membership.endsAt).getTime()
+          : Infinity;
+        if (timeA !== timeB) return timeA - timeB;
+        return a.seatNumber - b.seatNumber;
+      })
+    : initialSeatView;
+
+  const stats = {
+    available: seatView.filter((s) => s.status === "available").length,
+    reserved: seatView.filter((s) => s.status === "reserved").length,
+    renewal: seatView.filter((s) => s.status === "renewal").length,
+    expired: seatView.filter((s) => s.status === "expired").length,
+  };
+
+  let activeRevenue = 0;
+  let atRiskRevenue = 0;
+
+  seatView.forEach((s) => {
+    if (s.membership) {
+      const price = Number(s.membership.planPrice) || 0;
+      if (s.status === "reserved") activeRevenue += price;
+      if (s.status === "renewal") atRiskRevenue += price;
+    }
+  });
+
+  return { seatView, stats, activeRevenue, atRiskRevenue };
+}

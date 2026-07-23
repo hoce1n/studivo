@@ -15,9 +15,16 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   ReserveForm,
+  type AvailableSeatOption,
+  type MembershipPlanOption,
   type ReserveFormSeat,
 } from "@/app/dashboard/_components/reserve-form";
 import { SeatCard } from "@/app/dashboard/_components/seat-card";
+import {
+  formatDate,
+  getActiveAssignment,
+  getSeatStatus,
+} from "@/app/dashboard/_lib/dashboard-utils";
 
 type SeatStatus = ReserveFormSeat["status"];
 
@@ -33,6 +40,8 @@ type StatusCopy = Record<
 type DashboardSeatData = {
   id: string;
   number: string;
+  sectionId: string;
+  sectionName: string;
   assignments: {
     id: string;
     startsAt: Date;
@@ -42,27 +51,22 @@ type DashboardSeatData = {
       status: string;
       startsAt: Date;
       endsAt: Date;
-      planPrice: unknown;
+      planName: string;
+      planDurationDays: number;
+      planPrice: number;
+      hasFixedSeat: boolean;
       user: {
         name: string;
         phoneNumber: string | null;
       };
-      payments: { id: string }[];
+      payments: { id: string; status: string; method: string }[];
     };
   }[];
 };
 
-type MembershipPlanOption = {
-  id: string;
-  name: string;
-  durationDays: number;
-  price: number;
-};
-
-type SeatMapItem = ReserveFormSeat;
-
 type StudyHallSeatsMapProps = {
   seats: DashboardSeatData[];
+  availableSeats: AvailableSeatOption[];
   membershipPlans: MembershipPlanOption[];
   shouldSortByRenewal: boolean;
   statusCopy: StatusCopy;
@@ -75,44 +79,49 @@ type StudyHallSeatsMapProps = {
   } | null;
 };
 
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
-
-function getSeatStatus(endsAt?: Date): SeatStatus {
-  if (!endsAt) return "available";
-
-  const diffDays = Math.ceil((endsAt.getTime() - Date.now()) / DAY_IN_MS);
-  if (diffDays < 0) return "expired";
-  if (diffDays <= 3) return "renewal";
-  return "reserved";
-}
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(date);
-}
-
 function naturalSeatCompare(a: string, b: string) {
-  return a.localeCompare(b, "fa-IR-u-kn-true", { numeric: true, sensitivity: "base" });
+  return a.localeCompare(b, "fa-IR-u-kn-true", {
+    numeric: true,
+    sensitivity: "base",
+  });
 }
 
-function toSeatMapItem(seat: DashboardSeatData): SeatMapItem {
-  const activeAssignment = seat.assignments.find((assignment) => assignment.endsAt === null);
+function paymentStatusFromPayments(
+  payments: { status: string }[]
+): "paid" | "pending" | "unpaid" {
+  const latest = payments[0];
+  if (!latest) return "unpaid";
+  if (latest.status === "COMPLETED") return "paid";
+  if (latest.status === "PENDING") return "pending";
+  return "unpaid";
+}
+
+function toSeatMapItem(seat: DashboardSeatData): ReserveFormSeat {
+  const activeAssignment = getActiveAssignment(seat.assignments);
   const membership = activeAssignment?.membership;
 
   return {
     id: seat.id,
     seatAssignmentId: activeAssignment?.id,
     seatNumber: seat.number,
-    status: getSeatStatus(membership?.endsAt),
+    sectionId: seat.sectionId,
+    sectionName: seat.sectionName,
+    status: getSeatStatus(membership?.endsAt, membership?.status),
     membership: membership
       ? {
           id: membership.id,
+          status: membership.status,
           memberName: membership.user.name ?? "بدون نام",
           phoneNumber: membership.user.phoneNumber ?? "—",
-          endDate: formatDate(membership.endsAt),
-          startDateISO: membership.startsAt.toISOString(),
-          endDateISO: membership.endsAt.toISOString(),
+          endDate: formatDate(new Date(membership.endsAt)),
+          startDateISO: new Date(membership.startsAt).toISOString(),
+          endDateISO: new Date(membership.endsAt).toISOString(),
+          planName: membership.planName,
+          planDurationDays: membership.planDurationDays,
           planPrice: Number(membership.planPrice),
-          paymentStatus: membership.payments.length > 0 ? "paid" : "unpaid",
+          hasFixedSeat: membership.hasFixedSeat,
+          paymentStatus: paymentStatusFromPayments(membership.payments),
+          paymentMethod: membership.payments[0]?.method,
         }
       : undefined,
     history: seat.assignments
@@ -121,16 +130,17 @@ function toSeatMapItem(seat: DashboardSeatData): SeatMapItem {
         id: assignment.id,
         memberName: assignment.membership.user.name ?? "بدون نام",
         phoneNumber: assignment.membership.user.phoneNumber ?? "—",
-        startDate: formatDate(assignment.membership.startsAt),
-        endDate: formatDate(assignment.membership.endsAt),
+        startDate: formatDate(new Date(assignment.membership.startsAt)),
+        endDate: formatDate(new Date(assignment.membership.endsAt)),
         status: assignment.membership.status.toLowerCase(),
-        paymentStatus: assignment.membership.payments.length > 0 ? "paid" : "unpaid",
+        paymentStatus: paymentStatusFromPayments(assignment.membership.payments),
       })),
   };
 }
 
 export function StudyHallSeatsMap({
   seats,
+  availableSeats,
   membershipPlans,
   shouldSortByRenewal,
   statusCopy,
@@ -139,29 +149,25 @@ export function StudyHallSeatsMap({
   returningMember,
 }: StudyHallSeatsMapProps) {
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedSeat, setSelectedSeat] = useState<SeatMapItem | null>(null);
+  const [selectedSeat, setSelectedSeat] = useState<ReserveFormSeat | null>(null);
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("fa-IR");
   const isSearchActive = normalizedSearchQuery.length >= 3;
 
   const seatItems = seats.map(toSeatMapItem);
   const sortedSeats = shouldSortByRenewal
     ? [...seatItems].sort((a, b) => {
-        const timeA = a.membership ? new Date(a.membership.endDateISO).getTime() : Infinity;
-        const timeB = b.membership ? new Date(b.membership.endDateISO).getTime() : Infinity;
+        const timeA = a.membership
+          ? new Date(a.membership.endDateISO).getTime()
+          : Infinity;
+        const timeB = b.membership
+          ? new Date(b.membership.endDateISO).getTime()
+          : Infinity;
         if (timeA !== timeB) return timeA - timeB;
         return naturalSeatCompare(a.seatNumber, b.seatNumber);
       })
-    : [...seatItems].sort((a, b) => naturalSeatCompare(a.seatNumber, b.seatNumber));
-
-  const handleSeatSelect = (seat: SeatMapItem) => {
-    setSelectedSeat(seat);
-  };
-
-  const handleReserveSheetOpenChange = (open: boolean) => {
-    if (!open) {
-      setSelectedSeat(null);
-    }
-  };
+    : [...seatItems].sort((a, b) =>
+        naturalSeatCompare(a.seatNumber, b.seatNumber)
+      );
 
   return (
     <Card className="gap-4">
@@ -191,7 +197,7 @@ export function StudyHallSeatsMap({
           <div className="space-y-1">
             <CardTitle>نقشه زنده صندلی‌ها</CardTitle>
             <CardDescription>
-              وضعیت هر صندلی بر اساس تاریخ پایان اشتراک به‌روز می‌شود.
+              وضعیت هر صندلی بر اساس عضویت و تاریخ پایان به‌روز می‌شود.
             </CardDescription>
           </div>
 
@@ -202,7 +208,7 @@ export function StudyHallSeatsMap({
                 "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
                 shouldSortByRenewal
                   ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                  : "bg-background text-muted-foreground hover:bg-muted",
+                  : "bg-background text-muted-foreground hover:bg-muted"
               )}
             >
               {shouldSortByRenewal ? (
@@ -251,9 +257,9 @@ export function StudyHallSeatsMap({
                   type="button"
                   className={cn(
                     "rounded-2xl text-right focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                    isSearchActive && !isMatch && "pointer-events-none",
+                    isSearchActive && !isMatch && "pointer-events-none"
                   )}
-                  onClick={() => handleSeatSelect(seat)}
+                  onClick={() => setSelectedSeat(seat)}
                   aria-label={`باز کردن ${seat.status === "available" ? "فرم رزرو" : "مدیریت"} صندلی ${seat.seatNumber}`}
                 >
                   <SeatCard
@@ -267,7 +273,7 @@ export function StudyHallSeatsMap({
                         "scale-95 opacity-20 blur-[0.5px]",
                       isSearchActive &&
                         isMatch &&
-                        "z-10 scale-105 ring-2 ring-indigo-500",
+                        "z-10 scale-105 ring-2 ring-indigo-500"
                     )}
                     dotClass={copy.dot}
                     membership={seat.membership}
@@ -288,12 +294,14 @@ export function StudyHallSeatsMap({
       </CardContent>
       <ReserveForm
         membershipPlans={membershipPlans}
-        maxSeats={sortedSeats.length}
+        availableSeats={availableSeats}
         open={selectedSeat !== null}
         seat={selectedSeat}
         studyHallName={studyHallName}
         returningMember={returningMember}
-        onOpenChange={handleReserveSheetOpenChange}
+        onOpenChange={(open) => {
+          if (!open) setSelectedSeat(null);
+        }}
       />
     </Card>
   );

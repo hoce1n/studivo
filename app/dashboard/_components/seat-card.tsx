@@ -49,12 +49,16 @@ export function SeatCard({
                 "size-1.5 shrink-0 rounded-full",
                 membership.paymentStatus === "paid"
                   ? "bg-emerald-500"
-                  : "bg-amber-500 animate-pulse",
+                  : membership.paymentStatus === "pending"
+                    ? "bg-sky-500 animate-pulse"
+                    : "bg-amber-500 animate-pulse",
               )}
               title={
                 membership.paymentStatus === "paid"
                   ? "پرداخت شده"
-                  : "تسویه نشده"
+                  : membership.paymentStatus === "pending"
+                    ? "بدهی / در انتظار"
+                    : "تسویه نشده"
               }
             />
           </div>

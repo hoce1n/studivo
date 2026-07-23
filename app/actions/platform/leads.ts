@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import type { ActionResult } from "@/app/actions/audit";
+import type { ActionResult } from "@/app/actions/audit/helpers";
 import { requirePlatformUser } from "@/app/actions/auth/verify-role";
 import type { LeadStatus, LeadSource } from "@/lib/generated/prisma/client";
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import type { ActionResult } from "@/app/actions/audit";
+import type { ActionResult } from "@/app/actions/audit/helpers";
 import { requireSuperAdmin } from "./leads";
 import { requirePlatformUser } from "../auth/verify-role";
 
