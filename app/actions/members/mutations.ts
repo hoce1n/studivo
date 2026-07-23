@@ -5,7 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { requireUser, requireScopedUser } from "../auth/verify-role";
-import type { ActionResult } from "@/app/actions/audit";
+import type { ActionResult } from "@/app/actions/audit/helpers"
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, "نام باید حداقل ۲ کاراکتر باشد.").max(80),

@@ -1,4 +1,4 @@
-import { requirePlatformUser } from "@/app/actions/auth";
+import { requirePlatformUser } from "@/app/actions/auth/verify-role";
 import { Separator } from "@/components/ui/separator";
 
 export default async function PlatformLayout({

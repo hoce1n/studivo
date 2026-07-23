@@ -1,5 +1,6 @@
-import { requirePlatformUser } from "@/app/actions/auth";
-import { getLeads, getPlatformStats, getVenues } from "@/app/actions/platform";
+import { requirePlatformUser } from "@/app/actions/auth/verify-role";
+import { getLeads, getPlatformStats } from "@/app/actions/platform/leads";
+import { getVenues } from "../actions/platform/venues";
 import { StatsHeader } from "@/app/platform/_components/stats-header";
 import { LeadsTable } from "@/app/platform/_components/leads-table";
 import { VenuesTable } from "@/app/platform/_components/venues-table";

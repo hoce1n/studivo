@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { PlatformStats } from "@/app/actions/platform";
+import type { PlatformStats } from "@/app/actions/platform/leads";
 
 interface StatsHeaderProps {
   stats: PlatformStats;

@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import type { ActionResult } from "@/app/actions/audit";
+import type { ActionResult } from "@/app/actions/audit/helpers";
 import { sendPushToMany } from "@/lib/push";
 import { requireScopedUser } from "@/app/actions/auth/verify-role";
 import { getSession } from "@/lib/server";

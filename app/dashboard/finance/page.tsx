@@ -1,5 +1,5 @@
 import { Banknote, CircleDollarSign, TrendingUp, UsersRound } from "lucide-react";
-import { fetchOccupancyRevenueStats, fetchOverduePayments, fetchRevenueReport } from "@/app/actions/finance";
+import { fetchOccupancyRevenueStats, fetchOverduePayments, fetchRevenueReport } from "@/app/actions/finance/reports";
 import { RevenueDateRangeForm } from "@/app/dashboard/finance/_components/revenue-date-range-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

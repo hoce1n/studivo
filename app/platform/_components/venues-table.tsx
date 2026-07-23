@@ -12,9 +12,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getVenueById } from "@/app/actions/platform";
+import { getVenueById } from "@/app/actions/platform/venues";
 import { VenueDetailSheet } from "@/app/platform/_components/venue-detail-sheet";
-import type { VenueRow, VenueDetail } from "@/app/actions/platform";
+import type { VenueRow, VenueDetail } from "@/app/actions/platform/venues";
 
 function formatDate(date: Date | string) {
   return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(

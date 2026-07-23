@@ -29,7 +29,7 @@ import {
 import { GENDER_LABELS } from "@/app/platform/_components/venues-table";
 import { STATUS_LABELS, STATUS_VARIANTS } from "@/app/platform/_components/lead-detail-sheet";
 import { ContractView, type ContractData } from "@/app/platform/_components/contract-view";
-import type { VenueDetail } from "@/app/actions/platform";
+import type { VenueDetail } from "@/app/actions/platform/venues";
 
 function formatDate(date: Date | string) {
   return new Intl.DateTimeFormat("fa-IR", { dateStyle: "long" }).format(
