@@ -3,6 +3,14 @@ import { Building2, Settings2 } from "lucide-react";
 
 import { SettingsTabs } from "@/app/dashboard/settings/_components/settings-tabs";
 import { prisma } from "@/lib/db";
+
+type HallSeatReader = {
+  findMany(args: {
+    where: { studyHallId: string; sectionId: null };
+    orderBy: { number: "asc" };
+    select: { id: true; number: true; isActive: true; sectionId: true };
+  }): Promise<{ id: string; number: string; isActive: boolean; sectionId: string | null }[]>;
+};
 import { getSession } from "@/lib/server";
 
 export default async function HallSettingsPage() {
@@ -26,7 +34,7 @@ export default async function HallSettingsPage() {
   if (!user || !assignment) redirect("/onboarding");
   if (assignment.role !== "OWNER") redirect("/dashboard");
 
-  const [studyHall, sections, plans, staff] = await Promise.all([
+  const [studyHall, sections, unassignedSeats, plans, staff] = await Promise.all([
     prisma.studyHall.findUnique({
       where: { id: assignment.studyHallId },
       select: {
@@ -50,8 +58,13 @@ export default async function HallSettingsPage() {
         description: true,
         isActive: true,
         _count: { select: { seats: true } },
-        seats: { orderBy: { number: "asc" }, select: { id: true, number: true, isActive: true } },
+        seats: { orderBy: { number: "asc" }, select: { id: true, number: true, isActive: true, sectionId: true } },
       },
+    }),
+    (prisma.seat as unknown as HallSeatReader).findMany({
+      where: { studyHallId: assignment.studyHallId, sectionId: null },
+      orderBy: { number: "asc" },
+      select: { id: true, number: true, isActive: true, sectionId: true },
     }),
     prisma.membershipPlan.findMany({
       where: { studyHallId: assignment.studyHallId },
@@ -107,7 +120,7 @@ export default async function HallSettingsPage() {
         </div>
       </section>
 
-      <SettingsTabs hall={studyHall} sections={sections} plans={normalizedPlans} staff={normalizedStaff} />
+      <SettingsTabs hall={studyHall} sections={sections} unassignedSeats={unassignedSeats} plans={normalizedPlans} staff={normalizedStaff} />
     </section>
   );
 }
