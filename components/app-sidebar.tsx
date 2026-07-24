@@ -51,11 +51,11 @@ function adminOnlyItems(activePath?: string, userRole?: string) {
         ],
       },
       {
-        title: "دفترچه وقایع",
+        title: "لاگ‌های سیستم",
         url: "/dashboard/logs",
         icon: <ScrollTextIcon />,
         isActive: activePath === "/dashboard/logs",
-        items: [{ title: "گزارش عملکرد روزانه", url: "/dashboard/logs" }],
+        items: [{ title: "تاریخچه فعالیت‌ها", url: "/dashboard/logs" }],
       }
     );
   }

@@ -1,0 +1,128 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { format } from "date-fns-jalali";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { useState } from "react";
+import { ChevronDown, ChevronUp, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+interface LogEntry {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: any;
+  createdAt: Date;
+  actor: {
+    name: string;
+    email: string;
+  } | null;
+}
+
+interface LogTableProps {
+  logs: LogEntry[];
+}
+
+export function LogTable({ logs }: LogTableProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const actionLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "muted" }> = {
+    CREATE: { label: "ایجاد", variant: "default" },
+    UPDATE: { label: "ویرایش", variant: "secondary" },
+    DELETE: { label: "حذف", variant: "destructive" },
+    VOID: { label: "ابطال", variant: "destructive" },
+    CHECK_IN: { label: "ورود", variant: "outline" },
+    CHECK_OUT: { label: "خروج", variant: "outline" },
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[180px]">زمان</TableHead>
+            <TableHead>ثبت‌کننده</TableHead>
+            <TableHead>عملیات</TableHead>
+            <TableHead>موجودیت</TableHead>
+            <TableHead>شناسه</TableHead>
+            <TableHead className="text-left">جزئیات</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {logs.map((log) => (
+            <React.Fragment key={log.id}>
+              <TableRow className={expandedId === log.id ? "border-b-0 bg-muted/30" : ""}>
+                <TableCell className="text-xs font-mono">
+                  {format(new Date(log.createdAt), "yyyy/MM/dd HH:mm:ss")}
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{log.actor?.name ?? "سیستم"}</div>
+                  <div className="text-xs text-muted-foreground">{log.actor?.email}</div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={actionLabels[log.action]?.variant || "outline"}>
+                    {actionLabels[log.action]?.label || log.action}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <span className="text-xs font-semibold uppercase text-muted-foreground">
+                    {log.entityType}
+                  </span>
+                </TableCell>
+                <TableCell className="max-w-[120px] truncate text-xs font-mono">
+                  {log.entityId}
+                </TableCell>
+                <TableCell className="text-left">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                  >
+                    <Eye className="size-4" />
+                    مشاهده
+                    {expandedId === log.id ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+                  </Button>
+                </TableCell>
+              </TableRow>
+              {expandedId === log.id && (
+                <TableRow className="bg-muted/30">
+                  <TableCell colSpan={6} className="p-4 pt-0">
+                    <div className="rounded-xl bg-background border p-4">
+                      <h4 className="text-xs font-bold mb-2 text-muted-foreground uppercase tracking-wider">Metadata (JSON)</h4>
+                      <pre className="text-xs font-mono overflow-auto max-h-[200px] p-2 bg-muted/50 rounded-lg">
+                        {JSON.stringify(log.metadata, null, 2)}
+                      </pre>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </React.Fragment>
+          ))}
+          {logs.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                هیچ رویدادی یافت نشد.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+import * as React from "react";
