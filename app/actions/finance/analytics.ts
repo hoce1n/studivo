@@ -49,7 +49,7 @@ export async function fetchFinanceDashboard(startDate: Date, endDate: Date): Pro
       payments,
       expenses,
       activeMemberships,
-      pendingPayments,
+      pendingPaymentsCount,
       membershipPlans,
       expiringMemberships
     ] = await Promise.all([
@@ -90,7 +90,7 @@ export async function fetchFinanceDashboard(startDate: Date, endDate: Date): Pro
       : 0;
 
     const completedCount = payments.length;
-    const totalPossibleCount = completedCount + pendingPayments;
+    const totalPossibleCount = completedCount + pendingPaymentsCount;
     const collectionRate = totalPossibleCount > 0 ? (completedCount / totalPossibleCount) * 100 : 0;
 
     // Group by date for trend chart

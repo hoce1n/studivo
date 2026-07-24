@@ -14,8 +14,8 @@ import { hashPassword } from "better-auth/crypto";
 
 import { prisma } from "@/lib/db";
 
-const DEFAULT_EMAIL = "Piraayesh@studivo.ir";
-const DEFAULT_PASSWORD = "S4njesh_";
+const DEFAULT_EMAIL = "danesh@studivo.ir";
+const DEFAULT_PASSWORD = "1tshocein!1";
 
 async function resetPassword() {
   const email = (process.argv[2] ?? DEFAULT_EMAIL).trim().toLowerCase();

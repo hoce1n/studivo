@@ -6,7 +6,6 @@ import {
   Users, 
   Percent, 
   Clock,
-  伊朗ریال // Note: Using a custom icon or fallback
 } from "lucide-react";
 
 interface MetricProps {

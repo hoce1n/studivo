@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { requireScopedUser } from "@/app/actions/auth/verify-role";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/lib/generated/prisma/client";
 
 export type AuditLogFilters = {
   page?: number;
