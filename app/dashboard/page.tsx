@@ -106,9 +106,13 @@ export default async function Page({ searchParams }: PageProps) {
                 },
                 payments: {
                   where: { status: { in: ["COMPLETED", "PENDING"] } },
-                  select: { id: true, status: true, method: true },
+                  select: {
+                    id: true,
+                    status: true,
+                    method: true,
+                    amount: true,
+                  },
                   orderBy: { createdAt: "desc" },
-                  take: 1,
                 },
               },
             },
@@ -176,7 +180,10 @@ export default async function Page({ searchParams }: PageProps) {
         planPrice: Number(assignment.membership.planPrice),
         hasFixedSeat: assignment.membership.hasFixedSeat,
         user: assignment.membership.user,
-        payments: assignment.membership.payments,
+        payments: assignment.membership.payments.map((p) => ({
+          ...p,
+          amount: Number(p.amount),
+        })),
       },
     })),
   }));

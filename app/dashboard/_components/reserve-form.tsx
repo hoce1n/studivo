@@ -96,6 +96,13 @@ export type ReserveFormSeat = {
     hasFixedSeat: boolean;
     paymentStatus?: "paid" | "pending" | "unpaid";
     paymentMethod?: string;
+    payments: {
+      id: string;
+      amount: number;
+      status: string;
+      method: string;
+      createdAt: string;
+    }[];
   };
   history?: {
     id: string;
@@ -103,6 +110,8 @@ export type ReserveFormSeat = {
     phoneNumber: string;
     startDate: string;
     endDate: string;
+    startsAtISO: string;
+    endsAtISO: string;
     status: string;
     paymentStatus: string;
   }[];
@@ -193,7 +202,7 @@ function SeatHistoryTimeline({
     <div className="space-y-3 rounded-2xl border p-3">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <History className="size-4 text-muted-foreground" />
-        آرشیو اشغال این صندلی
+        تاریخچه دانش‌آموزان این صندلی
       </div>
       <div className="space-y-3">
         {history.map((item) => (
@@ -207,8 +216,13 @@ function SeatHistoryTimeline({
               {item.phoneNumber}
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              {item.startDate} تا {item.endDate} ·{" "}
-              {membershipStatusLabels[item.status] ?? item.status}
+              {format(new Date(item.startsAtISO), "yyyy/MM/dd")} تا{" "}
+              {item.endsAtISO
+                ? format(new Date(item.endsAtISO), "yyyy/MM/dd")
+                : "اکنون"}
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              وضعیت: {membershipStatusLabels[item.status] ?? item.status}
             </div>
           </div>
         ))}
@@ -342,6 +356,19 @@ export function ReserveForm({
   const isAvailable = currentSeat?.status === "available";
   const membership = currentSeat?.membership;
   const seatAssignmentId = currentSeat?.seatAssignmentId;
+  const totalPaid = React.useMemo(() => {
+    return (
+      membership?.payments
+        ?.filter((p) => p.status === "COMPLETED")
+        .reduce((sum, p) => sum + p.amount, 0) ?? 0
+    );
+  }, [membership]);
+
+  const remainingBalance = React.useMemo(() => {
+    if (!membership) return 0;
+    return Math.max(0, membership.planPrice - totalPaid);
+  }, [membership, totalPaid]);
+
   const smartRenewalPreview = React.useMemo(
     () =>
       membership
@@ -410,23 +437,31 @@ export function ReserveForm({
     );
   }
 
-  function handleRenew() {
+  function handleRenew(isAdjustment = false) {
     if (!membership || !renewDate) return;
     const adjustedDate = endOfDay(renewDate);
     setRenewError(null);
     startRenewTransition(async () => {
       try {
-        const result = await renewMembership(
-          membership.id,
-          adjustedDate.toISOString(),
-        );
+        const result = await renewMembership(membership.id, {
+          endsAt: adjustedDate.toISOString(),
+          startsAt: startDate?.toISOString(),
+          membershipPlanId: selectedPlanId,
+          isAdjustment,
+        });
         if (!result.success) {
-          throw new Error(result.error || "تمدید عضویت ناموفق بود.");
+          throw new Error(
+            result.error ||
+              (isAdjustment ? "اصلاح تاریخ ناموفق بود." : "تمدید عضویت ناموفق بود."),
+          );
         }
-        toast.success(result.message || "تمدید عضویت با موفقیت ثبت شد.");
+        toast.success(result.message || "عملیات با موفقیت انجام شد.");
         onOpenChange(false);
       } catch (error) {
-        const message = getActionErrorMessage(error, "تمدید عضویت ناموفق بود.");
+        const message = getActionErrorMessage(
+          error,
+          isAdjustment ? "اصلاح تاریخ ناموفق بود." : "تمدید عضویت ناموفق بود.",
+        );
         setRenewError(message);
         toast.error(message);
       }
@@ -479,12 +514,14 @@ export function ReserveForm({
     });
   }
 
+  const [managePaymentAmount, setManagePaymentAmount] = React.useState("");
+
   function handleRecordPayment() {
     if (!membership) return;
-    if (membership.paymentStatus === "paid") {
-      toast.warning(
-        "پرداخت قبلاً ثبت شده است؛ ابطال از طریق بخش مالی انجام شود.",
-      );
+    const payAmount = Number(managePaymentAmount) || remainingBalance;
+
+    if (payAmount <= 0) {
+      toast.error("مبلغ پرداخت باید بزرگتر از صفر باشد.");
       return;
     }
 
@@ -492,7 +529,7 @@ export function ReserveForm({
       try {
         const formData = new FormData();
         formData.set("membershipId", membership.id);
-        formData.set("amount", String(membership.planPrice ?? 0));
+        formData.set("amount", String(payAmount));
         formData.set("method", managePaymentMethod);
 
         const result = await recordPayment(formData);
@@ -500,20 +537,8 @@ export function ReserveForm({
           throw new Error(result.error || "ثبت پرداخت ناموفق بود.");
         }
 
-        setCurrentSeat((previous) =>
-          previous?.membership
-            ? {
-                ...previous,
-                membership: {
-                  ...previous.membership,
-                  paymentStatus: "paid",
-                  paymentMethod: managePaymentMethod,
-                  status: "ACTIVE",
-                },
-              }
-            : previous,
-        );
         toast.success(result.message || "پرداخت با موفقیت ثبت شد.");
+        onOpenChange(false);
       } catch (error) {
         toast.error(getActionErrorMessage(error, "ثبت پرداخت ناموفق بود."));
       }
@@ -854,95 +879,147 @@ export function ReserveForm({
                   className="rounded-2xl border p-3"
                 />
 
-                <div className="space-y-2 rounded-2xl border p-3">
-                  <div className="text-sm font-medium">ثبت پرداخت</div>
-                  <select
-                    className={selectClassName}
-                    value={managePaymentMethod}
-                    onChange={(event) =>
-                      setManagePaymentMethod(
-                        event.target
-                          .value as (typeof PAYMENT_METHODS)[number]["value"],
-                      )
-                    }
-                    disabled={
-                      paymentPending || membership.paymentStatus === "paid"
-                    }
-                  >
-                    {PAYMENT_METHODS.map((method) => (
-                      <option key={method.value} value={method.value}>
-                        {method.label}
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    type="button"
-                    variant={
-                      membership.paymentStatus === "paid"
-                        ? "outline"
-                        : "default"
-                    }
-                    className={cn(
-                      membership.paymentStatus === "paid" &&
-                        "border-emerald-200 bg-emerald-50 text-emerald-700",
-                    )}
-                    onClick={handleRecordPayment}
-                    disabled={
-                      paymentPending || membership.paymentStatus === "paid"
-                    }
-                  >
-                    {paymentPending ? (
-                      <Loader className="animate-spin" />
-                    ) : membership.paymentStatus === "paid" ? (
-                      "پرداخت ثبت شده"
-                    ) : membership.paymentStatus === "pending" ? (
-                      `تسویه بدهی (${membership.planPrice.toLocaleString("fa-IR")})`
-                    ) : (
-                      `ثبت پرداخت (${membership.planPrice.toLocaleString("fa-IR")})`
-                    )}
-                  </Button>
+                <div className="space-y-3 rounded-2xl border p-3">
+                  <div className="text-sm font-medium">وضعیت مالی</div>
+                  <div className="flex justify-between text-xs">
+                    <span>کل مبلغ طرح:</span>
+                    <span>{membership.planPrice.toLocaleString("fa-IR")} تومان</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-emerald-600">
+                    <span>مجموع پرداخت شده:</span>
+                    <span>{totalPaid.toLocaleString("fa-IR")} تومان</span>
+                  </div>
+                  {remainingBalance > 0 && (
+                    <div className="flex justify-between text-xs font-bold text-destructive">
+                      <span>باقیمانده بدهی:</span>
+                      <span>{remainingBalance.toLocaleString("fa-IR")} تومان</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 pt-2">
+                    <div className="flex gap-2">
+                      <Input
+                        type="numeric"
+                        placeholder="مبلغ (تومان)"
+                        value={managePaymentAmount}
+                        onChange={(e) => setManagePaymentAmount(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                      <select
+                        className={cn(selectClassName, "h-9 text-xs")}
+                        value={managePaymentMethod}
+                        onChange={(event) =>
+                          setManagePaymentMethod(
+                            event.target
+                              .value as (typeof PAYMENT_METHODS)[number]["value"],
+                          )
+                        }
+                        disabled={paymentPending}
+                      >
+                        {PAYMENT_METHODS.map((method) => (
+                          <option key={method.value} value={method.value}>
+                            {method.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      onClick={handleRecordPayment}
+                      disabled={paymentPending || remainingBalance <= 0}
+                    >
+                      {paymentPending ? (
+                        <Loader className="animate-spin" />
+                      ) : (
+                        `ثبت پرداخت ${managePaymentAmount ? Number(managePaymentAmount).toLocaleString("fa-IR") : "باقیمانده"}`
+                      )}
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="grid gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="justify-start">
-                        <CalendarPlus />
-                        {renewDate
-                          ? format(renewDate, "yyyy/MM/dd")
-                          : "تاریخ تمدید"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent>
-                      <Calendar
-                        className="w-full"
-                        mode="single"
-                        selected={renewDate}
-                        onSelect={setRenewDate}
-                        disabled={(day) => day < new Date()}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <div className="rounded-2xl border bg-muted/40 p-3 text-xs leading-6 text-muted-foreground">
-                    <div className="font-medium text-foreground">
-                      پایان فعلی: {membership.endDate}
+                <div className="grid gap-3">
+                  <div className="space-y-2 rounded-2xl border p-3">
+                    <div className="text-sm font-medium">تمدید یا تغییر طرح</div>
+                    <select
+                      className={cn(selectClassName, "h-9 text-xs")}
+                      value={selectedPlanId}
+                      onChange={(event) => handlePlanChange(event.target.value)}
+                      disabled={renewPending}
+                    >
+                      {membershipPlans.map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name} ·{" "}
+                          {plan.durationDays.toLocaleString("fa-IR")} روز
+                        </option>
+                      ))}
+                    </select>
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start text-xs"
+                        >
+                          <CalendarPlus className="size-3" />
+                          {renewDate
+                            ? format(renewDate, "yyyy/MM/dd")
+                            : "تاریخ جدید"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent>
+                        <Calendar
+                          className="w-full"
+                          mode="single"
+                          selected={renewDate}
+                          onSelect={setRenewDate}
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <div className="rounded-lg bg-muted/40 p-2 text-[10px] leading-5 text-muted-foreground">
+                      <div className="font-medium text-foreground">
+                        پایان فعلی: {membership.endDate}
+                      </div>
+                      <div>{smartRenewalPreview?.helpText}</div>
                     </div>
-                    <div>{smartRenewalPreview?.helpText}</div>
+
+                    {renewError ? (
+                      <p className="text-[10px] text-destructive">
+                        {renewError}
+                      </p>
+                    ) : null}
+
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs"
+                        onClick={() => handleRenew(true)}
+                        disabled={renewPending || !renewDate}
+                      >
+                        {renewPending ? (
+                          <Loader className="animate-spin size-3" />
+                        ) : (
+                          "اصلاح تاریخ"
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 text-xs"
+                        onClick={() => handleRenew(false)}
+                        disabled={renewPending || !renewDate}
+                      >
+                        {renewPending ? (
+                          <Loader className="animate-spin size-3" />
+                        ) : (
+                          "ثبت تمدید"
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  {renewError ? (
-                    <p className="text-xs text-destructive">{renewError}</p>
-                  ) : null}
-                  <Button
-                    onClick={handleRenew}
-                    disabled={renewPending || !renewDate}
-                  >
-                    {renewPending ? (
-                      <Loader className="animate-spin" />
-                    ) : (
-                      <CalendarPlus />
-                    )}
-                    {smartRenewalPreview?.buttonText ?? "تمدید عضویت"}
-                  </Button>
 
                   <div className="space-y-2 rounded-2xl border p-3">
                     <div className="text-sm font-medium">انتقال صندلی</div>

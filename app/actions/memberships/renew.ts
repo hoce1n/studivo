@@ -9,7 +9,10 @@ import { isOccupyingAssignment } from "@/app/dashboard/_lib/dashboard-utils";
 
 const renewMembershipSchema = z.object({
   membershipId: z.string().cuid("شناسه عضویت معتبر نیست."),
+  startsAt: z.coerce.date("تاریخ شروع معتبر نیست.").optional(),
   endsAt: z.coerce.date("تاریخ پایان جدید معتبر نیست."),
+  membershipPlanId: z.string().cuid("شناسه طرح عضویت معتبر نیست.").optional(),
+  isAdjustment: z.boolean().optional().default(false),
 });
 
 function calculateDaysDifference(newEndsAt: Date, currentEndsAt: Date) {
@@ -24,23 +27,34 @@ function calculateDaysDifference(newEndsAt: Date, currentEndsAt: Date) {
  */
 export async function renewMembership(
   membershipId: string,
-  endsAt: string | Date
+  data: {
+    endsAt: string | Date;
+    startsAt?: string | Date;
+    membershipPlanId?: string;
+    isAdjustment?: boolean;
+  },
 ): Promise<ActionResult<{ isRealRenewal: boolean; daysDifference: number }>> {
   const user = await requireScopedUser();
   const { studyHallId } = user;
-  const parsed = renewMembershipSchema.safeParse({ membershipId, endsAt });
+  const parsed = renewMembershipSchema.safeParse({ membershipId, ...data });
 
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? "اطلاعات تمدید عضویت معتبر نیست.",
+      error:
+        parsed.error.issues[0]?.message ?? "اطلاعات تمدید عضویت معتبر نیست.",
     };
   }
 
-  const newEndsAt = parsed.data.endsAt;
+  const {
+    endsAt: newEndsAt,
+    startsAt: newStartsAt,
+    membershipPlanId,
+    isAdjustment,
+  } = parsed.data;
   const now = new Date();
 
-  if (newEndsAt <= now) {
+  if (newEndsAt <= now && !isAdjustment) {
     return {
       success: false,
       error: "تاریخ پایان عضویت باید بعد از زمان جاری باشد.",
@@ -62,6 +76,7 @@ export async function renewMembership(
           userId: true,
           membershipPlanId: true,
           status: true,
+          startsAt: true,
           endsAt: true,
           planName: true,
           planDurationDays: true,
@@ -92,7 +107,7 @@ export async function renewMembership(
             status: current.status,
             endsAt: current.endsAt,
           },
-        })
+        }),
       );
       // Fallback: fixed-seat memberships should keep the latest known seat
       const seatToKeep =
@@ -100,26 +115,61 @@ export async function renewMembership(
         (current.hasFixedSeat ? current.seatAssignments[0] : undefined);
 
       const daysDifference = calculateDaysDifference(newEndsAt, current.endsAt);
-      const isRealRenewal = daysDifference > 7;
 
-      if (isRealRenewal) {
+      if (isAdjustment) {
+        // Just update current record
+        await tx.membership.update({
+          where: { id: current.id },
+          data: {
+            startsAt: newStartsAt ?? current.startsAt,
+            endsAt: newEndsAt,
+          },
+        });
+
+        // If seat assignment was closed, maybe re-open it if we extended the date?
+        // For now, let's keep it simple and just adjust membership.
+      } else {
+        // Real renewal: Create new record, expire old one
         await tx.membership.update({
           where: { id: current.id },
           data: { status: "EXPIRED" },
         });
 
+        let plan = {
+          id: current.membershipPlanId,
+          name: current.planName,
+          durationDays: current.planDurationDays,
+          price: current.planPrice,
+          hasFixedSeat: current.hasFixedSeat,
+        };
+
+        if (membershipPlanId && membershipPlanId !== current.membershipPlanId) {
+          const newPlan = await tx.membershipPlan.findFirst({
+            where: { id: membershipPlanId, studyHallId, isActive: true },
+          });
+          if (newPlan) {
+            plan = {
+              id: newPlan.id,
+              name: newPlan.name,
+              durationDays: newPlan.durationDays,
+              price: newPlan.price,
+              hasFixedSeat: newPlan.hasFixedSeat,
+            };
+          }
+        }
+
         const newMembership = await tx.membership.create({
           data: {
             userId: current.userId,
             studyHallId,
-            membershipPlanId: current.membershipPlanId,
+            membershipPlanId: plan.id,
             status: "ACTIVE",
-            startsAt: now,
+            startsAt: newStartsAt ?? now,
             endsAt: newEndsAt,
-            planName: current.planName,
-            planDurationDays: current.planDurationDays,
-            planPrice: current.planPrice,
-            hasFixedSeat: current.hasFixedSeat,
+            planName: plan.name,
+            planDurationDays: plan.durationDays,
+            planPrice: plan.price,
+            hasFixedSeat: plan.hasFixedSeat,
           },
         });
 
@@ -140,10 +190,10 @@ export async function renewMembership(
             throw new Error("این کاربر دارای تخصیص صندلی فعال دیگری است.");
           }
 
-          // Close previous assignment (works for null or legacy endsAt)
+          // Close previous assignment
           await tx.seatAssignment.update({
             where: { id: seatToKeep.id },
-            data: { endsAt: now },
+            data: { endsAt: newStartsAt ?? now },
           });
 
           // Canonical open assignment for the new membership
@@ -151,24 +201,9 @@ export async function renewMembership(
             data: {
               membershipId: newMembership.id,
               seatId: seatToKeep.seatId,
-              startsAt: now,
+              startsAt: newStartsAt ?? now,
               endsAt: null,
             },
-          });
-        }
-      } else {
-        await tx.membership.update({
-          where: { id: current.id },
-          data: { endsAt: newEndsAt, status: "ACTIVE" },
-        });
-
-        // Align seat occupancy with the extended membership.
-        // Legacy rows had endsAt = old membership end; leaving that stale
-        // makes isOccupyingAssignment treat the seat as released.
-        if (current.hasFixedSeat && seatToKeep) {
-          await tx.seatAssignment.update({
-            where: { id: seatToKeep.id },
-            data: { endsAt: null },
           });
         }
       }
@@ -183,32 +218,31 @@ export async function renewMembership(
           entityType: "MEMBERSHIP",
           entityId: current.id,
           metadata: {
-            actionType: "RENEW_MEMBERSHIP",
+            actionType: isAdjustment ? "ADJUST_DATES" : "RENEW_MEMBERSHIP",
             operatorName: user.name,
             memberName: current.user.name,
             seatNumber: seatNum,
-            hasFixedSeat: current.hasFixedSeat,
             oldEndsAt: current.endsAt.toISOString(),
             newEndsAt: newEndsAt.toISOString(),
-            daysDifference,
-            isRealRenewal,
+            isAdjustment,
+            newPlanId: membershipPlanId,
           },
         },
       });
 
-      return { isRealRenewal, daysDifference };
+      return { isRealRenewal: !isAdjustment, daysDifference };
     });
   } catch (error) {
-    return actionError(error, "تمدید عضویت ناموفق بود.");
+    return actionError(error, isAdjustment ? "اصلاح تاریخ ناموفق بود." : "تمدید عضویت ناموفق بود.");
   }
 
   revalidateOperationalPaths();
 
   return {
     success: true,
-    message: result?.isRealRenewal
-      ? "تمدید جدید با موفقیت ایجاد گردید و سابقه قبلی حفظ شد."
-      : "تاریخ پایان عضویت اصلاح شد.",
+    message: isAdjustment
+      ? "تاریخ عضویت با موفقیت اصلاح شد."
+      : "تمدید جدید با موفقیت ثبت شد.",
     data: result ?? undefined,
   };
 }

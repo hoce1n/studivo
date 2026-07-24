@@ -43,13 +43,25 @@ export async function recordPayment(formData: FormData): Promise<ActionResult> {
         where: { id: membershipId, studyHallId },
         select: {
           id: true,
+          status: true,
+          planPrice: true,
           user: { select: { name: true } },
+          payments: {
+            where: { status: "COMPLETED" },
+            select: { amount: true },
+          },
         },
       });
 
       if (!membership) {
         throw new Error("عضویت مورد نظر در این سالن یافت نشد.");
       }
+
+      const totalPaidBefore = membership.payments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0,
+      );
+      const totalPaidAfter = totalPaidBefore + amount;
 
       const payment = await tx.payment.create({
         data: {
@@ -63,6 +75,16 @@ export async function recordPayment(formData: FormData): Promise<ActionResult> {
         },
       });
 
+      // If membership was PENDING and now fully paid (or at least has a payment), we might want to activate it.
+      // Business rule: COMPLETED payment (even partial) can activate if we decide so, 
+      // but usually fully paid = ACTIVE.
+      if (membership.status === "PENDING" && totalPaidAfter >= Number(membership.planPrice)) {
+        await tx.membership.update({
+          where: { id: membership.id },
+          data: { status: "ACTIVE" },
+        });
+      }
+
       await tx.auditLog.create({
         data: {
           studyHallId,
@@ -74,6 +96,8 @@ export async function recordPayment(formData: FormData): Promise<ActionResult> {
             memberName: membership.user.name,
             amount,
             method,
+            totalPaidAfter,
+            planPrice: Number(membership.planPrice),
             operatorName: user.name,
           },
         },

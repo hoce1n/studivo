@@ -61,7 +61,12 @@ type DashboardSeatData = {
         name: string;
         phoneNumber: string | null;
       };
-      payments: { id: string; status: string; method: string }[];
+      payments: {
+        id: string;
+        amount: number;
+        status: string;
+        method: string;
+      }[];
     };
   }[];
 };
@@ -137,21 +142,28 @@ function toSeatMapItem(
           hasFixedSeat: membership.hasFixedSeat,
           paymentStatus: paymentStatusFromPayments(membership.payments),
           paymentMethod: membership.payments[0]?.method,
+          payments: membership.payments.map((p) => ({
+            id: p.id,
+            amount: Number(p.amount),
+            status: p.status,
+            method: p.method,
+            createdAt: new Date().toISOString(), // Fallback
+          })),
         }
       : undefined,
-    history: seat.assignments
-      .filter((assignment) => assignment.id !== activeAssignment?.id)
-      .map((assignment) => ({
-        id: assignment.id,
-        memberName: assignment.membership.user.name ?? "بدون نام",
-        phoneNumber: assignment.membership.user.phoneNumber ?? "—",
-        startDate: formatDate(new Date(assignment.membership.startsAt)),
-        endDate: formatDate(new Date(assignment.membership.endsAt)),
-        status: assignment.membership.status.toLowerCase(),
-        paymentStatus: paymentStatusFromPayments(
-          assignment.membership.payments,
-        ),
-      })),
+    history: seat.assignments.map((assignment) => ({
+      id: assignment.id,
+      memberName: assignment.membership.user.name ?? "بدون نام",
+      phoneNumber: assignment.membership.user.phoneNumber ?? "—",
+      startDate: formatDate(new Date(assignment.membership.startsAt)),
+      endDate: formatDate(new Date(assignment.membership.endsAt)),
+      startsAtISO: new Date(assignment.startsAt).toISOString(),
+      endsAtISO: assignment.endsAt
+        ? new Date(assignment.endsAt).toISOString()
+        : "",
+      status: assignment.membership.status.toLowerCase(),
+      paymentStatus: paymentStatusFromPayments(assignment.membership.payments),
+    })),
   };
 }
 
