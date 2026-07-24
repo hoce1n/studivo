@@ -32,7 +32,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { upsertMembershipPlan } from "@/app/actions/settings/mutations";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 interface Plan {
@@ -54,10 +53,7 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleSuccess = (result?: { message?: string }) => {
-    if (result?.message) {
-      toast.success(result.message);
-    }
+  const handleSuccess = (_result: unknown) => {
     setIsDialogOpen(false);
     setEditingPlan(null);
     router.refresh();
