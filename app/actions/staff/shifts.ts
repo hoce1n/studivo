@@ -12,8 +12,9 @@ import { revalidatePath } from "next/cache";
 
 const shiftSchema = z.object({
   staffAssignmentId: z.string().cuid("شناسه تخصیص همکار معتبر نیست."),
-  startsAt: z.coerce.date(),
-  endsAt: z.coerce.date(),
+  date: z.string().min(1, "تاریخ الزامی است."),
+  startTime: z.string().min(1, "ساعت شروع الزامی است."),
+  endTime: z.string().min(1, "ساعت پایان الزامی است."),
   note: z.string().optional(),
 });
 
@@ -38,8 +39,9 @@ export async function createShift(formData: FormData): Promise<ActionResult> {
 
   const parsed = shiftSchema.safeParse({
     staffAssignmentId: formData.get("staffAssignmentId"),
-    startsAt: formData.get("startsAt"),
-    endsAt: formData.get("endsAt"),
+    date: formData.get("date"),
+    startTime: formData.get("startTime"),
+    endTime: formData.get("endTime"),
     note: formData.get("note")?.toString() || undefined,
   });
 
@@ -50,10 +52,22 @@ export async function createShift(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const { staffAssignmentId, startsAt, endsAt, note } = parsed.data;
+  const { staffAssignmentId, date, startTime, endTime, note } = parsed.data;
 
-  if (startsAt >= endsAt) {
-    return { success: false, error: "زمان شروع باید قبل از زمان پایان باشد." };
+  // Combine date and time into UTC dates
+  const baseDate = new Date(date);
+  const [startH, startM] = startTime.split(":").map(Number);
+  const [endH, endM] = endTime.split(":").map(Number);
+
+  const startsAt = new Date(baseDate);
+  startsAt.setHours(startH, startM, 0, 0);
+
+  const endsAt = new Date(baseDate);
+  endsAt.setHours(endH, endM, 0, 0);
+
+  // If endsAt is before startsAt, assume it's the next day (e.g. 22:00 to 02:00)
+  if (endsAt <= startsAt) {
+    endsAt.setDate(endsAt.getDate() + 1);
   }
 
   // Prevent far past shifts (e.g., more than 30 days ago)

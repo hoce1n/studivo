@@ -52,7 +52,6 @@ export async function getShifts(filters: {
 
   // If user is STAFF, they can only see their own shifts unless OWNER
   if (user.role === "STAFF") {
-    // Find the staff assignment ID for the current user in this hall
     const currentAssignment = await prisma.staffAssignment.findFirst({
       where: { userId: user.id, studyHallId, isActive: true },
       select: { id: true },
@@ -60,9 +59,6 @@ export async function getShifts(filters: {
 
     if (currentAssignment) {
       where.staffAssignmentId = currentAssignment.id;
-    } else {
-      // Should not happen if requireScopedUser passed, but for safety:
-      return [];
     }
   }
 

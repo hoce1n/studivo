@@ -23,46 +23,55 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 
-function adminOnlyItems(activePath?: string) {
-  return [
-    {
-      title: "تنظیمات سالن",
-      url: "/dashboard/settings",
-      icon: <Settings2Icon />,
-      isActive: activePath === "/dashboard/settings",
-      items: [
-        { title: "مشخصات سالن", url: "/dashboard/settings" },
-        { title: "ظرفیت و صندلی‌ها", url: "/dashboard/settings" },
-      ],
-    },
-    {
-      title: "مالی",
-      url: "/dashboard/finance",
-      icon: <TrendingUpIcon />,
-      isActive: activePath === "/dashboard/finance",
-      items: [
-        { title: "گزارش‌های مالی", url: "/dashboard/finance" },
-        { title: "پرداخت‌های معوقه", url: "/dashboard/finance#overdue" },
-      ],
-    },
-    {
-      title: "دفترچه وقایع",
-      url: "/dashboard/logs",
-      icon: <ScrollTextIcon />,
-      isActive: activePath === "/dashboard/logs",
-      items: [{ title: "گزارش عملکرد روزانه", url: "/dashboard/logs" }],
-    },
-    {
-      title: "کارکنان",
-      url: "/dashboard/staff",
-      icon: <UsersRoundIcon />,
-      isActive: activePath?.startsWith("/dashboard/staff"),
-      items: [
-        { title: "لیست همکاران", url: "/dashboard/staff" },
-        { title: "شیفت‌ها", url: "/dashboard/staff?tab=shifts" },
-      ],
-    },
-  ];
+function adminOnlyItems(activePath?: string, userRole?: string) {
+  const isOwner = userRole === "OWNER" || userRole === "admin" || userRole === "ADMIN";
+  
+  const items = [];
+
+  if (isOwner) {
+    items.push(
+      {
+        title: "تنظیمات سالن",
+        url: "/dashboard/settings",
+        icon: <Settings2Icon />,
+        isActive: activePath === "/dashboard/settings",
+        items: [
+          { title: "مشخصات سالن", url: "/dashboard/settings" },
+          { title: "ظرفیت و صندلی‌ها", url: "/dashboard/settings" },
+        ],
+      },
+      {
+        title: "مالی",
+        url: "/dashboard/finance",
+        icon: <TrendingUpIcon />,
+        isActive: activePath === "/dashboard/finance",
+        items: [
+          { title: "گزارش‌های مالی", url: "/dashboard/finance" },
+          { title: "پرداخت‌های معوقه", url: "/dashboard/finance#overdue" },
+        ],
+      },
+      {
+        title: "دفترچه وقایع",
+        url: "/dashboard/logs",
+        icon: <ScrollTextIcon />,
+        isActive: activePath === "/dashboard/logs",
+        items: [{ title: "گزارش عملکرد روزانه", url: "/dashboard/logs" }],
+      }
+    );
+  }
+
+  items.push({
+    title: "کارکنان",
+    url: "/dashboard/staff",
+    icon: <UsersRoundIcon />,
+    isActive: activePath?.startsWith("/dashboard/staff"),
+    items: [
+      { title: "لیست همکاران", url: "/dashboard/staff" },
+      { title: "شیفت‌ها", url: "/dashboard/staff?tab=shifts" },
+    ],
+  });
+
+  return items;
 }
 
 function sidebarData(
@@ -112,7 +121,7 @@ function sidebarData(
           { title: "امنیت و رمز عبور", url: "/dashboard/profile" },
         ],
       },
-      ...(isOwnerOrAdmin ? adminOnlyItems(activePath) : []),
+      ...(isOwnerOrAdmin || userRole === "STAFF" ? adminOnlyItems(activePath, userRole) : []),
     ],
     projects: [],
   };

@@ -16,6 +16,10 @@ const staffAssignmentSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date().optional(),
   note: z.string().optional(),
+  // New user fields
+  createNewUser: z.coerce.boolean().optional(),
+  name: z.string().optional(),
+  password: z.string().optional(),
 });
 
 const updateStaffAssignmentSchema = z.object({
@@ -59,26 +63,50 @@ export async function assignStaff(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const { identifier, role, startDate, endDate, note } = parsed.data;
+  const { identifier, role, startDate, endDate, note, createNewUser, name, password } = parsed.data;
 
   if (endDate && endDate < startDate) {
     return { success: false, error: "تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد." };
   }
 
   try {
-    return await prisma.$transaction(async (tx) => {
-      const targetUser = await tx.user.findFirst({
+    const result = await prisma.$transaction(async (tx) => {
+      let targetUser = await tx.user.findFirst({
         where: {
           OR: [
             { email: identifier },
             { phoneNumber: identifier },
           ],
         },
-        select: { id: true, name: true },
+        select: { id: true, name: true, email: true, phoneNumber: true },
       });
 
       if (!targetUser) {
-        throw new Error("کاربری با این مشخصات یافت نشد. ابتدا حساب کاربری او را بسازید.");
+        if (createNewUser) {
+          if (!name || !password) {
+            throw new Error("برای ساخت حساب جدید، نام و رمز عبور الزامی است.");
+          }
+
+          // Use better-auth to create user
+          const { auth } = await import("@/lib/auth");
+          const newUser = await auth.api.signUpEmail({
+            body: {
+              email: identifier.includes("@") ? identifier : `${identifier}@studivo.ir`,
+              password,
+              name,
+            },
+          });
+
+          targetUser = await tx.user.update({
+            where: { id: newUser.user.id },
+            data: { 
+              phoneNumber: !identifier.includes("@") ? identifier : null,
+            },
+            select: { id: true, name: true, email: true, phoneNumber: true },
+          });
+        } else {
+          throw new Error("کاربری با این مشخصات یافت نشد. ابتدا حساب کاربری او را بسازید یا گزینه ساخت حساب جدید را انتخاب کنید.");
+        }
       }
 
       const existingAssignment = await tx.staffAssignment.findFirst({
@@ -117,13 +145,20 @@ export async function assignStaff(formData: FormData): Promise<ActionResult> {
             operatorName: user.name,
             targetUserName: targetUser.name,
             role,
+            isNewUser: !!createNewUser,
           },
         },
       });
 
-      revalidateStaffPaths();
-      return { success: true, message: "همکار با موفقیت به سالن اضافه شد." };
+      return { 
+        success: true, 
+        message: createNewUser ? "حساب کاربری ساخته و همکار به سالن اضافه شد." : "همکار با موفقیت به سالن اضافه شد.",
+        data: createNewUser ? { email: targetUser.email, password } : undefined
+      };
     });
+
+    revalidateStaffPaths();
+    return result;
   } catch (error) {
     return actionError(error, "افزودن همکار ناموفق بود.");
   }
