@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { JalaliDatePicker } from "@/components/jalali-date-picker";
 import { Search, Filter, X } from "lucide-react";
+import { auditActionLabels, auditEntityLabels } from "../_lib/log-utils";
+import { AuditAction, AuditEntity } from "@prisma/client";
 
 interface LogFiltersProps {
   actors: { id: string; name: string }[];
-  actions: string[];
-  entities: string[];
+  actions: AuditAction[];
+  entities: AuditEntity[];
 }
 
 export function LogFilters({ actors, actions, entities }: LogFiltersProps) {
@@ -106,22 +108,22 @@ export function LogFilters({ actors, actions, entities }: LogFiltersProps) {
           >
             <option value="">همه</option>
             {actions.map((a) => (
-              <option key={a} value={a}>{a}</option>
+              <option key={a} value={a}>{auditActionLabels[a] || a}</option>
             ))}
           </select>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="actor">ثبت‌کننده</Label>
+          <Label htmlFor="entity">موجودیت</Label>
           <select
-            id="actor"
+            id="entity"
             className="flex h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            value={searchParams.get("actorId") || ""}
-            onChange={(e) => updateFilters({ actorId: e.target.value })}
+            value={searchParams.get("entityType") || ""}
+            onChange={(e) => updateFilters({ entityType: e.target.value })}
           >
             <option value="">همه</option>
-            {actors.map((actor) => (
-              <option key={actor.id} value={actor.id}>{actor.name}</option>
+            {entities.map((e) => (
+              <option key={e} value={e}>{auditEntityLabels[e] || e}</option>
             ))}
           </select>
         </div>

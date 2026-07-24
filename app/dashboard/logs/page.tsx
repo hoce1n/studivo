@@ -6,6 +6,7 @@ import { LogPagination } from "./_components/log-pagination";
 import { BookOpenText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { redirect } from "next/navigation";
+import { AuditAction, AuditEntity } from "@prisma/client";
 
 interface LogsPageProps {
   searchParams: Promise<{
@@ -41,8 +42,8 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
     getAuditLogActors(),
   ]);
 
-  const auditActions = ["CREATE", "UPDATE", "DELETE", "VOID", "CHECK_IN", "CHECK_OUT"];
-  const auditEntities = [
+  const auditActions: AuditAction[] = ["CREATE", "UPDATE", "DELETE", "VOID", "CHECK_IN", "CHECK_OUT"];
+  const auditEntities: AuditEntity[] = [
     "STUDYHALL", "USER", "MEMBERSHIP_PLAN", "MEMBERSHIP", 
     "PAYMENT", "SEAT", "SEAT_ASSIGNMENT", "ATTENDANCE", 
     "STAFF_ASSIGNMENT", "SHIFT", "EXPENSE", "NOTIFICATION"

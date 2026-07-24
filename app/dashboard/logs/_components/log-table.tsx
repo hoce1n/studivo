@@ -10,19 +10,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns-jalali";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { auditActionLabels, auditEntityLabels, actionVariants } from "../_lib/log-utils";
+import { AuditAction, AuditEntity } from "@prisma/client";
 
 interface LogEntry {
   id: string;
-  action: string;
-  entityType: string;
+  action: AuditAction;
+  entityType: AuditEntity;
   entityId: string;
   metadata: any;
   createdAt: Date;
@@ -38,15 +35,6 @@ interface LogTableProps {
 
 export function LogTable({ logs }: LogTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const actionLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "muted" }> = {
-    CREATE: { label: "ایجاد", variant: "default" },
-    UPDATE: { label: "ویرایش", variant: "secondary" },
-    DELETE: { label: "حذف", variant: "destructive" },
-    VOID: { label: "ابطال", variant: "destructive" },
-    CHECK_IN: { label: "ورود", variant: "outline" },
-    CHECK_OUT: { label: "خروج", variant: "outline" },
-  };
 
   return (
     <div className="rounded-2xl border bg-card">
@@ -73,13 +61,13 @@ export function LogTable({ logs }: LogTableProps) {
                   <div className="text-xs text-muted-foreground">{log.actor?.email}</div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={actionLabels[log.action]?.variant || "outline"}>
-                    {actionLabels[log.action]?.label || log.action}
+                  <Badge variant={actionVariants[log.action] || "outline"}>
+                    {auditActionLabels[log.action] || log.action}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <span className="text-xs font-semibold uppercase text-muted-foreground">
-                    {log.entityType}
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {auditEntityLabels[log.entityType] || log.entityType}
                   </span>
                 </TableCell>
                 <TableCell className="max-w-[120px] truncate text-xs font-mono">
