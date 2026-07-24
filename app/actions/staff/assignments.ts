@@ -54,6 +54,9 @@ export async function assignStaff(formData: FormData): Promise<ActionResult> {
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate") || undefined,
     note: formData.get("note")?.toString() || undefined,
+    createNewUser: formData.get("createNewUser") === "true",
+    name: formData.get("name"),
+    password: formData.get("password"),
   });
 
   if (!parsed.success) {

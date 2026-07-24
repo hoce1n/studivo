@@ -89,11 +89,10 @@ export function AddStaffForm() {
             <div className="flex items-center space-x-2 space-x-reverse">
               <Checkbox 
                 id="createNewUser" 
-                name="createNewUser" 
                 checked={createNewUser}
                 onCheckedChange={(checked) => setCreateNewUser(!!checked)}
-                value="true"
               />
+              <input type="hidden" name="createNewUser" value={createNewUser ? "true" : "false"} />
               <Label htmlFor="createNewUser" className="cursor-pointer">ساخت حساب کاربری جدید برای این همکار</Label>
             </div>
 
