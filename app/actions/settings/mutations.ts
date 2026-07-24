@@ -404,9 +404,9 @@ export async function upsertMembershipPlan(
     name: formData.get("name"),
     durationDays: formData.get("durationDays"),
     price: formData.get("price"),
-    hasFixedSeat: formData.get("hasFixedSeat") === "on",
+    hasFixedSeat: formData.get("hasFixedSeat") === "on" || formData.get("hasFixedSeat") === "true",
     description: formData.get("description")?.toString() || undefined,
-    isActive: formData.get("isActive") === "on",
+    isActive: formData.get("isActive") === "on" || formData.get("isActive") === "true",
   });
   if (!parsed.success)
     return {

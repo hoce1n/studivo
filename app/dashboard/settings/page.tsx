@@ -27,7 +27,7 @@ export default async function HallSettingsPage() {
   if (!user || !assignment) redirect("/onboarding");
   if (assignment.role !== "OWNER") redirect("/dashboard");
 
-  const [studyHall, sections, plans, staff] = await Promise.all([
+  const [studyHall, sections, plans] = await Promise.all([
     prisma.studyHall.findUnique({
       where: { id: assignment.studyHallId },
       select: {
@@ -70,18 +70,6 @@ export default async function HallSettingsPage() {
         isActive: true,
       },
     }),
-    prisma.staffAssignment.findMany({
-      where: { studyHallId: assignment.studyHallId },
-      orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
-      select: {
-        id: true,
-        role: true,
-        startDate: true,
-        endDate: true,
-        isActive: true,
-        user: { select: { name: true, email: true, phoneNumber: true } },
-      },
-    }),
   ]);
 
   if (!studyHall) redirect("/onboarding");
@@ -96,11 +84,6 @@ export default async function HallSettingsPage() {
   const normalizedPlans = plans.map((plan: (typeof plans)[number]) => ({
     ...plan,
     price: Number(plan.price),
-  }));
-  const normalizedStaff = staff.map((item: (typeof staff)[number]) => ({
-    ...item,
-    startDate: item.startDate.toISOString(),
-    endDate: item.endDate?.toISOString() ?? null,
   }));
 
   return (
@@ -119,8 +102,8 @@ export default async function HallSettingsPage() {
                 تنظیمات سالن
               </h1>
               <p className="mt-3 max-w-2xl leading-8 text-muted-foreground">
-                مشخصات عمومی، بخش‌ها، صندلی‌های فعال و خارج از سرویس، پلن‌های
-                عضویت و همکاران سالن را از یک فضای تب‌بندی‌شده مدیریت کنید.
+                مشخصات عمومی، بخش‌ها، صندلی‌های فعال و خارج از سرویس و پلن‌های
+                عضویت را از یک فضای تب‌بندی‌شده مدیریت کنید.
               </p>
             </div>
           </div>
@@ -135,7 +118,6 @@ export default async function HallSettingsPage() {
         sections={sections}
         unassignedSeats={unassignedSeats}
         plans={normalizedPlans}
-        staff={normalizedStaff}
       />
     </section>
   );
