@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type SeatCardProps = {
@@ -7,6 +8,8 @@ export type SeatCardProps = {
   statusLabel: string;
   className: string;
   dotClass: string;
+  isDuplicate?: boolean;
+  duplicateSeats?: string[];
   membership?: {
     id: string;
     memberName: string;
@@ -21,6 +24,8 @@ export function SeatCard({
   statusLabel,
   className,
   dotClass,
+  isDuplicate,
+  duplicateSeats,
   membership,
 }: SeatCardProps) {
   return (
@@ -34,6 +39,12 @@ export function SeatCard({
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 font-bold">
           صندلی {seatNumber}
+          {isDuplicate && (
+            <AlertTriangle
+              className="size-4 text-amber-600"
+              title={`خطا: این کاربر همزمان صندلی‌های ${duplicateSeats?.join(" و ")} را دارد.`}
+            />
+          )}
         </span>
         <span className="inline-flex items-center gap-1 text-xs font-medium">
           <span className={cn("size-1.5 rounded-full", dotClass)} aria-hidden />

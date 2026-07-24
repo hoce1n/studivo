@@ -125,15 +125,31 @@ export function processSeatData(
   seats: { number: string; assignments: AssignmentLike[] }[],
   sortByRenewal: boolean
 ) {
+  // Track active assignments by membership ID to find duplicates
+  const activeAssignmentsByMembership = new Map<string, string[]>();
+  seats.forEach((seat) => {
+    const active = getActiveAssignment(seat.assignments);
+    if (active?.membership.id) {
+      const existing = activeAssignmentsByMembership.get(active.membership.id) || [];
+      activeAssignmentsByMembership.set(active.membership.id, [...existing, seat.number]);
+    }
+  });
+
   const initialSeatView = seats.map((seat) => {
     const currentAssignment = getActiveAssignment(seat.assignments);
     const membership = currentAssignment?.membership;
     const seatNum = parseInt(seat.number, 10) || 0;
+
+    const isDuplicate =
+      membership?.id && (activeAssignmentsByMembership.get(membership.id)?.length ?? 0) > 1;
+
     return {
       ...seat,
       seatNumber: seatNum,
       membership,
       status: getSeatStatus(membership?.endsAt, membership?.status),
+      isDuplicate,
+      duplicateSeats: isDuplicate ? activeAssignmentsByMembership.get(membership.id!) : undefined,
     };
   });
 

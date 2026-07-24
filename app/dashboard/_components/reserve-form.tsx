@@ -79,6 +79,8 @@ export type ReserveFormSeat = {
   sectionName: string;
   sectionIsActive: boolean;
   status: SeatStatus;
+  isDuplicate?: boolean;
+  duplicateSeats?: string[];
   seatAssignmentId?: string;
   membership?: {
     id: string;

@@ -124,6 +124,22 @@ export async function renewMembership(
         });
 
         if (current.hasFixedSeat && seatToKeep) {
+          // Check if user has ANY OTHER active assignment (safety check)
+          const otherActive = await tx.seatAssignment.findFirst({
+            where: {
+              id: { not: seatToKeep.id },
+              membership: {
+                userId: current.userId,
+                studyHallId,
+              },
+              OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+            },
+          });
+
+          if (otherActive) {
+            throw new Error("این کاربر دارای تخصیص صندلی فعال دیگری است.");
+          }
+
           // Close previous assignment (works for null or legacy endsAt)
           await tx.seatAssignment.update({
             where: { id: seatToKeep.id },

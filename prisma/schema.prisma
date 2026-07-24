@@ -330,6 +330,10 @@ model SeatAssignment {
   @@index([seatId])
   @@index([startsAt])
   @@index([endsAt])
+  // Prevent multiple active assignments for the same membership
+  // Note: This only works for null endsAt. Overlapping assignments with future endsAt
+  // still need application-level checks or a complex trigger.
+  @@unique([membershipId, endsAt])
   @@map("seat_assignments")
 }
 

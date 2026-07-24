@@ -205,7 +205,7 @@ export async function swapSeat(
             select: {
               status: true,
               endsAt: true,
-              user: { select: { name: true } },
+              user: { select: { id: true, name: true } },
             },
           },
         },
@@ -221,6 +221,22 @@ export async function swapSeat(
 
       const now = new Date();
 
+      // Safety check: ensure no other active assignments for this user
+      const otherActive = await tx.seatAssignment.findFirst({
+        where: {
+          id: { not: current.id },
+          membership: {
+            userId: current.membership.user.id, // We need user ID here
+            studyHallId,
+          },
+          OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+        },
+      });
+
+      if (otherActive) {
+        throw new Error("این کاربر دارای تخصیص صندلی فعال دیگری است.");
+      }
+
       await tx.seatAssignment.update({
         where: { id: current.id },
         data: { endsAt: now },
@@ -231,6 +247,7 @@ export async function swapSeat(
           membershipId: current.membershipId,
           seatId: targetSeat.id,
           startsAt: now,
+          endsAt: null,
         },
       });
 

@@ -98,9 +98,16 @@ function paymentStatusFromPayments(
   return "unpaid";
 }
 
-function toSeatMapItem(seat: DashboardSeatData): ReserveFormSeat {
+function toSeatMapItem(
+  seat: DashboardSeatData,
+  activeAssignmentsByMembership: Map<string, string[]>,
+): ReserveFormSeat {
   const activeAssignment = getActiveAssignment(seat.assignments);
   const membership = activeAssignment?.membership;
+
+  const isDuplicate =
+    membership?.id &&
+    (activeAssignmentsByMembership.get(membership.id)?.length ?? 0) > 1;
 
   return {
     id: seat.id,
@@ -111,6 +118,10 @@ function toSeatMapItem(seat: DashboardSeatData): ReserveFormSeat {
     sectionName: seat.sectionName,
     sectionIsActive: seat.sectionIsActive,
     status: getSeatStatus(membership?.endsAt, membership?.status),
+    isDuplicate,
+    duplicateSeats: isDuplicate
+      ? activeAssignmentsByMembership.get(membership.id!)
+      : undefined,
     membership: membership
       ? {
           id: membership.id,
@@ -161,7 +172,23 @@ export function StudyHallSeatsMap({
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("fa-IR");
   const isSearchActive = normalizedSearchQuery.length >= 3;
 
-  const seatItems = seats.map(toSeatMapItem);
+  // Track active assignments by membership ID to find duplicates
+  const activeAssignmentsByMembership = new Map<string, string[]>();
+  seats.forEach((seat) => {
+    const active = getActiveAssignment(seat.assignments);
+    if (active?.membership.id) {
+      const existing =
+        activeAssignmentsByMembership.get(active.membership.id) || [];
+      activeAssignmentsByMembership.set(active.membership.id, [
+        ...existing,
+        seat.number,
+      ]);
+    }
+  });
+
+  const seatItems = seats.map((s) =>
+    toSeatMapItem(s, activeAssignmentsByMembership),
+  );
   const sortedSeats = shouldSortByRenewal
     ? [...seatItems].sort((a, b) => {
         const timeA = a.membership
@@ -337,6 +364,8 @@ export function StudyHallSeatsMap({
                                 "z-10 scale-105 ring-2 ring-indigo-500",
                             )}
                             dotClass={copy.dot}
+                            isDuplicate={seat.isDuplicate}
+                            duplicateSeats={seat.duplicateSeats}
                             membership={seat.membership}
                           />
                         </button>

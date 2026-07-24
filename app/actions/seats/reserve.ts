@@ -176,7 +176,8 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
         select: { id: true, name: true },
       });
 
-      const existingActive = await tx.membership.findFirst({
+      // 1. Check for any active membership for this user in this study hall
+      const existingActiveMembership = await tx.membership.findFirst({
         where: {
           studyHallId,
           userId: member.id,
@@ -192,12 +193,36 @@ export async function reserveSeat(formData: FormData): Promise<ActionResult> {
         },
       });
 
-      if (existingActive) {
-        const occupiedSeat = existingActive.seatAssignments[0]?.seat.number;
+      if (existingActiveMembership) {
+        const occupiedSeat = existingActiveMembership.seatAssignments[0]?.seat.number;
         throw new Error(
           occupiedSeat
             ? `این شماره تلفن هم‌اکنون صندلی ${occupiedSeat} را در این سالن دارد.`
             : "این شماره تلفن هم‌اکنون یک اشتراک فعال در این سالن دارد.",
+        );
+      }
+
+      // 2. Check for any active SeatAssignment for this user (via ANY membership)
+      // This is a safety check in case membership status and assignment endsAt get out of sync
+      const activeAssignment = await tx.seatAssignment.findFirst({
+        where: {
+          membership: {
+            userId: member.id,
+            studyHallId,
+          },
+          OR: [
+            { endsAt: null },
+            { endsAt: { gt: new Date() } }
+          ]
+        },
+        include: {
+          seat: { select: { number: true } }
+        }
+      });
+
+      if (activeAssignment) {
+        throw new Error(
+          `این کاربر در حال حاضر صندلی ${activeAssignment.seat.number} را در اختیار دارد.`
         );
       }
 
