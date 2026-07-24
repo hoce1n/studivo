@@ -110,9 +110,15 @@ function toSeatMapItem(
   const activeAssignment = getActiveAssignment(seat.assignments);
   const membership = activeAssignment?.membership;
 
-  const isDuplicate =
+  const isDuplicate = Boolean(
     membership?.id &&
-    (activeAssignmentsByMembership.get(membership.id)?.length ?? 0) > 1;
+    (activeAssignmentsByMembership.get(membership.id)?.length ?? 0) > 1,
+  );
+
+  const duplicateSeats =
+    isDuplicate && membership?.id
+      ? activeAssignmentsByMembership.get(membership.id)
+      : undefined;
 
   return {
     id: seat.id,
@@ -124,9 +130,7 @@ function toSeatMapItem(
     sectionIsActive: seat.sectionIsActive,
     status: getSeatStatus(membership?.endsAt, membership?.status),
     isDuplicate,
-    duplicateSeats: isDuplicate
-      ? activeAssignmentsByMembership.get(membership.id!)
-      : undefined,
+    duplicateSeats,
     membership: membership
       ? {
           id: membership.id,

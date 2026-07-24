@@ -6,7 +6,7 @@ import { LogPagination } from "./_components/log-pagination";
 import { BookOpenText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { redirect } from "next/navigation";
-import { AuditAction, AuditEntity } from "@prisma/client";
+import { AuditAction, AuditEntity } from "@/lib/generated/prisma/client";
 
 interface LogsPageProps {
   searchParams: Promise<{

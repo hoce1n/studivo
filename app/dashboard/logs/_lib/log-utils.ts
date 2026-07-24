@@ -1,4 +1,4 @@
-import { AuditAction, AuditEntity } from "@prisma/client";
+import { AuditAction, AuditEntity } from "@/lib/generated/prisma/client";
 
 export const auditActionLabels: Record<AuditAction, string> = {
   CREATE: "ایجاد شد",

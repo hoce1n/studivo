@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { JalaliDatePicker } from "@/components/jalali-date-picker";
 import { Search, Filter, X } from "lucide-react";
 import { auditActionLabels, auditEntityLabels } from "../_lib/log-utils";
-import { AuditAction, AuditEntity } from "@prisma/client";
+import { AuditAction, AuditEntity } from "@/lib/generated/prisma/client";
 
 interface LogFiltersProps {
   actors: { id: string; name: string }[];

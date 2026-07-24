@@ -42,7 +42,7 @@ export function SeatCard({
           {isDuplicate && (
             <AlertTriangle
               className="size-4 text-amber-600"
-              title={`خطا: این کاربر همزمان صندلی‌های ${duplicateSeats?.join(" و ")} را دارد.`}
+              aria-label={`خطا: این کاربر همزمان صندلی‌های ${duplicateSeats?.join(" و ")} را دارد.`}
             />
           )}
         </span>

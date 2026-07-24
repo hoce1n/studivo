@@ -14,7 +14,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auditActionLabels, auditEntityLabels, actionVariants } from "../_lib/log-utils";
-import { AuditAction, AuditEntity } from "@prisma/client";
+import { AuditAction, AuditEntity } from "@/lib/generated/prisma/client";
 
 interface LogEntry {
   id: string;
