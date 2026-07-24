@@ -5,7 +5,10 @@ import { toast } from "sonner";
 import { ShieldAlert } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { getActionErrorMessage, isNextNavigationError } from "@/lib/action-errors";
+import {
+  getActionErrorMessage,
+  isNextNavigationError,
+} from "@/lib/action-errors";
 import { cn } from "@/lib/utils";
 
 type ServerActionResult = {
@@ -18,13 +21,16 @@ function isServerActionResult(value: unknown): value is ServerActionResult {
   return typeof value === "object" && value !== null && "success" in value;
 }
 
-type ActionFormProps = Omit<React.ComponentProps<"form">, "action" | "children" | "onSubmit"> & {
+type ActionFormProps = Omit<
+  React.ComponentProps<"form">,
+  "action" | "children" | "onSubmit"
+> & {
   action: (formData: FormData) => Promise<unknown>;
   children: React.ReactNode | ((pending: boolean) => React.ReactNode);
   errorTitle?: string;
   resetOnSuccess?: boolean;
   successMessage?: string;
-  onSuccess?: () => void;
+  onSuccess?: (result: unknown) => void;
 };
 
 export function ActionForm({
@@ -68,7 +74,7 @@ export function ActionForm({
         if (resolvedSuccessMessage) {
           toast.success(resolvedSuccessMessage);
         }
-        onSuccess?.();
+        onSuccess?.(result);
       } catch (error) {
         if (isNextNavigationError(error)) {
           throw error;
@@ -82,7 +88,11 @@ export function ActionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className={cn("space-y-4", className)} {...props}>
+    <form
+      onSubmit={handleSubmit}
+      className={cn("space-y-4", className)}
+      {...props}
+    >
       {errorMessage ? (
         <Alert variant="destructive">
           <ShieldAlert />

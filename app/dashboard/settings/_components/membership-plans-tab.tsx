@@ -54,8 +54,10 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleSuccess = (result: any) => {
-    toast.success(result.message);
+  const handleSuccess = (result?: { message?: string }) => {
+    if (result?.message) {
+      toast.success(result.message);
+    }
     setIsDialogOpen(false);
     setEditingPlan(null);
     router.refresh();
@@ -70,10 +72,13 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
             مدیریت انواع اشتراک‌ها و هزینه‌های سالن
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) setEditingPlan(null);
-        }}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) setEditingPlan(null);
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="size-4" />
@@ -82,7 +87,9 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]" dir="rtl">
             <DialogHeader>
-              <DialogTitle>{editingPlan ? "ویرایش پلن" : "ایجاد پلن جدید"}</DialogTitle>
+              <DialogTitle>
+                {editingPlan ? "ویرایش پلن" : "ایجاد پلن جدید"}
+              </DialogTitle>
               <DialogDescription>
                 تغییرات قیمت فقط روی اشتراک‌های جدید اعمال می‌شود.
               </DialogDescription>
@@ -92,48 +99,90 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
               onSuccess={handleSuccess}
               className="space-y-4 pt-4"
             >
-              {editingPlan && <input type="hidden" name="planId" value={editingPlan.id} />}
-              
+              {editingPlan && (
+                <input type="hidden" name="planId" value={editingPlan.id} />
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="name">نام پلن</Label>
-                <Input id="name" name="name" defaultValue={editingPlan?.name} required placeholder="مثلاً: اشتراک طلایی ماهانه" />
+                <Input
+                  id="name"
+                  name="name"
+                  defaultValue={editingPlan?.name}
+                  required
+                  placeholder="مثلاً: اشتراک طلایی ماهانه"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="durationDays">مدت (روز)</Label>
-                  <Input id="durationDays" name="durationDays" type="number" defaultValue={editingPlan?.durationDays} required />
+                  <Input
+                    id="durationDays"
+                    name="durationDays"
+                    type="number"
+                    defaultValue={editingPlan?.durationDays}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="price">قیمت (ریال)</Label>
-                  <Input id="price" name="price" type="number" defaultValue={editingPlan?.price} required />
+                  <Input
+                    id="price"
+                    name="price"
+                    type="number"
+                    defaultValue={editingPlan?.price}
+                    required
+                  />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="description">توضیحات (اختیاری)</Label>
-                <Input id="description" name="description" defaultValue={editingPlan?.description || ""} />
+                <Input
+                  id="description"
+                  name="description"
+                  defaultValue={editingPlan?.description || ""}
+                />
               </div>
 
               <div className="flex items-center justify-between rounded-2xl border p-4">
                 <div className="space-y-0.5">
                   <Label>صندلی اختصاصی</Label>
-                  <p className="text-xs text-muted-foreground">آیا این پلن شامل صندلی ثابت است؟</p>
+                  <p className="text-xs text-muted-foreground">
+                    آیا این پلن شامل صندلی ثابت است؟
+                  </p>
                 </div>
-                <Switch name="hasFixedSeat" defaultChecked={editingPlan?.hasFixedSeat ?? true} />
+                <Switch
+                  name="hasFixedSeat"
+                  defaultChecked={editingPlan?.hasFixedSeat ?? true}
+                />
               </div>
 
               <div className="flex items-center justify-between rounded-2xl border p-4">
                 <div className="space-y-0.5">
                   <Label>وضعیت فعال</Label>
-                  <p className="text-xs text-muted-foreground">پلن‌های غیرفعال در لیست ثبت‌نام نمایش داده نمی‌شوند.</p>
+                  <p className="text-xs text-muted-foreground">
+                    پلن‌های غیرفعال در لیست ثبت‌نام نمایش داده نمی‌شوند.
+                  </p>
                 </div>
-                <Switch name="isActive" defaultChecked={editingPlan?.isActive ?? true} />
+                <Switch
+                  name="isActive"
+                  defaultChecked={editingPlan?.isActive ?? true}
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>انصراف</Button>
-                <Button type="submit">{editingPlan ? "بروزرسانی" : "ایجاد پلن"}</Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setIsDialogOpen(false)}
+                >
+                  انصراف
+                </Button>
+                <Button type="submit">
+                  {editingPlan ? "بروزرسانی" : "ایجاد پلن"}
+                </Button>
               </div>
             </ActionForm>
           </DialogContent>
@@ -157,7 +206,11 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
               <TableRow key={plan.id}>
                 <TableCell className="font-medium">
                   <div>{plan.name}</div>
-                  {plan.description && <div className="text-xs text-muted-foreground">{plan.description}</div>}
+                  {plan.description && (
+                    <div className="text-xs text-muted-foreground">
+                      {plan.description}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell>{plan.durationDays} روز</TableCell>
                 <TableCell>{plan.price.toLocaleString("fa-IR")} ریال</TableCell>
@@ -167,7 +220,10 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
                       <Check className="size-3" /> بله
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="gap-1 text-muted-foreground">
+                    <Badge
+                      variant="outline"
+                      className="gap-1 text-muted-foreground"
+                    >
                       <X className="size-3" /> خیر
                     </Badge>
                   )}
@@ -193,7 +249,10 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
             ))}
             {plans.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={6}
+                  className="h-24 text-center text-muted-foreground"
+                >
                   هنوز پلن عضویتی تعریف نشده است.
                 </TableCell>
               </TableRow>
