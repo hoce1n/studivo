@@ -6,9 +6,9 @@
 
 The product is intentionally not a generic SaaS dashboard. Its core domain is the daily operational loop of a study hall:
 
-1. An owner creates a venue and its seat inventory.
+1. An owner creates a venue, sections, seat inventory, and membership plans.
 2. Staff view a live visual map of all seats.
-3. A member is assigned to one seat for a subscription period.
+3. A member receives a Membership from a MembershipPlan; fixed-seat plans also get a SeatAssignment.
 4. Near-expiry and expired seats are highlighted so renewals are not forgotten.
 5. Staff can renew, release, or move a member without relying on notebooks, memory, or spreadsheets.
 
@@ -22,7 +22,7 @@ The current application is a Next.js 16 App Router application with server-rende
 - **Database:** PostgreSQL is the official platform database for development-aligned production workflows and transactional seat-management safety.
 - **Authentication:** Better Auth with email/password enabled and a Prisma adapter.
 - **Styling:** Tailwind CSS v4, next-themes, Radix/shadcn-style UI components, Sonner toasts.
-- **PWA:** Web app manifest, service-worker registration, persisted push subscriptions scoped by user/study hall, automated renewal reminder delivery for staff/admin operators, and a service-worker cache policy that keeps Next.js build assets and navigation responses network-owned to prevent stale post-deploy chunks.
+- **PWA:** Web app manifest, service-worker registration, persisted push subscriptions scoped by user, automated renewal reminder delivery for staff/owner operators, and a service-worker cache policy that keeps Next.js build assets and navigation responses network-owned to prevent stale post-deploy chunks.
 
 PostgreSQL now backs Studivo's server-side concurrency model. Seat reservation, renewal, release, and swap flows still use explicit Prisma transactions, and those transactions are now backed by PostgreSQL isolation and locking behavior instead of file-level database locking. This is critical for peak-season front-desk activity where multiple staff members may attempt high-value seat operations at the same time.
 
@@ -34,185 +34,184 @@ Nginx should cache only immutable `/_next/static/*` files for a long duration. H
 
 ## 3. Database & Entity Relationships
 
-The authoritative domain model is `prisma/schema.prisma`.
+The authoritative domain model is `prisma/schema.prisma` (Schema V2). Formal SQL migrations live under `prisma/migrations/` (notably `init_v2` and the seat-assignment unique follow-up).
+
+### Domain map (V2)
+
+```
+StudyHall
+  ├── Section[] → Seat[]
+  ├── MembershipPlan[]
+  ├── Membership[] → Payment[], SeatAssignment[], Attendance[]
+  ├── StaffAssignment[] → Shift[]
+  ├── Expense[]
+  └── AuditLog[]
+
+User (auth identity)
+  ├── StaffAssignment[]   (OWNER / STAFF per hall)
+  ├── Membership[]        (as member / student)
+  ├── Notification[], PushSubscription[]
+  └── platformRole?       (SUPER_ADMIN / SALES → Lead / DemoRequest)
+```
 
 ### StudyHall
 
-`StudyHall` represents one managed venue/branch. It stores the venue name, total seat count, monthly fee, hall type/gender policy, address, and timestamps.
+`StudyHall` is one managed venue/branch. It stores name, optional public `slug`, `gender` (`MALE` | `FEMALE`), phone, address, description, `isActive`, public-page fields (`publicPageEnabled`, `heroImage`, `galleryImages`), and timestamps.
+
+It no longer stores `totalSeats` or `monthlyFee`. Capacity is derived from active seats under active sections. Pricing comes from `MembershipPlan` rows.
 
 Relationships:
 
-- One `StudyHall` has many `User` records.
-- One `StudyHall` has many `Seat` records.
-- One `StudyHall` has many `Subscription` records.
+- One `StudyHall` has many `Section`, `MembershipPlan`, `Membership`, `StaffAssignment`, `Expense`, and `AuditLog` records.
+- Converted sales leads point back via `Lead.convertedStudyHallId`.
 
-Important integrity behavior:
+Integrity behavior:
 
-- Cascading deletes are configured from users, seats, and subscriptions back to the owning study hall. Deleting a venue deletes its scoped operational data.
-- The app scopes all dashboard and mutation queries by `studyhallId` so staff cannot mutate another venue's records.
+- Cascades remove section/seat/plan/membership/staff/expense/audit data when a venue is deleted.
+- Dashboard and mutation queries are scoped by `studyHallId` resolved from the operator's active `StaffAssignment`.
 
-### User
+### Section / Seat
 
-`User` is shared by authenticated owners/staff and internal member records.
+`Section` models a room, floor, or zone inside a venue (`@@unique([studyHallId, name])`).
 
-Important fields:
+`Seat` is a physical desk inside a section (`number` is a string; `@@unique([sectionId, number])`). Soft-deactivation uses `isActive` on both section and seat.
 
-- `role`: currently a string with values used by the app such as `admin`, `staff`, and `member`.
-- `studyhallId`: optional until onboarding is complete; required for scoped dashboard work.
-- `phoneNumber`: optional for authenticated staff/owners, required by reservation flows for members.
+Occupancy is **not** a column on `Seat`. It is inferred from open / occupying `SeatAssignment` rows.
 
-Relationships:
+### MembershipPlan / Membership
 
-- One `User` can have many auth `Session` and `Account` records.
-- One `User` can have many `Subscription` records, preserving member history over time.
-- A user may belong to one `StudyHall`.
+`MembershipPlan` is a reusable template per venue: `name`, `durationDays`, `price`, `hasFixedSeat`, `isActive`, optional description.
 
-Integrity constraints:
+`Membership` is the member's contract for a period. At create time it **snapshots** `planName`, `planDurationDays`, `planPrice`, and `hasFixedSeat` so later plan price/duration edits do not rewrite history. Status is `PENDING` | `ACTIVE` | `EXPIRED` | `CANCELLED`, with `startsAt` / `endsAt`.
 
-- `email` is globally unique.
-- `(studyhallId, phoneNumber)` is unique, preventing duplicate member phone records inside the same venue while still allowing the same phone number to exist in another venue.
-- `studyhallId` is indexed for fast scoped queries.
+Product UI may still say “رزرو” or “اشتراک”; the canonical model name is `Membership`.
 
-### Seat
+### SeatAssignment
 
-`Seat` is a physical seat/desk inside one study hall.
+`SeatAssignment` links a `Membership` to a `Seat` with `startsAt` and optional `endsAt`.
 
-Relationships:
+- Open assignment: `endsAt = null` (member currently holds the seat).
+- Closed assignment: `endsAt` set (released, swapped away, or otherwise ended). History is preserved as rows, not by overwriting a seat FK on the membership.
 
-- One `Seat` belongs to one `StudyHall`.
-- One `Seat` can have many historical `Subscription` records.
+Applied DB constraint: `@@unique([membershipId, endsAt])` (migration `fix_seat_assignment`). This is **not** a partial unique on open `seatId` occupancy. Two different memberships can still collide on the same seat at the database level; Server Actions must continue to check occupancy inside transactions. A true open-seat partial unique remains follow-up work (see ADR-018).
 
-Integrity constraints:
+### Payment / Expense
 
-- `(studyhallId, seatNumber)` is unique, ensuring seat number 12 can exist in multiple venues but cannot be duplicated inside the same venue.
-- Deleting a `StudyHall` cascades to its seats.
+`Payment` belongs to a `Membership`: `amount`, `method` (`CASH` | `POS` | `CARD_TO_CARD` | `ONLINE`), `status` (`PENDING` | `COMPLETED` | `VOIDED`), optional `paidAt`, void metadata, and `createdBy` / `voidedBy` actors. Multiple payments per membership support partial payment flows.
 
-### Subscription / Reservation
+`Expense` is venue-scoped operational spend with category enum, `occurredAt`, and void support.
 
-The codebase currently names the recurring seat contract `Subscription`. Product language may call this a reservation, membership, or seat subscription depending on UI context.
+### StaffAssignment / Shift / Attendance
 
-Important fields:
+`StaffAssignment` attaches a `User` to a `StudyHall` with `HallRole` (`OWNER` | `STAFF`), `startDate` / optional `endDate`, and `isActive`. This replaces MVP `User.role` + `User.studyhallId`.
 
-- `userId`: member assigned to the seat.
-- `seatId`: physical seat assigned to the member.
-- `studyhallId`: denormalized venue scope for security and query performance.
-- `startDate` / `endDate`: subscription period.
-- `paymentStatus`: currently `paid` / `unpaid` by convention, defaulting to `unpaid`.
-- `status`: currently `active`, `expired`, or `cancelled` by convention.
+`Shift` schedules work intervals on a staff assignment.
 
-Relationships:
+`Attendance` records member check-in/out against a `Membership`, with optional staff actors for check-in and check-out.
 
-- A subscription belongs to one `User`, one `Seat`, and one `StudyHall`.
-- Historical subscriptions are preserved by creating new rows on renewal rather than overwriting every old contract.
+### AuditLog / Notification / OtpVerification
 
-Integrity notes:
+`AuditLog` uses typed `AuditAction` and `AuditEntity` enums, optional `actorId`, optional `studyHallId`, `entityId`, and JSON `metadata`.
 
-- There is currently no database-level partial unique index that prevents more than one `active` subscription per seat. Double-booking prevention is implemented in transactional server actions.
-- PostgreSQL transaction isolation and locking now provide the database foundation for safe active-seat occupancy checks. A future partial unique index can further harden the invariant at schema level.
+`Notification` is user-scoped (`MEMBERSHIP_EXPIRING`, `PAYMENT_DUE`, `PAYMENT_RECEIVED`, `SYSTEM`).
 
-### Auth Tables
+`OtpVerification` stores phone OTP codes for `LOGIN` / `VERIFY_PHONE`.
 
-`Session`, `Account`, and `Verification` are Better Auth persistence tables. They are mapped to lowercase table names and maintain tokens, provider accounts, password credentials, and verification flows.
+### Auth tables / Push
 
-### Push Notifications
+`Session`, `Account`, and `Verification` remain Better Auth persistence tables.
 
-`PushSubscription` stores browser push endpoints scoped by `userId` and `studyhallId`. Each endpoint is unique so the same device can be reassigned when a user re-subscribes.
+`PushSubscription` stores browser push endpoints scoped by `userId` (no `studyhallId` column in V2). A secured cron route (`/api/cron/renewal-reminders`) still drives renewal/expiry reminders to operator devices. The MVP `RenewalReminder` table was removed; dedupe behavior should be revalidated against the current reminder path.
 
-`RenewalReminder` records which renewal/expiry reminders were already sent for a subscription on a given day, preventing duplicate daily notifications.
+### Sales models
 
-A secured cron route (`/api/cron/renewal-reminders`) scans active subscriptions entering the 3-day renewal window or already past `endDate`, then sends push notifications to admin/staff devices with stored subscriptions for that study hall.
+`Lead`, `DemoRequest`, and `PlatformRole` follow ADR-009–013. The sales↔tenant bridge is `Lead.convertedStudyHallId` (nullable). These tables are platform-scoped and must not be read through tenant dashboard queries.
 
+## 4. Core Operational Flows
 
-Primary business logic lives in domain-focused Next.js Server Action modules under `app/actions/`, with `app/actions/index.ts` as the main barrel export. `auth.ts` owns staff creation, onboarding, profile, and venue settings; `seat.ts` owns reservation, release, and swapping; `subscription.ts` owns renewal behavior; `pwa.ts` owns push-notification actions; and `audit.ts` centralizes shared action-result and operational revalidation helpers. These actions are the authoritative mutation layer and must remain server-side.
+Primary business logic lives in domain-focused Next.js Server Action modules under `app/actions/` (`seats/`, `memberships/`, `staff/`, `finance/`, `onboarding.ts`, `auth/`, `audit/`, `notifications/`, `platform/`, …). These actions are the authoritative mutation layer and must remain server-side.
 
 ### Onboarding Flow
 
-1. A signed-in user without `studyhallId` is redirected to `/onboarding`.
-2. `completeOnboarding` validates venue name, hall type, address, total seats, and monthly fee with Zod.
+1. A signed-in user with no active `StaffAssignment` is redirected to `/onboarding`.
+2. `submitOnboarding` validates venue identity, optional multi-section layout, seat numbering mode, and initial membership plans with Zod.
 3. Inside a Prisma transaction:
    - Create the `StudyHall`.
-   - Promote the current user to `admin`.
-   - Attach that user to the new `studyhallId`.
-   - Create one `Seat` row per seat number.
-4. Revalidate `/dashboard` and redirect the owner into the dashboard.
+   - Create one or more `Section` rows and their `Seat` rows (auto-numbered or manual).
+   - Create initial `MembershipPlan` rows.
+   - Create an active `StaffAssignment` with role `OWNER` for the current user.
+4. Revalidate `/dashboard` and send the owner into the dashboard.
 
-This transaction ensures the venue, owner role, and generated seat inventory are created atomically.
+This transaction ensures venue, owner assignment, inventory, and plans are created atomically.
 
 ### Booking / Reserving a Seat
 
-`reserveSeat` is the current reservation action.
+`reserveSeat` (in `app/actions/seats/reserve.ts`) is the current reservation action.
 
 Flow:
 
-1. Require an authenticated, scoped user via `requireScopedUser`.
-2. Validate `seatNumber`, `memberName`, `phoneNumber`, `startDate`, and `endDate`.
-3. Reject a start date more than 30 days in the past or an end date that is not after the start date.
-4. Open a Prisma transaction.
-5. Find the requested seat by `(studyhallId, seatNumber)`.
-6. Reject if the seat does not belong to the current venue.
-7. Search for an existing active subscription on that seat.
-8. Reject if the seat already has an active subscription.
-9. Search for an active subscription belonging to the same phone number in the same study hall.
-10. Reject if the member already has another active subscription in that venue.
-11. Upsert the member user by `(studyhallId, phoneNumber)`:
-    - Update existing internal member name/role if found.
-    - Create a member with a deterministic local Studivo email if not found.
-12. Create the active subscription for that member and seat, persisting the operator-supplied `startDate` and `endDate`.
-13. Write an `AuditLog` entry in the same transaction with member, seat, start/end dates, and a Persian operator-readable message.
-14. Revalidate `/dashboard`.
+1. Require an authenticated, venue-scoped user via `requireScopedUser`.
+2. Validate seat id, membership plan, member name/phone, start/end dates, and payment fields.
+3. Open a Prisma transaction.
+4. Load the seat through its section and confirm it belongs to the current `studyHallId` and is active.
+5. Reject if the seat already has an occupying assignment.
+6. Load the active `MembershipPlan` for the venue.
+7. Upsert the member `User` by globally unique `phoneNumber`.
+8. Reject if that member already has an active/pending membership (or occupying assignment) in this study hall.
+9. Create the `Membership` with plan field snapshots; status depends on payment completion (`ACTIVE` vs `PENDING`).
+10. Create an open `SeatAssignment` (`endsAt: null`) when the flow assigns a fixed seat.
+11. Create the related `Payment` row.
+12. Write an `AuditLog` entry in the same transaction.
+13. Revalidate operational dashboard paths.
 
-This protects the core promise: a staff member cannot intentionally reserve a seat that the app already knows is active.
+This protects the core promise: staff cannot intentionally reserve a seat the app already knows is occupied.
 
 ### Double-Booking Prevention
 
-The current implementation prevents common double-booking scenarios through application-level transaction checks:
+Current protection is application-level inside Prisma transactions:
 
-- Every lookup is scoped by `studyhallId`.
-- A transaction checks the target seat for an existing `active` subscription before creating a new one.
-- A transaction checks the member phone number for another active subscription before assigning a new seat.
-- Seat numbers are unique per study hall.
-- Member phone numbers are unique per study hall.
+- Lookups are scoped by `studyHallId` (via section or membership).
+- Target seat occupancy is checked before creating a new open assignment.
+- Member phone / user is checked for another active membership or occupying assignment in the same venue.
+- Seat numbers are unique per section; section names are unique per study hall.
+- Member phones are globally unique on `User`.
 
 Production hardening recommendation:
 
-- Keep all seat mutations inside Prisma transactions so PostgreSQL can enforce isolation and locking around concurrent reads/writes.
-- Add a database-level invariant for active seat occupancy, such as a PostgreSQL partial unique index on `(studyhallId, seatId)` where `status = 'active'`.
-- Use explicit row-level locking patterns if future high-concurrency booking queues require stricter serialization.
+- Keep all seat mutations inside Prisma transactions.
+- Add a database-level open-seat invariant, ideally a PostgreSQL partial unique index on `seat_assignments(seat_id) WHERE ends_at IS NULL` (or an equivalent trigger). The existing unique on `(membership_id, ends_at)` does **not** provide this guarantee.
+- Use explicit row-level locking if future high-concurrency booking queues require stricter serialization.
 
 ### Dynamic Seat Changes / Swapping Seats
 
-`swapSeat` handles moving an active member from one seat to another.
+`swapSeat` moves an occupying assignment to a different seat.
 
 Flow:
 
 1. Require a scoped authenticated user.
-2. Validate the active subscription id and destination seat number.
+2. Validate the current `seatAssignmentId` and destination seat.
 3. Open a Prisma transaction.
-4. Find the destination seat scoped to the current study hall.
-5. Reject if the destination seat does not exist.
-6. Check whether the destination seat already has an active subscription.
-7. Reject if the target is occupied.
-8. Find the current active subscription scoped to the current study hall.
-9. Reject if the subscription is missing, inactive, or already on the target seat.
-10. Update the subscription's `seatId` to the target seat.
-11. Revalidate `/dashboard`.
+4. Confirm the source assignment is occupying and belongs to the current study hall.
+5. Confirm the destination seat exists in the venue and is not already occupied.
+6. Close the source assignment (`endsAt = now`) and create a new open assignment on the target seat for the same membership.
+7. Write audit metadata and revalidate operational paths.
 
-The subscription history remains attached to the same subscription row for a move. Renewals, by contrast, preserve history by expiring the old row and creating a fresh row.
+Seat history is preserved as assignment rows. Membership period continuity is separate from physical seat moves.
 
-### Renewing a Subscription
+### Renewing a Membership
 
-`renewSubscription` validates a future end date and runs smart renewal logic inside a Prisma transaction:
+`renewMembership` validates the new end date and runs renewal / adjustment logic inside a Prisma transaction:
 
-1. Finds the current active subscription by id and current `studyhallId`.
-2. Calculates the day difference between the new end date and the current `endDate`.
-3. If the difference is more than seven days, treats the change as a real renewal: expires the existing row and creates a new active subscription for the same member and seat, preserving history.
-4. If the difference is seven days or less, treats the change as a date correction and updates `endDate` on the current active row.
-5. Writes a rich `AuditLog` entry with old/new end dates, day difference, renewal mode, and a Persian operator-readable message.
-6. Revalidates `/dashboard`, `/dashboard/members`, and `/dashboard/logs`.
+1. Find the membership by id and current `studyHallId`.
+2. Decide real renewal vs date adjustment (including optional plan switch) from operator input and day delta.
+3. For real renewals, preserve history appropriately and keep fixed-seat `SeatAssignment` occupancy in sync so the map stays correct.
+4. Snapshot plan fields when a plan change is part of the renewal.
+5. Write an `AuditLog` entry with renewal/adjustment metadata.
+6. Revalidate operational paths.
 
 ### Releasing a Seat
 
-`releaseSeat` updates the active subscription status to `cancelled` using `updateMany` scoped by `subscriptionId`, `studyhallId`, and `status = active`, then revalidates the dashboard.
+`releaseSeat` closes the occupying `SeatAssignment` (`endsAt = now`) and cancels the related active/pending `Membership` inside a transaction scoped to the current study hall, then revalidates the dashboard.
 
 ## 5. Authentication & Authorization
 
@@ -224,29 +223,33 @@ Better Auth is configured in `lib/auth.ts` with:
 - PostgreSQL provider.
 - Email/password authentication enabled.
 
-The route handler at `app/api/auth/[...all]/route.ts` exposes the Better Auth API. Server-side code reads sessions through `getSession` in `lib/server.ts`, which passes Next.js request headers to Better Auth.
+The route handler at `app/api/auth/[...all]/route.ts` exposes the Better Auth API. Server-side code reads sessions through `getSession` in `lib/server.ts`, which passes Next.js request headers to Better Auth. Phone OTP flows use `OtpVerification` alongside Better Auth where needed.
 
 ### RBAC Model
 
-Roles are currently string values on `User.role`:
+Tenant authority is modeled with `StaffAssignment.HallRole`:
 
-- `admin`: owner/operator with venue settings and staff-management privileges.
-- `staff`: front-desk operator who can access the venue dashboard and perform operational seat work.
-- `member`: internal record for students/readers; not currently a full self-service app user.
+- `OWNER`: venue owner/operator with settings and staff-management privileges.
+- `STAFF`: front-desk operator who can access the venue dashboard and perform operational seat work.
+
+Members/students are ordinary `User` rows linked through `Membership`; they are not hall staff and are not currently full self-service app users.
+
+Platform authority remains orthogonal via nullable `User.platformRole` (`SUPER_ADMIN` | `SALES`) per ADR-010.
 
 Current enforcement patterns:
 
-- `requireUser` redirects unauthenticated users to `/login`.
-- `requireScopedUser` redirects authenticated users without a study hall to `/onboarding`.
-- Admin-only operations explicitly check `user.role === "admin"` before updating study hall settings or creating staff.
-- Dashboard queries and mutations are scoped to `user.studyhallId`.
+- `requireUser` redirects unauthenticated users to `/login` and loads active `staffAssignments`.
+- `requireScopedUser` redirects users with no active staff assignment to `/onboarding`, then exposes `studyHallId` and hall `role` from the first active assignment.
+- Owner-only operations should check hall role `OWNER` (not MVP string `"admin"`).
+- Dashboard queries and mutations are scoped to `studyHallId` from that assignment.
+- Platform routes use `requirePlatformUser` / `requireSuperAdmin` against `platformRole`.
 
 Future hardening:
 
-- Replace role strings with a Prisma enum.
 - Centralize permission helpers, e.g. `canManageStaff`, `canReserveSeat`, `canEditVenueSettings`.
-- Return standardized action states instead of throwing generic errors for normal validation failures.
-- Add audit logs for staff/admin mutations.
+- Support multi-hall operators choosing among multiple active `StaffAssignment`s explicitly.
+- Continue migrating expected action failures to structured result objects.
+- Expand audit coverage for remaining staff/owner mutations.
 
 ## 6. Folder Structure Map
 
@@ -260,8 +263,8 @@ Future hardening:
 - `app/dashboard`: authenticated study hall operations dashboard.
 - `app/dashboard/_components`: dashboard-specific seat map, seat cards, reserve/manage sheet, and staff form.
 - `app/dashboard/profile`: user profile and password/security settings.
-- `app/dashboard/settings`: admin-only hall settings for name, type, address, capacity, and monthly fee.
-- `app/actions`: server actions for core business mutations and PWA actions.
+- `app/dashboard/settings`: owner hall settings for identity, sections/seats, membership plans, and public page.
+- `app/actions`: domain Server Actions (`seats/`, `memberships/`, `staff/`, `finance/`, `onboarding.ts`, `auth/`, …).
 - `app/api/auth/[...all]`: Better Auth route handler.
 - `app/manifest.json`: PWA manifest.
 
@@ -291,21 +294,22 @@ Future hardening:
 
 ## 7. Current Architecture Risks
 
-1. **Active-seat uniqueness is not yet enforced by a partial unique index.** PostgreSQL transactions reduce risk, but a database-level active-seat invariant should still be added.
+1. **Open-seat uniqueness is not yet enforced by a partial unique index.** The applied unique on `(membershipId, endsAt)` does not prevent two memberships from holding the same seat. Occupancy checks remain application-level inside transactions.
 2. **Some Server Actions still throw for expected failures.** New or touched actions should continue migrating to structured `{ success, error?, message? }` result objects.
-3. **Renewal reminder timing is fixed at 3 days.** Push subscriptions are persisted per user/study hall, but owners cannot yet configure reminder lead time or notification preferences in the UI.
-4. **Payment status is modeled but not integrated.** `paymentStatus` exists without invoices, receipts, or payment-provider webhooks.
-5. **Role values are strings.** A Prisma enum and permission helpers would reduce accidental authorization drift.
+3. **RenewalReminder table was removed in V2.** Reminder delivery still exists; dedupe/idempotency against the current path should be revalidated.
+4. **Payment provider / online checkout is not integrated.** `Payment` supports methods and voids, but there is no payment-provider webhook layer yet.
+5. **Multi-hall staff selection is implicit.** `requireScopedUser` currently uses the first active `StaffAssignment`; explicit hall switching is still future work.
+6. **Secondary docs still contain MVP language** in places (`docs/STUDIVO.md`, older ADRs referencing `Subscription`). Treat `prisma/schema.prisma` + this file + ADR-018 as authoritative for V2.
 
 ## Data Preservation & Trust Features
 
 Studivo now exposes preserved operational history as first-class product value instead of hidden backend rows:
 
-- **Seat History Log:** the dashboard seat sheet receives the latest subscription history for each physical seat, scoped to the authenticated `studyhallId`, and renders a Persian timeline of current and past occupants.
-- **Member Archive:** `/dashboard/members` separates active members from archived members with no active subscription. Member profiles retain all subscription/payment periods and include a one-click “رزرو مجدد” path that pre-fills the reservation sheet from archived identity data.
-- **Audit Logs:** `AuditLog` records staff/admin operations (`RESERVE_SEAT`, `SWAP_SEAT`, `RENEW_SUBSCRIPTION`, `RELEASE_SEAT`) in the same transaction as the operational mutation. `/dashboard/logs` is admin-only and shows the venue-scoped digital event notebook.
+- **Seat History Log:** the dashboard seat sheet receives `SeatAssignment` history for each physical seat, scoped to the authenticated `studyHallId`, and renders a Persian timeline of current and past occupants.
+- **Member Archive:** `/dashboard/members` separates active members from archived members with no active membership. Member profiles retain membership/payment timelines and include a one-click “رزرو مجدد” path that pre-fills the reservation sheet from archived identity data.
+- **Audit Logs:** `AuditLog` records staff/owner operations with typed `AuditAction` / `AuditEntity` values and rich metadata in the same transaction as the operational mutation. `/dashboard/logs` is owner-facing and shows the venue-scoped digital event notebook.
 
-These flows reinforce ADR-007-style history preservation: expired/cancelled subscriptions and member identities remain available for trust, dispute resolution, revenue checks, and rapid reactivation.
+These flows reinforce history preservation: expired/cancelled memberships, closed seat assignments, and member identities remain available for trust, dispute resolution, revenue checks, and rapid reactivation.
 
 ## 8. Sales & Marketing Platform (Phase 1 Foundation)
 
@@ -349,7 +353,7 @@ StudyHall  (after conversion)
 
 **Lead.** The one and only persisted sales entity. It holds the prospect's contact details, where they came from (`source`), and where they are in the funnel (`status`). A Lead is pre-sale and may never convert.
 
-**StudyHall.** The existing operational tenant (unchanged). When a Lead is won, the salesperson provisions a StudyHall and links the Lead to it via `Lead.studyhallId`. That single link is the entire bridge between the sales world and the tenant world.
+**StudyHall.** The existing operational tenant. When a Lead is won, the salesperson provisions a StudyHall and links the Lead to it via `Lead.convertedStudyHallId`. That single link is the entire bridge between the sales world and the tenant world.
 
 ### 8.2 Why Lead Is Separate From StudyHall
 
@@ -359,16 +363,16 @@ A Lead is an *intent to maybe buy*; a StudyHall is an *operational venue we are 
 - A StudyHall must keep operating regardless of any sales activity. Mixing pre-sale records into tenant-scoped operational tables would pollute every dashboard query and weaken tenant isolation.
 - Sales data is **platform-level** and read only by platform users; StudyHall data is **tenant-level** and isolated by `studyhallId`.
 
-So the two stay separate, joined only by the nullable, unique `Lead.studyhallId`. No operational table gains a sales column, and the `Lead`/`DemoRequest` tables are never scoped by `studyhallId`. Tenant isolation and the existing RBAC are therefore completely untouched.
+So the two stay separate, joined only by the nullable `Lead.convertedStudyHallId`. No operational table gains a sales column, and the `Lead`/`DemoRequest` tables are never scoped by tenant `studyHallId`. Tenant isolation and hall RBAC are therefore kept separate from platform sales access.
 
 ### 8.3 SUPER_ADMIN and the Platform Role
 
-The Sales Platform is operated by **platform users** who do not belong to any single study hall. This is modeled with a new, orthogonal `User.platformRole` enum (`SUPER_ADMIN`, `SALES`) that is *separate* from the existing tenant `role` string (`admin`/`staff`/`member`):
+The Sales Platform is operated by **platform users** who do not belong to any single study hall. This is modeled with a nullable `User.platformRole` enum (`SUPER_ADMIN`, `SALES`) that is *separate* from tenant hall roles on `StaffAssignment` (`OWNER` / `STAFF`):
 
-- A normal venue user has `platformRole = NULL` and a `studyhallId`.
-- A platform user (e.g. `SUPER_ADMIN`) has a `platformRole` and typically **no** `studyhallId`, because they manage Studivo itself rather than a venue.
+- A normal venue operator has `platformRole = NULL` and one or more active `StaffAssignment`s.
+- A platform user (e.g. `SUPER_ADMIN`) has a `platformRole` and typically **no** hall staff assignment, because they manage Studivo itself rather than a venue.
 
-We deliberately did **not** add a `"super_admin"` value to the existing `role` string, because that string is compared in many tenant authorization checks and overloading it would risk widening tenant access. A new nullable column adds platform authority as a separate dimension and changes no existing behavior (every current user has `platformRole = NULL`). `SUPER_ADMIN` exists outside tenant scope and manages the platform; `SALES` owns and works leads. The future internal admin UI will live under a platform-only route segment guarded by a helper that checks `platformRole`, mirroring the existing `requireScopedUser` pattern. See ADR-010.
+We deliberately did **not** overload hall roles with platform authority. `SUPER_ADMIN` exists outside tenant scope and manages the platform; `SALES` owns and works leads. Platform UI lives under `app/platform/` guarded by helpers that check `platformRole`, mirroring `requireScopedUser` for tenant work. See ADR-010.
 
 ### 8.4 Lead Lifecycle (Pipeline Designed, Not Built)
 
@@ -392,15 +396,12 @@ To stay honest about YAGNI, Phase 1 explicitly excludes:
 
 Each of these can be added incrementally and additively. None is required to win the first customers, so none is built.
 
-### 8.6 Schema Summary (Phase 1 additions)
+### 8.6 Schema Summary (Phase 1 sales additions + V2 alignment)
 
-New enums: `PlatformRole`, `LeadStatus`, `LeadSource`.
+Sales enums: `PlatformRole`, `LeadStatus`, `LeadSource`, `DemoRequestStatus`.
 
-New models: `Lead`, `DemoRequest`.
+Sales models: `Lead`, `DemoRequest`.
 
-Changed models:
+Operational Schema V2 (see §3 and ADR-018) replaced the MVP `Subscription` / flat-seat model. Platform users still use `User.platformRole`; tenant operators use `StaffAssignment`. The sales↔tenant bridge is `Lead.convertedStudyHallId`.
 
-- `User` — added nullable `platformRole` plus an `ownedLeads` relation. The tenant `role` string is unchanged.
-- `StudyHall` — added an optional `lead` back-relation only. No new columns on the table itself; the FK (`studyhallId`) lives on `Lead`. All existing fields and behavior are unchanged.
-
-Migration: the project manages schema with `npx prisma db push` (there is no `migrations/` folder). After setting `DATABASE_URL`, run `npx prisma db push` to apply these additions, then `npx prisma generate`. Every addition is a new table, a new nullable column, or an optional relation, so the change is **non-destructive and backwards compatible** with all existing data and queries.
+Migration: schema changes are applied through Prisma SQL migrations under `prisma/migrations/` (V2 init is already deployed). After setting `DATABASE_URL`, use `npx prisma migrate deploy` (or the project's documented migrate workflow) and `npx prisma generate`. Do not treat `db push` as the production source of truth.

@@ -11,16 +11,17 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Standardize core Server Action results.
   - Core auth/settings, seat, subscription, and PWA actions now return a unified `{ success, error?, message?, data? }` result for expected failures and user feedback.
 
-- [ ] Harden transactional seat collision prevention.
-  - Current state: `reserveSeat` and `swapSeat` check active subscriptions inside Prisma transactions backed by PostgreSQL.
-  - Next step: add database-level active-seat protection with a PostgreSQL partial unique index or equivalent invariant.
+- [ ] Harden transactional seat collision prevention (still open under V2).
+  - Current state: `reserveSeat` and `swapSeat` check open / occupying `SeatAssignment` rows inside Prisma transactions backed by PostgreSQL.
+  - Applied DB unique is only `(membershipId, endsAt)` — does **not** enforce one open assignment per seat.
+  - Next step: add database-level open-seat protection with a PostgreSQL partial unique index (e.g. `seat_id WHERE ends_at IS NULL`) or equivalent invariant, plus conflict tests.
 
 - [x] Improve renewal visibility and operator workflow.
   - Smart renewal/date-correction guidance is shown in the seat management sheet, and renewal actions preserve history only when the new end date is more than seven days beyond the current end date.
 
-- [ ] Normalize RBAC and permission helpers.
-  - Current state: `admin`, `staff`, and `member` roles are string fields; admin-only checks exist for staff creation and venue settings.
-  - Next step: introduce central permission helpers and eventually a Prisma enum.
+- [ ] Normalize RBAC helpers around `StaffAssignment` / `HallRole` (`OWNER` / `STAFF`).
+  - Current state: `requireScopedUser` resolves venue scope from the first active staff assignment; MVP `User.role` / `User.studyhallId` are gone.
+  - Next step: centralize permission helpers and support explicit multi-hall selection when an operator has multiple assignments.
 
 - [x] Convert PWA push notification demo into production-ready notification infrastructure.
   - Push subscriptions persist in PostgreSQL by `userId` and `studyhallId`.
@@ -30,9 +31,15 @@ This board reflects the current repository state after reviewing the Prisma sche
 
 ## Planned Features (Short-term)
 
-- [ ] Database-level no-double-booking invariant.
-  - Add an active-seat uniqueness strategy, ideally a PostgreSQL partial unique index for active subscriptions.
+- [ ] Database-level no-double-booking invariant for open `SeatAssignment`s.
+  - Add an open-seat uniqueness strategy, ideally a PostgreSQL partial unique index on `seat_id WHERE ends_at IS NULL`.
   - Add tests that simulate conflicting reservations.
+
+- [ ] Remove/replace leftover MVP references (`Subscription`, `totalSeats`, `RenewalReminder`) in secondary docs and stale UI copy.
+
+- [ ] Revalidate renewal-reminder dedupe after `RenewalReminder` table removal.
+
+- [ ] Attendance check-in/out UI wired to the `Attendance` model (backend model exists).
 
 - [ ] SMS reminder integration for renewals.
   - Send renewal/expiry reminders through an SMS provider suitable for the target market.
@@ -44,22 +51,22 @@ This board reflects the current repository state after reviewing the Prisma sche
 
 - [ ] Member phone-first smart autofill.
   - On phone blur/search, find existing member in the current study hall.
-  - Autofill name and show active subscription conflicts before submit.
+  - Autofill name and show active membership conflicts before submit.
 
 - [ ] Staff invite flow.
   - Replace manual staff password creation with an invite-based flow.
   - Track invite status and expiration.
 
 - [x] Payment status management.
-  - Operators can toggle `paymentStatus` (`paid` | `unpaid`) directly from the seat management Sheet.
-  - Current payment status is visible as a color-coded badge/dot in the seat map cards and member list.
-  - Changes are recorded in the `AuditLog` and revalidate relevant dashboard paths.
-- [x] Expanded Payment/invoice model. (Minimal schema extensions for reporting)
-  - Expand beyond simple `paymentStatus` to invoices, receipts, payment method, discounts, and partial payments.
+  - Operators can record payment state through dedicated `Payment` rows (methods, partial payments, voids) rather than MVP `paymentStatus` on Subscription.
+  - Current payment health is visible in seat/member/finance surfaces.
+  - Changes are recorded in `AuditLog` and revalidate relevant dashboard paths.
+- [x] Expanded Payment model.
+  - Beyond simple paid/unpaid: method, status, void metadata, and multiple payments per membership.
   - Add provider/webhook integration when a payment provider is chosen.
 
-- [x] Subscription history and member profile pages. (Will be enhanced with payment history)
-  - Show all past seats, renewals, cancellations, payments, and notes for a member.
+- [x] Membership history and member profile pages.
+  - Show past seats (`SeatAssignment`), renewals, cancellations, payments, and notes for a member.
 
 - [ ] Automated tests for critical business rules.
   - Cover reserve, renew, release, swap, onboarding, and staff creation.
@@ -83,6 +90,9 @@ This board reflects the current repository state after reviewing the Prisma sche
 
 ## Completed
 
+- [x] Schema V2 migration shipped and deployed (`StudyHall` → `Section` → `Seat`, `MembershipPlan` / `Membership`, `SeatAssignment`, `Payment`, `Expense`, `StaffAssignment` / `Shift`, `Attendance`, typed `AuditLog`, formal `prisma/migrations` init_v2).
+- [x] App surfaces migrated onto V2 domain actions (`seats/`, `memberships/`, `staff/`, `finance/`, onboarding).
+- [x] Consolidate agent rulebook to `AGENTS.md` only (remove `AGENT.md`; `CLAUDE.md` → `@AGENTS.md`).
 - [x] Refactor server actions into domain modules with a main barrel export.
 - [x] PostgreSQL production migration completed.
 - [x] SQLite-specific adapter cleanup completed from Prisma client wiring.
@@ -91,26 +101,26 @@ This board reflects the current repository state after reviewing the Prisma sche
 - [x] Tailwind CSS v4 and shadcn/Radix-style UI primitives available.
 - [x] Better Auth integration configured with Prisma adapter and email/password auth.
 - [x] Auth API route mounted at `app/api/auth/[...all]/route.ts`.
-- [x] Prisma schema created for `StudyHall`, `User`, `Seat`, `Subscription`, and Better Auth tables.
+- [x] Prisma Schema V2 created for operational + sales + Better Auth tables.
 - [x] PostgreSQL datasource/provider configured through Prisma.
-- [x] Onboarding flow creates a study hall with name, hall type, address, monthly fee, assigns owner as admin, and generates seats.
-- [x] Dashboard route protects unauthenticated users and redirects users without a study hall to onboarding.
+- [x] Onboarding flow creates a study hall with sections/seats, membership plans, and an OWNER staff assignment.
+- [x] Dashboard route protects unauthenticated users and redirects users without a staff assignment to onboarding.
 - [x] Live seat map implemented with visual statuses for available, reserved, renewal-needed, and expired seats.
 - [x] Quick reserve/manage Sheet implemented from the seat map.
-- [x] Reserve seat server action validates input, scopes by study hall, checks active seat conflicts, upserts member, and creates subscription in a transaction.
-- [x] Custom subscription start date supported in reserve flow: `ReserveForm` exposes «تاریخ شروع اشتراک» (defaults to today) and `reserveSeat` persists the operator-selected `startDate` with audit metadata.
-- [x] Renew subscription server action uses smart renewal logic: real renewals preserve history by expiring the current row and creating a new active row, while small date corrections update the active row.
-- [x] Release seat server action cancels active subscriptions.
+- [x] Reserve seat server action validates input, scopes by study hall, checks occupying assignments, upserts member, and creates membership (+ assignment + payment) in a transaction.
+- [x] Custom membership start date supported in reserve flow.
+- [x] Renew membership server action uses smart renewal / adjustment logic and keeps fixed-seat assignments in sync.
+- [x] Release seat server action closes occupying assignments and cancels memberships.
 - [x] Swap seat server action validates destination seats and blocks occupied targets inside a transaction.
-- [x] Admin-only staff creation server action exists.
-- [x] Profile settings are separated from admin-only hall settings.
-- [x] Dedicated `تنظیمات سالن` admin dashboard route exists for venue configuration.
+- [x] Owner staff creation / staff assignment server actions exist.
+- [x] Profile settings are separated from owner hall settings.
+- [x] Dedicated `تنظیمات سالن` owner dashboard route exists for venue configuration.
 - [x] PWA manifest and service-worker registration exist.
 - [x] Service worker excludes Next.js build assets/navigation responses from runtime caching to reduce stale chunk failures after deployment.
 - [x] Production chunk-load recovery and clean PM2 deployment script documented and added.
 - [x] Push notification proof-of-concept exists with VAPID/web-push scaffolding.
 - [x] Product positioning and marketing docs exist under `docs/`.
-- [x] Strategic root documentation files populated: `AGENT.md`, `DESIGN.md`, `DECISIONS.md`, and `TASKS.md`.
+- [x] Strategic root documentation files populated: `AGENTS.md`, `DESIGN.md`, `DECISIONS.md`, and `TASKS.md`.
 - [x] Transition (marketing) routes to professional production-ready state.
   - Replaced placeholders with high-quality Persian copy from marketing blueprint.
   - Integrated real Contact/Lead server actions with `ActionForm` and descriptive success states.
@@ -119,19 +129,19 @@ This board reflects the current repository state after reviewing the Prisma sche
 
 ## Completed — Financial Reporting Phase 1
 
-- [x] Add minimal nullable payment reporting fields to `Subscription`: `monthlyFeeAtSubscription` and `paymentDate`.
+- [x] Move finance reporting onto Schema V2 `Payment` / `Membership` / occupancy aggregates (supersedes MVP `monthlyFeeAtSubscription` fields).
 - [x] Add tenant-scoped finance server actions for revenue reports, overdue payments, and occupancy revenue stats.
 - [x] Add the RTL `/dashboard/finance` page with stats cards, overdue payments, and a first-pass revenue report section.
 
 ## Completed — Data Preservation & Trust
 
-- [x] Expose seat-level subscription history in the seat management sheet.
-- [x] Add a member archive/profile view for active and inactive members with historical subscription/payment timelines.
+- [x] Expose seat-level assignment history in the seat management sheet.
+- [x] Add a member archive/profile view for active and inactive members with historical membership/payment timelines.
 - [x] Add one-click archived-member reactivation through pre-filled dashboard reservations.
-- [x] Add venue-scoped `AuditLog` persistence for reservation, smart renewal/date correction, release, and seat swap operations.
+- [x] Add venue-scoped `AuditLog` persistence for reservation, renewal/adjustment, release, and seat swap operations.
 - [x] Notification preferences for renewal reminders.
   - Owners can configure renewal lead time, renewal reminders, and expiry reminders from `/dashboard/settings`.
-- [x] Add an admin-only `/dashboard/logs` digital event notebook.
+- [x] Add an owner-facing `/dashboard/logs` digital event notebook.
 
 ---
 
@@ -146,11 +156,11 @@ The guiding principle is **YAGNI** (ADR-013): only the work needed to acquire th
 - [x] Design the minimal platform-level sales data model: only `Lead` and `DemoRequest`, never scoped by `studyhallId`.
 - [x] Add the `LeadStatus` enum declaring the full future funnel (`NEW → CONTACTED → DEMO → TRIAL → CUSTOMER → LOST`) and the coarse `LeadSource` enum.
 - [x] Add the `PlatformRole` enum (`SUPER_ADMIN`, `SALES`) and a nullable `User.platformRole` without touching the tenant `role` string.
-- [x] Add the single sales↔tenant bridge: nullable, unique `Lead.studyhallId` (`onDelete: SetNull`); no new columns on `StudyHall`.
+- [x] Add the single sales↔tenant bridge: nullable `Lead.convertedStudyHallId` (`onDelete: SetNull`).
 - [x] Validate the schema and regenerate the Prisma client.
 - [x] Update `DESIGN.md`, `DECISIONS.md`, and `TASKS.md` for the Sales Platform.
-- [ ] Apply the schema with `npx prisma db push` against the live database, then `npx prisma generate` (requires `DATABASE_URL`).
-- [ ] Seed the first `SUPER_ADMIN` platform user (no `studyhallId`).
+- [x] Schema applied via Prisma migrations on PostgreSQL (V2 init).
+- [ ] Seed the first `SUPER_ADMIN` platform user if not already done.
 
 ## Milestone 1 — Marketing Foundation
 
@@ -190,5 +200,5 @@ The guiding principle is **YAGNI** (ADR-013): only the work needed to acquire th
 - [ ] Funnel analytics: Visitor → Lead → Demo → Customer conversion rates.
 - [ ] Acquisition analytics by `source` (introduce richer campaign attribution only if justified).
 - [ ] Sales performance: status conversion, demo show-rate, win/loss, time-to-close.
-- [ ] Revenue/retention analytics by joining converted leads → `StudyHall → Subscription` history.
+- [ ] Revenue/retention analytics by joining converted leads → `StudyHall → Membership` history.
 - [ ] Build reporting on top of read-only aggregations; avoid new transactional tables where possible.

@@ -273,3 +273,36 @@ To provide study hall managers with better insights into their revenue and payme
 - The service worker must not cache `/_next/` assets, navigation requests, HTML, RSC payloads, or App Router data responses.
 - The root layout mounts a one-shot chunk-load recovery component to refresh stale open tabs after deployment.
 - Nginx may cache immutable `/_next/static/*` assets, but must not cache HTML/RSC responses without a deliberate App Router cache strategy.
+
+## ADR-018: Schema V2 — Scalable Operational Domain Model
+
+**Status:** Accepted  
+**Date:** 2026-07-25
+
+**Decision:** Replace the MVP flat domain (`StudyHall` → `Seat` → `Subscription`, with tenant `User.role` / `User.studyhallId`) with Schema V2: hierarchical space inventory, plan-based memberships with snapshots, explicit seat-assignment history, dedicated payments/expenses, staff assignments + shifts, attendance, typed audit enums, and formal Prisma SQL migrations. Sales models (`Lead`, `DemoRequest`, `PlatformRole`) remain as previously decided in ADR-009–013; the Lead→venue bridge is now `convertedStudyHallId`.
+
+**Reasoning:**
+
+- **Section → Seat hierarchy:** Real venues often have multiple rooms/floors/zones. A single `totalSeats` counter cannot model layout, soft-retire seats/sections, or grow inventory without rewriting the map. Sections give multi-room structure while keeping seats first-class rows.
+- **MembershipPlan + Membership snapshots:** Operators change prices and plan durations over time. Snapshotting `planName` / `planDurationDays` / `planPrice` / `hasFixedSeat` on each Membership keeps historical contracts stable for finance, renewals, and disputes.
+- **SeatAssignment history:** Membership period and physical seat occupancy are different timelines (swaps, temporary moves, fixed vs non-fixed plans). Open assignments use `endsAt = null`; closed ones keep history instead of overwriting a seat FK on a subscription row.
+- **Payment + Expense:** MVP `paymentStatus` on Subscription could not express partial payments, methods, or voids. Dedicated `Payment` (and venue `Expense`) support real front-desk cash/POS flows and finance reporting.
+- **StaffAssignment + Shift:** Tenant authority moves off `User.role`/`studyhallId` onto time-bounded hall roles (`OWNER`/`STAFF`) and optional shift schedules—needed for multi-staff venues and future RBAC hardening.
+- **Attendance:** Check-in/out is an ops feature separate from membership billing; linking to Membership + staff actors keeps occupancy truth operational rather than inferred only from seat map state.
+- **Lead / DemoRequest / PlatformRole:** Unchanged intent from ADR-009–013 (internal sales motion). V2 only aligns FKs/enums with the new tenant model.
+- **Formal migrations:** Production now uses `prisma/migrations` (init_v2 + follow-ups) instead of ad-hoc `db push` as the source of truth.
+
+**Tradeoffs:**
+
+- Larger schema and more joins for seat-map and reserve flows.
+- Breaking rename: `Subscription` → `Membership` / `SeatAssignment` / `Payment`; docs and leftover MVP language must be updated deliberately.
+- Active-seat uniqueness is still primarily application-enforced. The applied unique index on `(membershipId, endsAt)` is **not** a partial unique on open `seatId` occupancy; a true DB-level no-double-booking invariant remains follow-up work.
+- `RenewalReminder` table removed; reminder dedupe must be revalidated against the V2 notification path.
+- Soft `isActive` flags replace hard deletes for inventory/plans; operators must understand deactivated vs deleted.
+
+**Consequences:**
+
+- All new code must assume V2 models only (no `Subscription`, `totalSeats`, or tenant role-on-User).
+- Seat mutations create/close `SeatAssignment` rows; renewals/payments operate on `Membership` + `Payment`.
+- Tenant scope is via `StaffAssignment.studyHallId` (and memberships), not `User.studyhallId`.
+- Follow-up: add a PostgreSQL partial unique (or equivalent) for open seat occupancy; clean remaining MVP docs (`docs/STUDIVO.md`, etc.).

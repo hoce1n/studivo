@@ -1,4 +1,4 @@
-# AGENT.md — Studivo Agent & Developer Rulebook
+# AGENTS.md — Studivo Agent & Developer Rulebook
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
@@ -24,8 +24,8 @@ Every product, code, UI, and documentation decision must support the core promis
 
 Before changing code, inspect the real implementation. At minimum, review the relevant parts of:
 
-- `prisma/schema.prisma` for data model and relational constraints;
-- `app/actions/actions.ts` for business mutations;
+- `prisma/schema.prisma` for data model and relational constraints (Schema V2);
+- `app/actions/` domain modules (`seats/`, `memberships/`, `staff/`, `finance/`, `onboarding.ts`, `auth/`, …) for business mutations;
 - `lib/auth.ts`, `lib/server.ts`, and `app/api/auth/[...all]/route.ts` for auth/session behavior;
 - `app/dashboard` for the operational UI;
 - `components/ui` before adding any visual primitive;
@@ -50,13 +50,13 @@ Do not reinvent components unless the existing primitives cannot support the use
 All business mutations must live server-side, preferably as Next.js Server Actions:
 
 - reserve a seat;
-- renew a subscription;
-- release a seat;
-- swap a seat;
-- create staff;
+- renew a membership;
+- release or swap a seat (close/open `SeatAssignment` rows);
+- record or void payments;
+- manage staff assignments and shifts;
 - update venue/profile settings;
 - onboarding;
-- future payment, audit, SMS, and notification operations.
+- future audit, SMS, attendance UI, and notification operations.
 
 Client components may collect input and present feedback, but they must not bypass server-side validation, RBAC, or Prisma transaction rules.
 
@@ -86,19 +86,22 @@ Existing actions still throw in several places; when touching them, migrate towa
 Every server mutation and protected read must enforce:
 
 1. authenticated user;
-2. completed onboarding / valid `studyhallId` when operating on venue data;
-3. correct role permission;
-4. `studyhallId` scoping on every Prisma query that reads or mutates venue data.
+2. completed onboarding / valid venue scope via an active `StaffAssignment` when operating on venue data;
+3. correct hall role permission (`OWNER` / `STAFF`);
+4. `studyHallId` scoping on every Prisma query that reads or mutates venue data.
+
+Do not assume MVP fields `User.role` or `User.studyhallId` — they are gone in Schema V2.
 
 UI hiding is not security. Client-side role checks are allowed only as progressive UX; server-side checks are mandatory.
 
 ### Preserve Database Integrity
 
 - Use Prisma transactions for any multi-step mutation.
-- Keep seat operations scoped by `studyhallId`.
-- Check target seat occupancy before reserve/swap.
-- Preserve subscription history when renewing.
+- Keep seat operations scoped by `studyHallId` (through section/seat or membership relations).
+- Check target seat occupancy (open `SeatAssignment`) before reserve/swap.
+- Preserve membership history when renewing; close/open `SeatAssignment` rows on swap/release.
 - Do not delete operational history casually.
+- Open-seat uniqueness is app-enforced today; prefer adding a DB partial unique for `endsAt IS NULL` on `seat_id`.
 - When adding production-grade constraints, prefer database-enforced invariants over UI-only checks.
 
 ## 4. State Management & UI Guidance
@@ -113,7 +116,7 @@ Studivo is for busy operators who need clarity during front-desk work. UI must b
 - optimized around one primary action per workflow;
 - explicit about seat states: available, active, renewal-needed, expired, cancelled.
 
-Avoid visual clutter. Use whitespace, clear hierarchy, concise labels, and meaningful status colors. Never bury critical operational warnings such as double-booking conflicts, expired subscriptions, or payment risk.
+Avoid visual clutter. Use whitespace, clear hierarchy, concise labels, and meaningful status colors. Never bury critical operational warnings such as double-booking conflicts, expired memberships, or payment risk.
 
 For local component state, React state and transitions are fine. Introduce global state only when it solves a real cross-route problem. Server data should remain server-owned and refreshed through revalidation or current Next.js data patterns.
 
@@ -124,11 +127,12 @@ For local component state, React state and transitions are fine. Introduce globa
 A correct reservation must:
 
 - validate all input with Zod or an equivalent schema;
-- confirm the seat belongs to the user's study hall;
-- reject occupied active seats;
-- reject assigning the same member phone number to another active seat in the same study hall;
-- upsert member identity consistently;
-- create the subscription atomically;
+- confirm the seat belongs to the user's study hall (via section);
+- reject occupied seats (open / occupying `SeatAssignment`);
+- reject assigning the same member phone number to another active membership in the same study hall;
+- upsert member identity consistently (`User` by phone);
+- create `Membership` (+ `SeatAssignment` when fixed seat) (+ `Payment`) atomically;
+- snapshot plan fields onto the membership at create time;
 - revalidate affected dashboard views;
 - return an explicit success/error state to the UI.
 
@@ -136,19 +140,20 @@ A correct reservation must:
 
 A correct swap must:
 
-- validate destination seat number;
+- validate destination seat;
 - reject missing seats;
 - reject occupied destination seats;
-- ensure the subscription is active and belongs to the current study hall;
+- ensure the source assignment/membership is active and belongs to the current study hall;
 - reject swapping to the same seat;
-- update inside a transaction.
+- close the old `SeatAssignment` and open a new one inside a transaction (do not overwrite history away).
 
 ### Renewal
 
 A correct renewal must:
 
-- validate the new end date is in the future;
-- preserve history;
+- validate the new end date is in the future (unless an explicit adjustment path);
+- preserve membership history for real renewals;
+- keep seat assignment occupancy in sync for fixed-seat plans;
 - avoid creating overlapping active contracts for the same seat;
 - clearly communicate renewal result to the operator.
 
@@ -158,8 +163,8 @@ Better Auth is the selected auth system. Do not replace it casually.
 
 - Use `getSession`/server helpers for authenticated server reads.
 - Keep Better Auth route integration intact.
-- Keep staff creation and owner/admin permissions server-side.
-- If adding member self-service later, design it explicitly; do not assume internal `member` records should automatically have full login access.
+- Keep staff creation and owner permissions server-side via `StaffAssignment`.
+- If adding member self-service later, design it explicitly; do not assume membership `User` rows should automatically have full login access.
 
 ## 7. Documentation Debt Rule
 
@@ -168,7 +173,7 @@ Whenever a major architectural, product, or database change is made, update thes
 - `DESIGN.md` for architecture, flows, schemas, and folder changes;
 - `DECISIONS.md` for important architectural/product decisions and their reasoning;
 - `TASKS.md` for what moved from planned to in-progress or completed;
-- `AGENT.md` and `CLAUDE.md` if developer/agent rules change.
+- `AGENTS.md` and `CLAUDE.md` if developer/agent rules change (single agent rulebook — do not reintroduce `AGENT.md`).
 
 Documentation is part of the product. Do not leave future agents guessing.
 
@@ -186,9 +191,9 @@ If a check cannot run because of environment limitations, report it clearly and 
 
 ## 9. Current Strategic Priorities
 
-1. Harden reservation actions with standardized action-state returns.
-2. Move production persistence to PostgreSQL.
-3. Add DB-level active-seat collision prevention.
-4. Add owner-configurable renewal notification preferences.
-5. Add audit logs for staff/admin activity.
-6. Add automated tests for reservation, renewal, release, and swap flows.
+1. Add DB-level open-seat collision prevention (partial unique on open `SeatAssignment` / equivalent).
+2. Automated tests for reservation, renewal, release, and swap flows under Schema V2.
+3. Normalize remaining RBAC helpers around `StaffAssignment` / `HallRole`.
+4. Wire attendance check-in/out UI to the `Attendance` model.
+5. Clean leftover MVP references (`Subscription`, `totalSeats`, `RenewalReminder`) in secondary docs and copy.
+6. Revalidate renewal-reminder dedupe after `RenewalReminder` table removal.
