@@ -23,10 +23,16 @@ function toTime(value: Date | string | null | undefined): number | null {
 }
 
 /**
- * Active occupancy:
- * - Canonical v2 writes: SeatAssignment.endsAt === null
- * - Legacy migrate-v2 rows: endsAt was copied from membership endDate (not null).
- *   Those count as current unless closed early (release/swap set endsAt before membership end).
+ * Determines if a seat assignment represents an active occupancy.
+ * 
+ * Logic:
+ * 1. If membership is CANCELLED, it's never an active occupancy.
+ * 2. Canonical V2: If endsAt is null, it's currently active.
+ * 3. Legacy Compatibility: In early V2 migration, active assignments had endsAt 
+ *    set to the membership end date. We treat them as active ONLY if endsAt 
+ *    matches the membership end date exactly.
+ * 4. If endsAt is even slightly earlier than the membership end date, it means 
+ *    the seat was explicitly vacated (via swapSeat or releaseSeat) and is vacant.
  */
 export function isOccupyingAssignment(assignment: {
   endsAt: Date | string | null;
@@ -34,14 +40,23 @@ export function isOccupyingAssignment(assignment: {
 }): boolean {
   if (assignment.membership.status === "CANCELLED") return false;
 
+  // Canonical V2: Open assignments are active.
   if (assignment.endsAt == null) return true;
 
   const assignmentEnd = toTime(assignment.endsAt);
   const membershipEnd = toTime(assignment.membership.endsAt);
+  
   if (assignmentEnd == null || membershipEnd == null) return false;
 
-  // Closed early by release/swap — seat is vacant.
-  return assignmentEnd >= membershipEnd - DAY_IN_MS;
+  /**
+   * Legacy check:
+   * Migrated rows from V1 were created with assignment.endsAt === membership.endsAt.
+   * If a seat is swapped or released, we set assignment.endsAt = now.
+   * Since now is always < membership.endsAt (for active memberships),
+   * exact equality is the only reliable way to identify legacy "current" rows
+   * without capturing historical records that were closed early.
+   */
+  return assignmentEnd === membershipEnd;
 }
 
 export function getActiveAssignment<T extends AssignmentLike>(
