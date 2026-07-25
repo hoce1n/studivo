@@ -1,5 +1,6 @@
 "use client";
 
+import { formatTehranDate, formatTehranTime } from "@/lib/date";
 import { useState } from "react";
 import {
   Table,
@@ -114,10 +115,10 @@ export function ShiftListTab({
                       {shift.staffAssignment.user.name}
                     </TableCell>
                     <TableCell>
-                      {new Date(shift.startsAt).toLocaleDateString("fa-IR")}
+                      {formatTehranDate(shift.startsAt)}
                     </TableCell>
                     <TableCell dir="ltr" className="text-right">
-                      {new Date(shift.startsAt).toLocaleTimeString("fa-IR", { hour: '2-digit', minute: '2-digit' })} - {new Date(shift.endsAt).toLocaleTimeString("fa-IR", { hour: '2-digit', minute: '2-digit' })}
+                      {formatTehranTime(shift.startsAt)} - {formatTehranTime(shift.endsAt)}
                     </TableCell>
                     <TableCell>{durationHours} ساعت</TableCell>
                     <TableCell className="max-w-[200px] truncate">

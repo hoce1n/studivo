@@ -30,11 +30,10 @@ import { GENDER_LABELS } from "@/app/platform/_components/venues-table";
 import { STATUS_LABELS, STATUS_VARIANTS } from "@/app/platform/_components/lead-detail-sheet";
 import { ContractView, type ContractData } from "@/app/platform/_components/contract-view";
 import type { VenueDetail } from "@/app/actions/platform/venues";
+import { formatTehranDate } from "@/lib/date";
 
 function formatDate(date: Date | string) {
-  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "long" }).format(
-    new Date(date)
-  );
+  return formatTehranDate(date, { dateStyle: "long" });
 }
 
 function fmt(n: number) {
@@ -86,9 +85,7 @@ export function VenueDetailSheet({
     if (!venue) return null;
 
     const today = new Date();
-    const contractDate = new Intl.DateTimeFormat("fa-IR", {
-      dateStyle: "long",
-    }).format(today);
+    const contractDate = formatDate(today);
 
     let subscriptionPlan = "Custom Plan";
     if (venue.monthlyFee === 0) {

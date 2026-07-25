@@ -6,8 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns-jalali";
+import { formatJalaliNumericDateTime } from "@/lib/date";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 
 interface Transaction {
@@ -51,7 +50,7 @@ export function TransactionList({ transactions }: { transactions: Transaction[] 
               </TableCell>
               <TableCell className="font-medium">{t.title}</TableCell>
               <TableCell className="text-xs text-muted-foreground">
-                {format(new Date(t.date), "yyyy/MM/dd HH:mm")}
+                {formatJalaliNumericDateTime(t.date)}
               </TableCell>
               <TableCell className={`text-left font-bold ${t.type === 'PAYMENT' ? 'text-emerald-600' : 'text-destructive'}`}>
                 {t.type === 'EXPENSE' ? '-' : '+'}

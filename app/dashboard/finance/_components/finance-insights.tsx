@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns-jalali";
+import { formatJalaliNumeric } from "@/lib/date";
 import { TrendingUp, Calendar, Zap } from "lucide-react";
 
 interface InsightProps {
@@ -48,7 +48,7 @@ export function FinanceInsights({ topPlans, upcomingRenewals }: InsightProps) {
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{renewal.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    تاریخ انقضا: {format(new Date(renewal.date), "yyyy/MM/dd")}
+                    تاریخ انقضا: {formatJalaliNumeric(renewal.date)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

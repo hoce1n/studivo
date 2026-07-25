@@ -14,7 +14,7 @@ import {
   History,
   User,
 } from "lucide-react";
-import { format } from "date-fns-jalali";
+import { formatJalaliNumeric } from "@/lib/date";
 
 import { releaseSeat, swapSeat } from "@/app/actions/seats/manage";
 import { reserveSeat } from "@/app/actions/seats/reserve";
@@ -216,9 +216,9 @@ function SeatHistoryTimeline({
               {item.phoneNumber}
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              {format(new Date(item.startsAtISO), "yyyy/MM/dd")} تا{" "}
+              {formatJalaliNumeric(item.startsAtISO)} تا{" "}
               {item.endsAtISO
-                ? format(new Date(item.endsAtISO), "yyyy/MM/dd")
+                ? formatJalaliNumeric(item.endsAtISO)
                 : "اکنون"}
             </div>
             <div className="text-[10px] text-muted-foreground">
@@ -670,7 +670,7 @@ export function ReserveForm({
                         >
                           <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
                           {startDate
-                            ? format(startDate, "yyyy/MM/dd")
+                            ? formatJalaliNumeric(startDate)
                             : "انتخاب تاریخ شروع"}
                         </Button>
                       </PopoverTrigger>
@@ -707,7 +707,7 @@ export function ReserveForm({
                         >
                           <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
                           {endDate
-                            ? format(endDate, "yyyy/MM/dd")
+                            ? formatJalaliNumeric(endDate)
                             : "انتخاب تاریخ پایان"}
                         </Button>
                       </PopoverTrigger>
@@ -965,7 +965,7 @@ export function ReserveForm({
                         >
                           <CalendarPlus className="size-3" />
                           {renewDate
-                            ? format(renewDate, "yyyy/MM/dd")
+                            ? formatJalaliNumeric(renewDate)
                             : "تاریخ جدید"}
                         </Button>
                       </PopoverTrigger>

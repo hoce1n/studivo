@@ -1,3 +1,5 @@
+import { formatTehranDate } from "@/lib/date";
+
 export const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 export type SeatStatus = "available" | "reserved" | "renewal" | "expired";
@@ -129,7 +131,7 @@ export const statusCopy: Record<
 };
 
 export function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(date);
+  return formatTehranDate(date);
 }
 
 export function formatNumber(value: number) {

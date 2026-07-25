@@ -9,8 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { format } from "date-fns-jalali";
-import { useState } from "react";
+import { formatJalaliNumericDateTimeWithSeconds } from "@/lib/date";
+import { Fragment, useState } from "react";
 import { ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auditActionLabels, auditEntityLabels, actionVariants } from "../_lib/log-utils";
@@ -51,10 +51,10 @@ export function LogTable({ logs }: LogTableProps) {
         </TableHeader>
         <TableBody>
           {logs.map((log) => (
-            <React.Fragment key={log.id}>
+            <Fragment key={log.id}>
               <TableRow className={expandedId === log.id ? "border-b-0 bg-muted/30" : ""}>
                 <TableCell className="text-xs font-mono">
-                  {format(new Date(log.createdAt), "yyyy/MM/dd HH:mm:ss")}
+                  {formatJalaliNumericDateTimeWithSeconds(log.createdAt)}
                 </TableCell>
                 <TableCell>
                   <div className="font-medium">{log.actor?.name ?? "سیستم"}</div>
@@ -98,7 +98,7 @@ export function LogTable({ logs }: LogTableProps) {
                   </TableCell>
                 </TableRow>
               )}
-            </React.Fragment>
+            </Fragment>
           ))}
           {logs.length === 0 && (
             <TableRow>

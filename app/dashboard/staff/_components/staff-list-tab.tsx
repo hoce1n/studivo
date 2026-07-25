@@ -1,5 +1,6 @@
 "use client";
 
+import { formatTehranDate } from "@/lib/date";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -80,7 +81,7 @@ export function StaffListTab({ staff, isOwner }: StaffListTabProps) {
                   <Badge variant="outline">{item.role}</Badge>
                 </TableCell>
                 <TableCell>
-                  {new Date(item.startDate).toLocaleDateString("fa-IR")}
+                  {formatTehranDate(item.startDate)}
                 </TableCell>
                 <TableCell>
                   {item.totalHoursThisMonth?.toFixed(1) ?? "0"} ساعت

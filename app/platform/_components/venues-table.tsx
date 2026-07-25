@@ -15,11 +15,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getVenueById } from "@/app/actions/platform/venues";
 import { VenueDetailSheet } from "@/app/platform/_components/venue-detail-sheet";
 import type { VenueRow, VenueDetail } from "@/app/actions/platform/venues";
+import { formatTehranDate } from "@/lib/date";
 
 function formatDate(date: Date | string) {
-  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(
-    new Date(date)
-  );
+  return formatTehranDate(date);
 }
 
 export const GENDER_LABELS: Record<string, string> = {

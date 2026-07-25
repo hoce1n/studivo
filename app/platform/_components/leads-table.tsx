@@ -27,11 +27,10 @@ import {
   SOURCE_LABELS,
 } from "@/app/platform/_components/lead-detail-sheet";
 import type { LeadRow, LeadDetail } from "@/app/actions/platform/leads";
+import { formatTehranDate } from "@/lib/date";
 
 function formatDate(date: Date | string) {
-  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(
-    new Date(date)
-  );
+  return formatTehranDate(date);
 }
 
 const ALL_STATUSES = ["NEW", "CONTACTED", "DEMO", "TRIAL", "CUSTOMER", "LOST"];
