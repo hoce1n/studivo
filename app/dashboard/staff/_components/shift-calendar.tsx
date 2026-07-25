@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns-jalali";
+import { formatTehranDate, formatTehranTime } from "@/lib/date";
 
 interface Shift {
   id: string;
@@ -52,7 +52,7 @@ export function ShiftCalendar({ shifts, isOwner }: ShiftCalendarProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            {date ? format(date, "EEEE d MMMM") : "انتخاب تاریخ"}
+            {date ? formatTehranDate(date, { weekday: "long", day: "numeric", month: "long" }) : "انتخاب تاریخ"}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -71,7 +71,7 @@ export function ShiftCalendar({ shifts, isOwner }: ShiftCalendarProps) {
                     <div className="space-y-1">
                       <div className="font-bold">{shift.staffAssignment.user.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {format(start, "HH:mm")} تا {format(end, "HH:mm")} ({duration.toFixed(1)} ساعت)
+                        {formatTehranTime(start)} تا {formatTehranTime(end)} ({duration.toFixed(1)} ساعت)
                       </div>
                       {shift.note && (
                         <div className="text-xs text-muted-foreground mt-1">

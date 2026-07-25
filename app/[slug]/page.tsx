@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { prisma } from "@/lib/db";
+import { formatTehranDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -86,10 +87,7 @@ function genderLabel(gender: string) {
 }
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("fa-IR", {
-    year: "numeric",
-    month: "long",
-  }).format(date);
+  return formatTehranDate(date, { year: "numeric", month: "long" });
 }
 
 function buildMapsUrl(address: string) {

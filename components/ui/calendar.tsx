@@ -9,6 +9,7 @@ import {
 
 import { DayPicker } from "@daypicker/persian";
 
+import { formatTehranDateKey, formatTehranMonthShort } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -45,7 +46,7 @@ function Calendar({
       locale={locale}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString(locale?.code, { month: "short" }),
+          formatTehranMonthShort(date, locale?.code),
         ...formatters,
       }}
       classNames={{
@@ -209,7 +210,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString(locale?.code)}
+      data-day={formatTehranDateKey(day.date)}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

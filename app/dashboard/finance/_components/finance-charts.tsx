@@ -15,7 +15,7 @@ import {
   PieChart,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format } from "date-fns-jalali";
+import { formatJalaliNumeric, formatTehranDate } from "@/lib/date";
 
 interface ChartProps {
   data: any[];
@@ -42,7 +42,7 @@ export function RevenueTrendChart({ data }: ChartProps) {
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 12 }}
-              tickFormatter={(val) => format(new Date(val), "MM/dd")}
+              tickFormatter={(val) => formatTehranDate(val, { month: "2-digit", day: "2-digit" })}
             />
             <YAxis
               axisLine={false}
@@ -61,7 +61,7 @@ export function RevenueTrendChart({ data }: ChartProps) {
                   typeof val === "string" || typeof val === "number"
                     ? new Date(val)
                     : new Date();
-                return format(dateValue, "yyyy/MM/dd");
+                return formatJalaliNumeric(dateValue);
               }}
             />
             <Line

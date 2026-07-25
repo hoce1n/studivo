@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns-jalali";
 import { CalendarIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatJalaliNumeric } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 export function toLocalDateParam(date: Date) {
@@ -68,7 +68,7 @@ export function JalaliDatePicker({
             )}
           >
             <CalendarIcon className="mr-2 size-4 opacity-50" />
-            {selected ? format(selected, "yyyy/MM/dd") : <span>{placeholder}</span>}
+            {selected ? formatJalaliNumeric(selected) : <span>{placeholder}</span>}
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-auto p-0">

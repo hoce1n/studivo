@@ -1,7 +1,6 @@
 "use client";
 
-import { format } from "date-fns-jalali";
-
+import { formatJalaliNumeric, toDate } from "@/lib/date";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
@@ -10,14 +9,6 @@ type SubscriptionProgressProps = {
   endDate: string | Date;
   className?: string;
 };
-
-function toDate(value: string | Date) {
-  return value instanceof Date ? value : new Date(value);
-}
-
-function formatJalali(date: Date) {
-  return Number.isNaN(date.getTime()) ? "—" : format(date, "yyyy/MM/dd");
-}
 
 export function SubscriptionProgress({
   startDate,
@@ -28,8 +19,8 @@ export function SubscriptionProgress({
   const end = toDate(endDate);
   const now = Date.now();
 
-  const total = end.getTime() - start.getTime();
-  const elapsed = now - start.getTime();
+  const total = start && end ? end.getTime() - start.getTime() : 0;
+  const elapsed = start ? now - start.getTime() : 0;
 
   // Clamp the elapsed ratio between 0 (future start) and 100 (expired).
   const progress =
@@ -42,9 +33,9 @@ export function SubscriptionProgress({
       </p>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="font-medium text-foreground">
-          پایان: {formatJalali(end)}
+          پایان: {formatJalaliNumeric(end)}
         </span>
-        <span>شروع: {formatJalali(start)}</span>
+        <span>شروع: {formatJalaliNumeric(start)}</span>
       </div>
       <Progress
         value={progress}

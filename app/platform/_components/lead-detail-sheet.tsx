@@ -29,7 +29,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { updateLeadStatus } from "@/app/actions/platform/leads";
 import type { LeadDetail } from "@/app/actions/platform/leads";
-import { convertLeadToStudyHall } from "@/app/actions/platform/venues"
+import { convertLeadToStudyHall } from "@/app/actions/platform/venues";
+import { formatTehranDateTime } from "@/lib/date";
 
 export const STATUS_LABELS: Record<string, string> = {
   NEW: "جدید",
@@ -62,10 +63,7 @@ export const SOURCE_LABELS: Record<string, string> = {
 const ALL_STATUSES = ["NEW", "CONTACTED", "DEMO", "TRIAL", "CUSTOMER", "LOST"];
 
 function formatDateTime(date: Date | string) {
-  return new Intl.DateTimeFormat("fa-IR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(date));
+  return formatTehranDateTime(date);
 }
 
 function DemoRequestList({ demos }: { demos: LeadDetail["demoRequests"] }) {

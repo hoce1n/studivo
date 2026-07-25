@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { requireScopedUser } from "@/app/actions/auth/verify-role";
+import { formatTehranDate } from "@/lib/date";
 
-function formatDate(date: Date) { return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(date); }
+function formatDate(date: Date) { return formatTehranDate(date); }
 function statusLabel(status: string) { return status === "ACTIVE" ? "فعال" : status === "EXPIRED" ? "منقضی" : status === "CANCELLED" ? "لغوشده" : "در انتظار"; }
 
 export default async function MembersPage({ searchParams }: { searchParams: Promise<{ status?: string; memberId?: string }> }) {
