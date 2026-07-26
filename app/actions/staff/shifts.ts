@@ -53,9 +53,10 @@ export async function createShift(formData: FormData): Promise<ActionResult> {
   }
 
   const { staffAssignmentId, date, startTime, endTime, note } = parsed.data;
+  const normalizedDate = date.includes("T") ? date.split("T")[0] : date;
 
-  const startsAt: Date = new Date(`${date}T${startTime}:00+03:30`);
-  const endsAt: Date = new Date(`${date}T${endTime}:00+03:30`);
+  const startsAt: Date = new Date(`${normalizedDate}T${startTime}:00+03:30`);
+  const endsAt: Date = new Date(`${normalizedDate}T${endTime}:00+03:30`);
 
   // If endsAt is before startsAt, assume it's the next day (e.g. 22:00 to 02:00)
   if (endsAt <= startsAt) {

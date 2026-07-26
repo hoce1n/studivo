@@ -13,7 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createShift } from "@/app/actions/staff/shifts";
 import { useRouter } from "next/navigation";
-import { JalaliDatePicker } from "@/components/jalali-date-picker";
+import {
+  JalaliDatePicker,
+  toLocalDateParam,
+} from "@/components/jalali-date-picker";
 import { useState } from "react";
 
 interface AddShiftFormProps {
@@ -24,9 +27,14 @@ interface AddShiftFormProps {
   defaultStaffId?: string;
 }
 
-export function AddShiftForm({ staffAssignments, defaultStaffId }: AddShiftFormProps) {
+export function AddShiftForm({
+  staffAssignments,
+  defaultStaffId,
+}: AddShiftFormProps) {
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    new Date(),
+  );
 
   return (
     <Card>
@@ -60,15 +68,19 @@ export function AddShiftForm({ staffAssignments, defaultStaffId }: AddShiftFormP
                 ))}
               </select>
             </div>
-            
+
             <div className="space-y-2">
               <Label>تاریخ شیفت</Label>
-              <JalaliDatePicker 
-                value={selectedDate} 
-                onChange={setSelectedDate} 
+              <JalaliDatePicker
+                value={selectedDate}
+                onChange={setSelectedDate}
                 className="w-full"
               />
-              <input type="hidden" name="date" value={selectedDate?.toISOString() || ""} />
+              <input
+                type="hidden"
+                name="date"
+                value={selectedDate ? toLocalDateParam(selectedDate) : ""}
+              />
             </div>
 
             <div className="space-y-2">
@@ -84,7 +96,11 @@ export function AddShiftForm({ staffAssignments, defaultStaffId }: AddShiftFormP
 
           <div className="space-y-2">
             <Label htmlFor="note">توضیحات (اختیاری)</Label>
-            <Input id="note" name="note" placeholder="مثلاً: شیفت صبح یا توضیحات خاص..." />
+            <Input
+              id="note"
+              name="note"
+              placeholder="مثلاً: شیفت صبح یا توضیحات خاص..."
+            />
           </div>
 
           <Button className="w-full md:w-auto px-8 self-end">ثبت شیفت</Button>
