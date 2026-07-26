@@ -14,12 +14,17 @@ export function FinanceInsights({ topPlans, upcomingRenewals }: InsightProps) {
       <Card>
         <CardHeader className="flex flex-row items-center gap-2 space-y-0">
           <TrendingUp className="size-4 text-primary" />
-          <CardTitle className="text-base font-semibold">محبوب‌ترین پلن‌ها</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            محبوب‌ترین پلن‌ها
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {topPlans.map((plan, index) => (
-              <div key={plan.name} className="flex items-center justify-between">
+              <div
+                key={plan.name}
+                className="flex items-center justify-between"
+              >
                 <div className="flex items-center gap-3">
                   <span className="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-bold">
                     {index + 1}
@@ -27,8 +32,12 @@ export function FinanceInsights({ topPlans, upcomingRenewals }: InsightProps) {
                   <span className="text-sm font-medium">{plan.name}</span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-xs text-muted-foreground">{plan.count.toLocaleString("fa-IR")} عضو</span>
-                  <Badge variant="secondary">{plan.revenue.toLocaleString("fa-IR")} ریال</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {plan.count.toLocaleString("fa-IR")} عضو
+                  </span>
+                  <Badge variant="secondary">
+                    {plan.revenue.toLocaleString("fa-IR")} تومان
+                  </Badge>
                 </div>
               </div>
             ))}
@@ -39,12 +48,17 @@ export function FinanceInsights({ topPlans, upcomingRenewals }: InsightProps) {
       <Card>
         <CardHeader className="flex flex-row items-center gap-2 space-y-0">
           <Calendar className="size-4 text-primary" />
-          <CardTitle className="text-base font-semibold">تمدیدهای پیش‌رو (۷ روز آینده)</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            تمدیدهای پیش‌رو (۷ روز آینده)
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {upcomingRenewals.map((renewal) => (
-              <div key={renewal.name + renewal.date} className="flex items-center justify-between">
+              <div
+                key={renewal.name + renewal.date}
+                className="flex items-center justify-between"
+              >
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{renewal.name}</span>
                   <span className="text-xs text-muted-foreground">
@@ -54,7 +68,7 @@ export function FinanceInsights({ topPlans, upcomingRenewals }: InsightProps) {
                 <div className="flex items-center gap-2">
                   <Zap className="size-3 text-amber-500" />
                   <span className="text-sm font-bold text-emerald-600">
-                    {renewal.amount.toLocaleString("fa-IR")} ریال
+                    {renewal.amount.toLocaleString("fa-IR")} تومان
                   </span>
                 </div>
               </div>

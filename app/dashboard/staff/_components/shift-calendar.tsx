@@ -32,6 +32,13 @@ export function ShiftCalendar({ shifts, isOwner }: ShiftCalendarProps) {
   // Mark days with shifts
   const shiftDays = shifts.map((s) => new Date(s.startsAt));
 
+  function formatHoursMinutes(decimalHours: number): string {
+    const hours = Math.floor(decimalHours);
+    const minutes = Math.round((decimalHours - hours) * 60);
+    return `${hours} ساعت و ${minutes} دقیقه`;
+  }
+
+
   return (
     <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
       <Card className="h-fit">
@@ -71,7 +78,7 @@ export function ShiftCalendar({ shifts, isOwner }: ShiftCalendarProps) {
                     <div className="space-y-1">
                       <div className="font-bold">{shift.staffAssignment.user.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {formatTehranTime(start)} تا {formatTehranTime(end)} ({duration.toFixed(1)} ساعت)
+                        {formatTehranTime(start)} تا {formatTehranTime(end)} ({formatHoursMinutes(duration)})
                       </div>
                       {shift.note && (
                         <div className="text-xs text-muted-foreground mt-1">

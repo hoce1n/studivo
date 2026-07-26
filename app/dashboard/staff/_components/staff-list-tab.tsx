@@ -42,6 +42,7 @@ export function StaffListTab({ staff, isOwner }: StaffListTabProps) {
 
   async function handleDeactivate(id: string) {
     if (!confirm("آیا از غیرفعال کردن این همکار اطمینان دارید؟")) return;
+
     
     const res = await deactivateStaff(id);
     if (res.success) {
@@ -50,6 +51,11 @@ export function StaffListTab({ staff, isOwner }: StaffListTabProps) {
     } else {
       toast.error(res.error);
     }
+  }
+  function formatHoursMinutes(decimalHours: number): string {
+    const hours = Math.floor(decimalHours);
+    const minutes = Math.round((decimalHours - hours) * 60);
+    return `${hours} ساعت و ${minutes} دقیقه`;
   }
 
   return (
@@ -84,7 +90,7 @@ export function StaffListTab({ staff, isOwner }: StaffListTabProps) {
                   {formatTehranDate(item.startDate)}
                 </TableCell>
                 <TableCell>
-                  {item.totalHoursThisMonth?.toFixed(1) ?? "0"} ساعت
+                  {formatHoursMinutes(item.totalHoursThisMonth ?? 0)}
                 </TableCell>
                 <TableCell>
                   <Badge variant={item.isActive ? "default" : "secondary"}>

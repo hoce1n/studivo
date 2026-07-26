@@ -84,7 +84,7 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
         </div>
         <Badge variant="outline" className="gap-2 bg-background/50 py-1.5 px-3">
           <DollarSign className="size-4 text-emerald-500" />
-          <span className="font-bold">{metrics.totalRevenue.toLocaleString("fa-IR")} ریال</span>
+          <span className="font-bold">{metrics.totalRevenue.toLocaleString("fa-IR")} تومان</span>
         </Badge>
       </div>
 

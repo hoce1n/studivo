@@ -111,3 +111,18 @@ export function formatJalaliNumericDateTimeWithSeconds(value: DateInput) {
     second: "2-digit",
   });
 }
+
+export function formatDurationFa(hours: number): string {
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `${m} دقیقه`;
+  if (m === 0) return `${h} ساعت`;
+  return `${h} ساعت و ${m} دقیقه`;
+}
+
+// Bonus: compute duration straight from two dates to avoid repeating the ms math
+export function formatDurationBetween(start: Date | string, end: Date | string): string {
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  return formatDurationFa(ms / (1000 * 60 * 60));
+}

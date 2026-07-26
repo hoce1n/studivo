@@ -1,6 +1,6 @@
 "use client";
 
-import { formatTehranDate, formatTehranTime } from "@/lib/date";
+import { formatDurationBetween, formatTehranDate, formatTehranTime } from "@/lib/date";
 import { useState } from "react";
 import {
   Table,
@@ -105,10 +105,7 @@ export function ShiftListTab({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {shifts.map((shift) => {
-                const durationMs = new Date(shift.endsAt).getTime() - new Date(shift.startsAt).getTime();
-                const durationHours = (durationMs / (1000 * 60 * 60)).toFixed(1);
-                
+              {shifts.map((shift) => {                
                 return (
                   <TableRow key={shift.id}>
                     <TableCell className="font-medium">
@@ -120,8 +117,8 @@ export function ShiftListTab({
                     <TableCell dir="ltr" className="text-right">
                       {formatTehranTime(shift.startsAt)} - {formatTehranTime(shift.endsAt)}
                     </TableCell>
-                    <TableCell>{durationHours} ساعت</TableCell>
-                    <TableCell className="max-w-[200px] truncate">
+                    <TableCell>{formatDurationBetween(shift.startsAt, shift.endsAt)}</TableCell>
+                    <TableCell className="max-w-50 truncate">
                       {shift.note ?? "-"}
                     </TableCell>
                     {isOwner && (

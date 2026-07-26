@@ -122,7 +122,7 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price">قیمت (ریال)</Label>
+                  <Label htmlFor="price">قیمت (تومان)</Label>
                   <Input
                     id="price"
                     name="price"
@@ -209,7 +209,9 @@ export function MembershipPlansTab({ plans }: MembershipPlansTabProps) {
                   )}
                 </TableCell>
                 <TableCell>{plan.durationDays} روز</TableCell>
-                <TableCell>{plan.price.toLocaleString("fa-IR")} ریال</TableCell>
+                <TableCell>
+                  {plan.price.toLocaleString("fa-IR")} تومان
+                </TableCell>
                 <TableCell>
                   {plan.hasFixedSeat ? (
                     <Badge variant="outline" className="gap-1 text-emerald-600">
