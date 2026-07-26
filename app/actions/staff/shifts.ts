@@ -66,7 +66,10 @@ export async function createShift(formData: FormData): Promise<ActionResult> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   if (startsAt < thirtyDaysAgo && user.role !== "OWNER") {
-    return { success: false, error: "ثبت شیفت برای بیش از ۳۰ روز گذشته مجاز نیست." };
+    return {
+      success: false,
+      error: "ثبت شیفت برای بیش از ۳۰ روز گذشته مجاز نیست.",
+    };
   }
 
   try {
@@ -105,7 +108,9 @@ export async function createShift(formData: FormData): Promise<ActionResult> {
             actionType: "CREATE_SHIFT",
             operatorName: user.name,
             targetUserName: assignment.user.name,
-            durationMinutes: Math.round((endsAt.getTime() - startsAt.getTime()) / 60000),
+            durationMinutes: Math.round(
+              (endsAt.getTime() - startsAt.getTime()) / 60000,
+            ),
           },
         },
       });
@@ -123,7 +128,7 @@ export async function createShift(formData: FormData): Promise<ActionResult> {
  */
 export async function updateShift(
   shiftId: string,
-  data: z.infer<typeof updateShiftSchema>
+  data: z.infer<typeof updateShiftSchema>,
 ): Promise<ActionResult> {
   const user = await requireScopedUser();
   const { studyHallId } = user;
@@ -140,7 +145,11 @@ export async function updateShift(
     return await prisma.$transaction(async (tx) => {
       const shift = await tx.shift.findFirst({
         where: { id: shiftId, staffAssignment: { studyHallId } },
-        include: { staffAssignment: { include: { user: { select: { id: true, name: true } } } } },
+        include: {
+          staffAssignment: {
+            include: { user: { select: { id: true, name: true } } },
+          },
+        },
       });
 
       if (!shift) {
@@ -201,14 +210,19 @@ export async function deleteShift(shiftId: string): Promise<ActionResult> {
 
   // Only OWNER can delete shifts
   if (user.role !== "OWNER") {
-    return { success: false, error: "تنها مدیر سالن می‌تواند شیفت‌ها را حذف کند." };
+    return {
+      success: false,
+      error: "تنها مدیر سالن می‌تواند شیفت‌ها را حذف کند.",
+    };
   }
 
   try {
     return await prisma.$transaction(async (tx) => {
       const shift = await tx.shift.findFirst({
         where: { id: shiftId, staffAssignment: { studyHallId } },
-        include: { staffAssignment: { include: { user: { select: { name: true } } } } },
+        include: {
+          staffAssignment: { include: { user: { select: { name: true } } } },
+        },
       });
 
       if (!shift) {
