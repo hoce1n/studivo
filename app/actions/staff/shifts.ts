@@ -54,20 +54,12 @@ export async function createShift(formData: FormData): Promise<ActionResult> {
 
   const { staffAssignmentId, date, startTime, endTime, note } = parsed.data;
 
-  // Combine date and time into UTC dates
-  const baseDate = new Date(date);
-  const [startH, startM] = startTime.split(":").map(Number);
-  const [endH, endM] = endTime.split(":").map(Number);
-
-  const startsAt = new Date(baseDate);
-  startsAt.setHours(startH, startM, 0, 0);
-
-  const endsAt = new Date(baseDate);
-  endsAt.setHours(endH, endM, 0, 0);
+  const startsAt: Date = new Date(`${date}T${startTime}:00+03:30`);
+  const endsAt: Date = new Date(`${date}T${endTime}:00+03:30`);
 
   // If endsAt is before startsAt, assume it's the next day (e.g. 22:00 to 02:00)
   if (endsAt <= startsAt) {
-    endsAt.setDate(endsAt.getDate() + 1);
+    endsAt.setTime(endsAt.getTime() + 24 * 60 * 60 * 1000);
   }
 
   // Prevent far past shifts (e.g., more than 30 days ago)
