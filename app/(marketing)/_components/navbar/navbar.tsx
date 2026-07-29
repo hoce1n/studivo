@@ -8,7 +8,7 @@ import Link from "next/link";
 const Navbar = () => {
   return (
     <nav 
-      className="sticky top-0 z-50 h-16 border-b border-accent bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60"
+      className="container mx-auto sticky top-0 z-50 h-16 border-b border-accent backdrop-blur supports-backdrop-filter:bg-background/30 mt-5 rounded-2xl"
     >
       <div className="h-full flex items-center justify-between max-w-(--breakpoint-xl) mx-auto px-4 sm:px-6">
         <Logo />
