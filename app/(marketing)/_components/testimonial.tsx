@@ -65,7 +65,7 @@ const Testimonial = () => {
       id="testimonials"
       className="scroll-mt-20 w-full max-w-(--breakpoint-xl) mx-auto py-6 xs:py-12 px-6"
     >
-      <h2 className="mb-8 xs:mb-14 text-4xl md:text-5xl font-semibold text-center tracking-tight">
+      <h2 className="mb-8 xs:mb-14 text-2xl xs:text-3xl md:text-4xl font-semibold text-center tracking-tight">
         بشنو از کسانی که استفاده کردن
       </h2>
       <div className="container w-full mx-auto">
@@ -154,12 +154,12 @@ const TestimonialCard = ({
         </p>
         <div className="flex sm:hidden md:flex mt-6 items-center gap-4">
           <Avatar>
-            <AvatarFallback className="text-xl font-medium bg-primary text-primary-foreground">
+            <AvatarFallback className="font-medium bg-primary text-primary-foreground">
               {testimonial.name.charAt(0)}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-lg font-semibold">{testimonial.name}</p>
+            <p className="text-base sm:text-lg font-semibold">{testimonial.name}</p>
             <p className="text-sm text-gray-500">{testimonial.designation}</p>
           </div>
         </div>

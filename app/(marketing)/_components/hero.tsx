@@ -5,7 +5,7 @@ import Silk from "@/components/Silk";
 
 const Hero = () => {
   return (
-    <section className="min-h-[calc(100vh-4rem)] w-full overflow-hidden border-b border-border/60">
+    <section className="min-h-screen w-full overflow-hidden">
       <div className="absolute inset-0 -z-20">
         <Silk
           speed={2.5}
@@ -15,7 +15,7 @@ const Hero = () => {
           rotation={0.2}
         />
       </div>
-      {/* Soft wash so Silk stays atmospheric, not the main focus */}
+
       <div className="absolute inset-0 -z-10 bg-background/72" />
       <div className="absolute inset-x-0 bottom-0 -z-10 h-1/3 bg-linear-to-t from-background to-transparent" />
 

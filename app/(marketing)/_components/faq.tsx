@@ -45,10 +45,10 @@ const FAQ = () => {
       id="faq"
       className="scroll-mt-20 w-full max-w-(--breakpoint-xl) mx-auto py-8 xs:py-16 px-6"
     >
-      <h2 className="md:text-center text-3xl xs:text-4xl md:text-5xl leading-[1.15]! font-semibold tracking-tighter">
+      <h2 className="md:text-center text-2xl xs:text-3xl md:text-4xl leading-[1.15]! font-semibold tracking-tighter">
         سوالات پرتکرار
       </h2>
-      <p className="mt-1.5 md:text-center xs:text-lg text-muted-foreground">
+      <p className="mt-1.5 md:text-center text-sm xs:text-base text-muted-foreground">
         پاسخ پرسش‌های رایج را اینجا جمع کرده‌ایم. اگر سوال دیگری دارید با تیم پشتیبانی در تماس باشید.
       </p>
 

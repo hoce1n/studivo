@@ -18,7 +18,7 @@ export const NavigationSheet = () => {
         <SheetTitle>Navigation Drawer</SheetTitle>
       </VisuallyHiddenPrimitive.Root>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon">
+        <Button variant="ghost" size="icon">
           <Menu />
         </Button>
       </SheetTrigger>

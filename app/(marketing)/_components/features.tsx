@@ -60,7 +60,7 @@ const Features = () => {
       id="features"
       className="scroll-mt-20 max-w-(--breakpoint-xl) mx-auto w-full py-12 xs:py-20 px-6"
     >
-      <h2 className="text-3xl xs:text-4xl md:text-5xl md:leading-14 font-semibold tracking-tight sm:max-w-xl sm:text-center sm:mx-auto">
+      <h2 className="text-2xl xs:text-3xl md:text-4xl md:leading-14 font-semibold tracking-tight sm:max-w-xl sm:text-center sm:mx-auto">
         هر چیزی که برای آرامش خیال در مدیریت سالن نیاز دارید
       </h2>
       <div className="mt-8 xs:mt-14 w-full mx-auto grid md:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-12">
@@ -71,10 +71,10 @@ const Features = () => {
           >
             <CardHeader>
               <feature.icon />
-              <h4 className="mt-3! text-xl font-semibold tracking-tight">
+              <h4 className="mt-3! text-lg sm:text-xl font-semibold tracking-tight">
                 {feature.title}
               </h4>
-              <p className="mt-1 text-muted-foreground text-sm xs:text-[17px]">
+              <p className="mt-1 text-muted-foreground text-xs xs:text-base">
                 {feature.description}
               </p>
             </CardHeader>

@@ -56,10 +56,10 @@ const Pricing = () => {
       id="pricing"
       className="scroll-mt-20 max-w-(--breakpoint-lg) mx-auto py-12 xs:py-20 px-6"
     >
-      <h1 className="text-4xl xs:text-5xl font-semibold text-center tracking-tight">
+      <h1 className="text-2xl xs:text-3xl md:text-4xl font-semibold text-center tracking-tight">
         تعرفه شفاف برای رشد پایدار سالن شما
       </h1>
-      <p className="mx-auto mt-4 max-w-2xl text-center leading-8 text-muted-foreground">
+      <p className="mx-auto mt-4 max-w-2xl text-center text-sm sm:text-base leading-8 text-muted-foreground">
         از سالن‌های نوپا تا مجموعه‌های بزرگ؛ پلن پایه برای شروع همیشه رایگان است و پلن حرفه‌ای تمام ابزارهای لازم برای مدیریت بدون نقص را در اختیار شما می‌گذارد.
       </p>
       <div className="mt-8 xs:mt-14 grid grid-cols-1 lg:grid-cols-3 items-center gap-8 lg:gap-0">
@@ -69,7 +69,7 @@ const Pricing = () => {
             className={cn(
               "relative bg-accent/50 border p-7 rounded-xl lg:rounded-none lg:first:rounded-l-xl lg:last:rounded-r-xl",
               {
-                "bg-background border-[2px] border-primary py-12 rounded-xl!":
+                "bg-background border-2 border-primary py-12 rounded-xl!":
                   plan.isPopular,
               }
             )}
