@@ -14,6 +14,12 @@ const estedaad = localFont({
   display: "swap",
 });
 
+const melli = localFont({
+  src: "./fonts/Melli-Regular.woff2",
+  variable: "--font-melli",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Studivo",
   description: "a tools for managing your studyhall",
@@ -47,7 +53,7 @@ export default async function RootLayout({
       suppressHydrationWarning
       lang="fa"
       dir="rtl"
-      className={cn("antialiased", estedaad.variable, "font-sans scroll-smooth")}
+      className={cn("antialiased", estedaad.variable, melli.variable, "font-sans scroll-smooth")}
     >
       <head>
         <meta name="enamad" content="55116299" />
