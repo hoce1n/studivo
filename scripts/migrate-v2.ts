@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaClient as PrismaClientV1 } from '../lib/generated/prisma-old/client';
 import { PrismaClient as PrismaClientV2 } from '../lib/generated/prisma/client';
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -7,14 +8,23 @@ const globalForPrisma = global as unknown as {
   prismaV2: PrismaClientV2;
 };
 
+const databaseUrlV1 = process.env.DATABASE_URL_V1;
+const databaseUrlV2 = process.env.DATABASE_URL_V2 ?? process.env.DATABASE_URL;
+
+if (!databaseUrlV1 || !databaseUrlV2) {
+  throw new Error(
+    "Set DATABASE_URL_V1 and DATABASE_URL_V2 (or DATABASE_URL) before running migrate-v2.",
+  );
+}
+
 // Adapter for old database (v1)
 const adapterV1 = new PrismaPg({
-  connectionString: "postgresql://postgres:1tsh0cein!1@localhost:5432/studivo_local_v1",
+  connectionString: databaseUrlV1,
 });
 
 // Adapter for new database (v2)
 const adapterV2 = new PrismaPg({
-  connectionString: "postgresql://postgres:1tsh0cein!1@localhost:5432/studivo_local_v2",
+  connectionString: databaseUrlV2,
 });
 
 // Prisma Client for reading from old database
