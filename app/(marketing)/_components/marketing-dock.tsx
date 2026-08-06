@@ -6,6 +6,7 @@ import {
   CircleHelp,
   Sparkles,
   MessageCircleHeart,
+  LogIn
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -14,6 +15,7 @@ const dockLinks = [
   { href: "/#testimonials", label: "نظر مشتریان", icon: MessageCircleHeart },
   { href: "/#pricing", label: "تعرفه‌ها", icon: BadgeDollarSign },
   { href: "/#faq", label: "سوالات", icon: CircleHelp },
+  { href: "/login", label: "ورود", icon: LogIn },
 ] as const;
 
 export function MarketingDock() {
