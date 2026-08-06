@@ -1,33 +1,35 @@
 import { requireScopedUser } from "@/app/actions/auth/verify-role";
-import { getStaffList, getShifts, calculateTotalHours } from "@/app/actions/staff/queries";
+import {
+  getStaffList,
+  getShifts,
+  calculateStaffHoursMap,
+} from "@/app/actions/staff/queries";
 import { StaffTabs } from "./_components/staff-tabs";
 import { Badge } from "@/components/ui/badge";
+import { formatJalaliMonthName, getJalaliMonthRange } from "@/lib/date";
 
 export default async function StaffPage() {
   const user = await requireScopedUser();
   const isOwner = user.role === "OWNER";
 
-  const [staff, shifts] = await Promise.all([
-    getStaffList(),
-    getShifts(),
-  ]);
+  const [staff, shifts] = await Promise.all([getStaffList(), getShifts()]);
 
-  // Calculate hours for current month for each staff member
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  // Use Jalali month (e.g. مرداد), not Gregorian August
+  const { start, endExclusive } = getJalaliMonthRange();
+  const currentMonthLabel = formatJalaliMonthName();
 
-  const staffWithHours = await Promise.all(
-    staff.map(async (member) => {
-      const hours = await calculateTotalHours(member.id, startOfMonth, endOfMonth);
-      return {
-        ...member,
-        totalHoursThisMonth: hours,
-      };
-    })
+  const hoursByAssignment = await calculateStaffHoursMap(
+    staff.map((member) => member.id),
+    start,
+    endExclusive,
   );
 
-  const currentStaffId = staff.find(s => s.user.id === user.id)?.id;
+  const staffWithHours = staff.map((member) => ({
+    ...member,
+    totalHoursThisMonth: hoursByAssignment[member.id] ?? 0,
+  }));
+
+  const currentStaffId = staff.find((s) => s.user.id === user.id)?.id;
 
   return (
     <div className="space-y-6">
@@ -39,15 +41,18 @@ export default async function StaffPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="muted">{isOwner ? "مدیر سالن" : "مراقب سالن"}</Badge>
+          <Badge variant="muted">
+            {isOwner ? "مدیر سالن" : "مراقب سالن"}
+          </Badge>
         </div>
       </div>
 
-      <StaffTabs 
-        staff={staffWithHours} 
-        shifts={shifts} 
-        isOwner={isOwner} 
+      <StaffTabs
+        staff={staffWithHours}
+        shifts={shifts}
+        isOwner={isOwner}
         currentStaffId={currentStaffId}
+        currentMonthLabel={currentMonthLabel}
       />
     </div>
   );

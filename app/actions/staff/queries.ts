@@ -84,36 +84,62 @@ export async function getShifts(filters: {
 }
 
 /**
- * Calculates total working hours for a staff member in a date range.
+ * Calculates total working hours for a staff member in a half-open date range
+ * [startDate, endExclusive). Overlapping overnight shifts are clamped to the range.
  */
 export async function calculateTotalHours(
   staffAssignmentId: string,
   startDate: Date,
-  endDate: Date
+  endExclusive: Date,
 ) {
+  const hoursByAssignment = await calculateStaffHoursMap(
+    [staffAssignmentId],
+    startDate,
+    endExclusive,
+  );
+  return hoursByAssignment[staffAssignmentId] ?? 0;
+}
+
+/**
+ * Batch version: hours per staff assignment for [startDate, endExclusive).
+ */
+export async function calculateStaffHoursMap(
+  staffAssignmentIds: string[],
+  startDate: Date,
+  endExclusive: Date,
+): Promise<Record<string, number>> {
   const user = await requireScopedUser();
   const { studyHallId } = user;
 
-  // Security check: Ensure assignment belongs to this hall
-  const assignment = await prisma.staffAssignment.findFirst({
-    where: { id: staffAssignmentId, studyHallId },
-    select: { id: true },
-  });
-
-  if (!assignment) return 0;
+  if (staffAssignmentIds.length === 0) return {};
 
   const shifts = await prisma.shift.findMany({
     where: {
-      staffAssignmentId,
-      startsAt: { gte: startDate },
-      endsAt: { lte: endDate },
+      staffAssignmentId: { in: staffAssignmentIds },
+      staffAssignment: { studyHallId },
+      // Overlap with [startDate, endExclusive)
+      startsAt: { lt: endExclusive },
+      endsAt: { gt: startDate },
     },
-    select: { startsAt: true, endsAt: true },
+    select: { staffAssignmentId: true, startsAt: true, endsAt: true },
   });
 
-  const totalMilliseconds = shifts.reduce((acc, shift) => {
-    return acc + (shift.endsAt.getTime() - shift.startsAt.getTime());
-  }, 0);
+  const rangeStartMs = startDate.getTime();
+  const rangeEndMs = endExclusive.getTime();
+  const hoursByAssignment: Record<string, number> = {};
 
-  return totalMilliseconds / (1000 * 60 * 60); // Return hours
+  for (const id of staffAssignmentIds) {
+    hoursByAssignment[id] = 0;
+  }
+
+  for (const shift of shifts) {
+    const startMs = Math.max(shift.startsAt.getTime(), rangeStartMs);
+    const endMs = Math.min(shift.endsAt.getTime(), rangeEndMs);
+    if (endMs <= startMs) continue;
+    hoursByAssignment[shift.staffAssignmentId] =
+      (hoursByAssignment[shift.staffAssignmentId] ?? 0) +
+      (endMs - startMs) / (1000 * 60 * 60);
+  }
+
+  return hoursByAssignment;
 }

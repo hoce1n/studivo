@@ -1,6 +1,6 @@
 "use client";
 
-import { formatTehranDate } from "@/lib/date";
+import { formatDurationFa, formatTehranDate } from "@/lib/date";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -35,15 +35,19 @@ interface StaffMember {
 interface StaffListTabProps {
   staff: StaffMember[];
   isOwner: boolean;
+  currentMonthLabel: string;
 }
 
-export function StaffListTab({ staff, isOwner }: StaffListTabProps) {
+export function StaffListTab({
+  staff,
+  isOwner,
+  currentMonthLabel,
+}: StaffListTabProps) {
   const router = useRouter();
 
   async function handleDeactivate(id: string) {
     if (!confirm("آیا از غیرفعال کردن این همکار اطمینان دارید؟")) return;
 
-    
     const res = await deactivateStaff(id);
     if (res.success) {
       toast.success(res.message);
@@ -51,11 +55,6 @@ export function StaffListTab({ staff, isOwner }: StaffListTabProps) {
     } else {
       toast.error(res.error);
     }
-  }
-  function formatHoursMinutes(decimalHours: number): string {
-    const hours = Math.floor(decimalHours);
-    const minutes = Math.round((decimalHours - hours) * 60);
-    return `${hours} ساعت و ${minutes} دقیقه`;
   }
 
   return (
@@ -69,7 +68,7 @@ export function StaffListTab({ staff, isOwner }: StaffListTabProps) {
               <TableHead>نام</TableHead>
               <TableHead>نقش</TableHead>
               <TableHead>شروع فعالیت</TableHead>
-              <TableHead>ساعت کاری (ماه جاری)</TableHead>
+              <TableHead>ساعت کاری ({currentMonthLabel})</TableHead>
               <TableHead>وضعیت</TableHead>
               {isOwner && <TableHead className="text-left">عملیات</TableHead>}
             </TableRow>
@@ -90,7 +89,7 @@ export function StaffListTab({ staff, isOwner }: StaffListTabProps) {
                   {formatTehranDate(item.startDate)}
                 </TableCell>
                 <TableCell>
-                  {formatHoursMinutes(item.totalHoursThisMonth ?? 0)}
+                  {formatDurationFa(item.totalHoursThisMonth ?? 0)}
                 </TableCell>
                 <TableCell>
                   <Badge variant={item.isActive ? "default" : "secondary"}>

@@ -10,9 +10,16 @@ interface StaffTabsProps {
   shifts: any[];
   isOwner: boolean;
   currentStaffId?: string;
+  currentMonthLabel: string;
 }
 
-export function StaffTabs({ staff, shifts, isOwner, currentStaffId }: StaffTabsProps) {
+export function StaffTabs({
+  staff,
+  shifts,
+  isOwner,
+  currentStaffId,
+  currentMonthLabel,
+}: StaffTabsProps) {
   return (
     <Tabs defaultValue="list" className="space-y-6" dir="rtl">
       <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
@@ -27,7 +34,11 @@ export function StaffTabs({ staff, shifts, isOwner, currentStaffId }: StaffTabsP
       </TabsList>
       
       <TabsContent value="list">
-        <StaffListTab staff={staff} isOwner={isOwner} />
+        <StaffListTab
+          staff={staff}
+          isOwner={isOwner}
+          currentMonthLabel={currentMonthLabel}
+        />
       </TabsContent>
       
       <TabsContent value="shifts">

@@ -1,8 +1,22 @@
+import { addMonths, startOfMonth } from "date-fns-jalali";
+
 export const APP_TIME_ZONE = "Asia/Tehran";
 export const APP_LOCALE = "fa-IR";
 export const APP_JALALI_LOCALE = "fa-IR-u-ca-persian";
 
 type DateInput = Date | string | number | null | undefined;
+
+/** Jalali month bounds in real timestamps (Asia/Tehran midnight via date-fns-jalali). */
+export function getJalaliMonthRange(value: DateInput = new Date()) {
+  const date = toDate(value) ?? new Date();
+  const start = startOfMonth(date);
+  const endExclusive = startOfMonth(addMonths(date, 1));
+  return { start, endExclusive };
+}
+
+export function formatJalaliMonthName(value: DateInput = new Date()) {
+  return formatTehranDate(value, { month: "long" });
+}
 
 export function toDate(value: DateInput): Date | null {
   if (value == null) return null;

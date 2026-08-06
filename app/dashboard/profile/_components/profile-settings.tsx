@@ -130,7 +130,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
 
   return (
     <Tabs defaultValue="profile" className="w-full" dir="rtl">
-      <TabsList>
+      <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-3 md:w-fit">
         <TabsTrigger value="profile">
           <User />
           اطلاعات کاربری

@@ -34,8 +34,6 @@ jobs:
 
             pnpm install --frozen-lockfile
 
-            npx prisma migrate deploy
-
             pnpm build
 
             pm2 restart studivo
