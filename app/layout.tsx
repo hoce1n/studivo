@@ -81,6 +81,8 @@ export default async function RootLayout({
             />
           </ThemeProvider>
         </DirectionProvider>
+
+        <div className="h-25" />
       </body>
     </html>
   );
