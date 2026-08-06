@@ -1,3 +1,4 @@
+import { MarketingDock } from "@/app/dashboard/_components/dashboard-dock";
 import { getSession } from "@/lib/server";
 import { redirect } from "next/navigation";
 
@@ -12,5 +13,10 @@ export default async function Layout({
     redirect("/dashboard");
   }
 
-  return children;
+  return (
+    <>
+      {children}
+      <MarketingDock />
+    </>
+  );
 }

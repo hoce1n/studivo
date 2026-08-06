@@ -21,7 +21,7 @@ const Hero = () => {
 
       <div className="mx-auto flex w-full max-w-(--breakpoint-xl) items-center justify-center gap-x-12 gap-y-14 px-6 py-16 lg:min-h-[calc(100vh-4rem)] lg:py-0">
         <div className="max-w-xl text-center">
-          <h1 className="max-w-[20ch] text-3xl font-semibold leading-[1.2]! tracking-tight xs:text-4xl sm:text-5xl lg:text-[2.75rem] xl:text-5xl">
+          <h1 className="mx-auto max-w-[20ch] text-3xl font-semibold leading-[1.2]! tracking-tight xs:text-4xl sm:text-5xl lg:text-[2.75rem] xl:text-5xl">
             مدیریت سالن مطالعه، بدون تداخل صندلی
           </h1>
           <p className="mx-auto mt-5 max-w-[42ch] text-base leading-8 text-muted-foreground xs:text-lg">

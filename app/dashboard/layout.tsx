@@ -18,6 +18,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/server";
 import ThemeToggle from "../(marketing)/_components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
+import { MarketingDock } from "./_components/dashboard-dock";
 
 export default async function Layout({
   children,
@@ -107,6 +108,7 @@ export default async function Layout({
           {children}
         </main>
       </SidebarInset>
+      <MarketingDock userRole={currentRole} />
     </SidebarProvider>
   );
 }

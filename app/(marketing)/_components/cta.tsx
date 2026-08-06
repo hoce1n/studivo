@@ -15,9 +15,6 @@ const trustPoints = [
   "تمرکز کامل روی کاهش خطای انسانی و تداخل صندلی",
 ];
 
-// ---------------------------------------------------------------------------
-// Success panel — shown after a lead is created successfully
-// ---------------------------------------------------------------------------
 function SuccessPanel({ name }: { name: string }) {
   return (
     <div
@@ -66,9 +63,6 @@ function SuccessPanel({ name }: { name: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// CTA section
-// ---------------------------------------------------------------------------
 const CTA = () => {
   const [pending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -104,7 +98,6 @@ const CTA = () => {
   return (
     <section
       id="demo"
-      dir="rtl"
       aria-labelledby="studivo-cta-title"
       className="relative scroll-mt-20 overflow-hidden border-y bg-background px-6 py-16 sm:py-20"
     >
@@ -119,7 +112,7 @@ const CTA = () => {
 
           <h2
             id="studivo-cta-title"
-            className="mt-5 max-w-2xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-5xl"
+            className="mt-5 max-w-md text-3xl font-semibold leading-tight tracking-tight sm:text-4xl"
           >
             مدیریت سالن خود را از همین امروز هوشمند کنید
           </h2>
