@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Logo } from "./logo";
 import { NavMenu } from "./nav-menu";
-import { NavigationSheet } from "./navigation-sheet";
 import ThemeToggle from "../theme-toggle";
 import Link from "next/link";
 
@@ -13,7 +12,7 @@ const Navbar = () => {
       <div className="h-full flex items-center justify-between max-w-(--breakpoint-xl) mx-auto px-4 sm:px-6">
         <Logo />
         <NavMenu className="hidden md:block" />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
           <ThemeToggle />
           <Button asChild variant="ghost" className="hidden sm:inline-flex">
             <Link href="/dashboard">ورود</Link>
@@ -21,9 +20,6 @@ const Navbar = () => {
           <Button asChild className="inline-flex">
             <Link href="/demo">درخواست دمو</Link>
           </Button>
-          <div className="md:hidden">
-            <NavigationSheet />
-          </div>
         </div>
       </div>
     </nav>

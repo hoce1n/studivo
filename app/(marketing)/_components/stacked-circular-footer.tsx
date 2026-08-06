@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "./navbar/logo";
-import Enamad from "@/components/enamad";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { submitLead } from "@/app/actions/marketing/lead";
@@ -72,7 +71,6 @@ function StackedCircularFooter() {
               © ۱۴۰۵ استادیو. تمامی حقوق محفوظ است.
             </p>
           </div>
-          <Enamad />
         </div>
       </div>
     </footer>
