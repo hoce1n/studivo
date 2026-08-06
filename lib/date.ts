@@ -57,6 +57,23 @@ export function formatTehranTime(
   return formatTehranDate(value, options);
 }
 
+/** `HH:mm` in Asia/Tehran for `<input type="time">`. */
+export function formatTehranTimeInput(value: DateInput) {
+  const date = toDate(value);
+  if (!date) return "";
+
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: APP_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+
+  const hour = parts.find((part) => part.type === "hour")?.value ?? "00";
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "00";
+  return `${hour}:${minute}`;
+}
+
 export function formatTehranMonthShort(
   value: DateInput,
   locale: string | undefined = APP_JALALI_LOCALE,

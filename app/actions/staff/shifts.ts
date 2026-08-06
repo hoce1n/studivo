@@ -20,10 +20,24 @@ const shiftSchema = z.object({
 
 const updateShiftSchema = z.object({
   shiftId: z.string().cuid("شناسه شیفت معتبر نیست."),
-  startsAt: z.coerce.date().optional(),
-  endsAt: z.coerce.date().optional(),
+  date: z.string().min(1, "تاریخ الزامی است."),
+  startTime: z.string().min(1, "ساعت شروع الزامی است."),
+  endTime: z.string().min(1, "ساعت پایان الزامی است."),
   note: z.string().optional(),
 });
+
+function buildShiftTimes(date: string, startTime: string, endTime: string) {
+  const normalizedDate = date.includes("T") ? date.split("T")[0] : date;
+  const startsAt = new Date(`${normalizedDate}T${startTime}:00+03:30`);
+  const endsAt = new Date(`${normalizedDate}T${endTime}:00+03:30`);
+
+  // Overnight shift (e.g. 22:00 → 02:00)
+  if (endsAt <= startsAt) {
+    endsAt.setTime(endsAt.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  return { startsAt, endsAt };
+}
 
 function revalidateStaffPaths() {
   revalidateOperationalPaths();
@@ -53,15 +67,7 @@ export async function createShift(formData: FormData): Promise<ActionResult> {
   }
 
   const { staffAssignmentId, date, startTime, endTime, note } = parsed.data;
-  const normalizedDate = date.includes("T") ? date.split("T")[0] : date;
-
-  const startsAt: Date = new Date(`${normalizedDate}T${startTime}:00+03:30`);
-  const endsAt: Date = new Date(`${normalizedDate}T${endTime}:00+03:30`);
-
-  // If endsAt is before startsAt, assume it's the next day (e.g. 22:00 to 02:00)
-  if (endsAt <= startsAt) {
-    endsAt.setTime(endsAt.getTime() + 24 * 60 * 60 * 1000);
-  }
+  const { startsAt, endsAt } = buildShiftTimes(date, startTime, endTime);
 
   // Prevent far past shifts (e.g., more than 30 days ago)
   const thirtyDaysAgo = new Date();
@@ -125,22 +131,30 @@ export async function createShift(formData: FormData): Promise<ActionResult> {
 }
 
 /**
- * Updates an existing shift.
+ * Updates an existing shift (date / hours / note).
+ * STAFF may only edit their own shifts; OWNER may edit any hall shift.
  */
-export async function updateShift(
-  shiftId: string,
-  data: z.infer<typeof updateShiftSchema>,
-): Promise<ActionResult> {
+export async function updateShift(formData: FormData): Promise<ActionResult> {
   const user = await requireScopedUser();
   const { studyHallId } = user;
 
-  const parsed = updateShiftSchema.safeParse({ ...data, shiftId });
+  const parsed = updateShiftSchema.safeParse({
+    shiftId: formData.get("shiftId"),
+    date: formData.get("date"),
+    startTime: formData.get("startTime"),
+    endTime: formData.get("endTime"),
+    note: formData.get("note")?.toString() || undefined,
+  });
+
   if (!parsed.success) {
     return {
       success: false,
       error: parsed.error.issues[0]?.message ?? "اطلاعات ورودی معتبر نیست.",
     };
   }
+
+  const { shiftId, date, startTime, endTime, note } = parsed.data;
+  const { startsAt, endsAt } = buildShiftTimes(date, startTime, endTime);
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -157,24 +171,16 @@ export async function updateShift(
         throw new Error("شیفت مورد نظر یافت نشد.");
       }
 
-      // Authorization: STAFF can only update their own shifts
       if (user.role === "STAFF" && shift.staffAssignment.userId !== user.id) {
         throw new Error("شما مجاز به ویرایش شیفت همکاران دیگر نیستید.");
-      }
-
-      const updatedStartsAt = parsed.data.startsAt ?? shift.startsAt;
-      const updatedEndsAt = parsed.data.endsAt ?? shift.endsAt;
-
-      if (updatedStartsAt >= updatedEndsAt) {
-        throw new Error("زمان شروع باید قبل از زمان پایان باشد.");
       }
 
       await tx.shift.update({
         where: { id: shiftId },
         data: {
-          startsAt: parsed.data.startsAt,
-          endsAt: parsed.data.endsAt,
-          note: parsed.data.note,
+          startsAt,
+          endsAt,
+          note: note ?? null,
         },
       });
 
@@ -189,7 +195,11 @@ export async function updateShift(
             actionType: "UPDATE_SHIFT",
             operatorName: user.name,
             targetUserName: shift.staffAssignment.user.name,
-            changes: parsed.data,
+            previousStartsAt: shift.startsAt,
+            previousEndsAt: shift.endsAt,
+            startsAt,
+            endsAt,
+            note: note ?? null,
           },
         },
       });

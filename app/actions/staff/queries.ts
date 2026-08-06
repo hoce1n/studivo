@@ -50,17 +50,8 @@ export async function getShifts(filters: {
     where.staffAssignmentId = filters.staffAssignmentId;
   }
 
-  // If user is STAFF, they can only see their own shifts unless OWNER
-  if (user.role === "STAFF") {
-    const currentAssignment = await prisma.staffAssignment.findFirst({
-      where: { userId: user.id, studyHallId, isActive: true },
-      select: { id: true },
-    });
-
-    if (currentAssignment) {
-      where.staffAssignmentId = currentAssignment.id;
-    }
-  }
+  // All hall staff can view every colleague's shifts (for mutual accountability).
+  // Create/update of others' shifts remains restricted in shift mutations.
 
   if (filters.startDate || filters.endDate) {
     where.startsAt = {};
