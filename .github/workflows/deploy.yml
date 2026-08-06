@@ -38,4 +38,4 @@ jobs:
 
             pnpm build
 
-            pm2 restart minimal-saas
+            pm2 restart studivo
