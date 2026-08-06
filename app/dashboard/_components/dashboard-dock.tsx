@@ -29,7 +29,7 @@ const staffDockLinks = [
   { href: "/dashboard/profile", label: "پروفایل", icon: UserCircle },
 ] as const;
 
-export function MarketingDock({ userRole }: { userRole: HallRole }) {
+export function DashboardDock({ userRole }: { userRole: HallRole }) {
   const router = useRouter();
   const dockLinks = userRole === "OWNER" ? ownerDockLinks : staffDockLinks;
 

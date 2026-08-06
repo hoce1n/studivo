@@ -1,4 +1,4 @@
-import { MarketingDock } from "@/app/dashboard/_components/dashboard-dock";
+import { MarketingDock } from "@/app/(marketing)/_components/marketing-dock";
 import { getSession } from "@/lib/server";
 import { redirect } from "next/navigation";
 
