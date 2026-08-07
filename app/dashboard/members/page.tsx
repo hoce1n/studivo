@@ -39,7 +39,17 @@ export default async function MembersPage({
     studyHallId,
     ...(filter === "active"
       ? { status: "ACTIVE" as const }
-      : { status: { not: "ACTIVE" as const } }),
+      : {
+          status: { not: "ACTIVE" as const },
+          user: {
+            memberships: {
+              none: {
+                studyHallId,
+                status: "ACTIVE" as const,
+              },
+            },
+          },
+        }),
   };
 
   const [memberships, selectedMember] = await Promise.all([
