@@ -80,10 +80,21 @@ export async function releaseSeat(
         assignment.membership.status === "ACTIVE" ||
         assignment.membership.status === "PENDING"
       ) {
-        await tx.membership.update({
-          where: { id: assignment.membershipId },
-          data: { status: "CANCELLED" },
+        // Only cancel membership if no other active assignments exist
+        const otherActive = await tx.seatAssignment.findFirst({
+          where: {
+            id: { not: assignment.id },
+            membershipId: assignment.membershipId,
+            endsAt: null,
+          },
         });
+
+        if (!otherActive) {
+          await tx.membership.update({
+            where: { id: assignment.membershipId },
+            data: { status: "CANCELLED" },
+          });
+        }
       }
 
       await tx.auditLog.create({

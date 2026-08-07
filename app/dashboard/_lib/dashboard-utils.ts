@@ -47,18 +47,24 @@ export function isOccupyingAssignment(assignment: {
 
   const assignmentEnd = toTime(assignment.endsAt);
   const membershipEnd = toTime(assignment.membership.endsAt);
-  
+
   if (assignmentEnd == null || membershipEnd == null) return false;
 
   /**
    * Legacy check:
    * Migrated rows from V1 were created with assignment.endsAt === membership.endsAt.
    * If a seat is swapped or released, we set assignment.endsAt = now.
-   * Since now is always < membership.endsAt (for active memberships),
-   * exact equality is the only reliable way to identify legacy "current" rows
-   * without capturing historical records that were closed early.
+   *
+   * CRITICAL FIX: The legacy equality check must ONLY apply if the membership
+   * is still ACTIVE or PENDING. If a membership is EXPIRED, old legacy rows
+   * should not be considered "occupying" if a newer (now closed) assignment exists.
    */
-  return assignmentEnd === membershipEnd;
+  const isLegacyActive =
+    assignmentEnd === membershipEnd &&
+    (assignment.membership.status === "ACTIVE" ||
+      assignment.membership.status === "PENDING");
+
+  return isLegacyActive;
 }
 
 export function getActiveAssignment<T extends AssignmentLike>(
@@ -66,13 +72,18 @@ export function getActiveAssignment<T extends AssignmentLike>(
 ): T | undefined {
   if (!assignments?.length) return undefined;
 
-  const candidates = assignments.filter((assignment) =>
-    isOccupyingAssignment(assignment)
-  );
-  if (!candidates.length) return undefined;
+  /**
+   * CRITICAL FIX: We should only ever consider the MOST RECENT assignment
+   * for occupancy. If the latest assignment is closed (e.g. via swap or release),
+   * the seat is vacant. We must not fall back to older legacy assignments
+   * in the history that might happen to satisfy the equality check.
+   */
+  const latest = assignments[0];
+  if (isOccupyingAssignment(latest)) {
+    return latest;
+  }
 
-  const open = candidates.find((assignment) => assignment.endsAt == null);
-  return open ?? candidates[0];
+  return undefined;
 }
 
 export function getSeatStatus(
