@@ -330,10 +330,13 @@ model SeatAssignment {
   @@index([seatId])
   @@index([startsAt])
   @@index([endsAt])
-  // Prevent multiple active assignments for the same membership
-  // Note: This only works for null endsAt. Overlapping assignments with future endsAt
-  // still need application-level checks or a complex trigger.
-  @@unique([membershipId, endsAt])
+  // NOTE: the real "no double-booking" guarantee is NOT expressed here.
+  // Prisma schema syntax can't declare partial unique indexes, so it lives
+  // as raw SQL in migration `20260807120000_add_partial_unique_indexes`:
+  //   - UNIQUE (seat_id)       WHERE ends_at IS NULL  (one open assignment per seat)
+  //   - UNIQUE (membership_id) WHERE ends_at IS NULL  (one open assignment per membership)
+  // Do NOT add `@@unique([membershipId, endsAt])` back — it's broken under
+  // Postgres NULL-distinct semantics (multiple NULLs are allowed to repeat).
   @@map("seat_assignments")
 }
 
